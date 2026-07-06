@@ -18,7 +18,7 @@ export default function OwnerStaffPage() {
   const [showForm, setShowForm] = useState(false);
   const [unlinkTarget, setUnlinkTarget] = useState<UserDto | null>(null);
   const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("Password123!");
+  const [password, setPassword] = useState("");
   const [givenName, setGivenName] = useState("");
   const [familyName, setFamilyName] = useState("");
   const [role, setRole] = useState<"secretaria" | "medico" | "dueno">("secretaria");
@@ -66,10 +66,10 @@ export default function OwnerStaffPage() {
             createMutation.mutate({ email, password, givenName, familyName, role });
           }}
         >
-          <Input label="Nombre" value={givenName} onChange={(e) => setGivenName(e.target.value)} required />
-          <Input label="Apellido" value={familyName} onChange={(e) => setFamilyName(e.target.value)} required />
-          <Input label="Email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
-          <Input label="Contraseña" type="password" value={password} onChange={(e) => setPassword(e.target.value)} required />
+          <Input label="Nombre" placeholder="Ingrese su nombre" value={givenName} onChange={(e) => setGivenName(e.target.value)} required />
+          <Input label="Apellido" placeholder="Ingrese su apellido" value={familyName} onChange={(e) => setFamilyName(e.target.value)} required />
+          <Input label="Email" type="email" placeholder="Ingrese su email" value={email} onChange={(e) => setEmail(e.target.value)} required />
+          <Input label="Contraseña" type="password" placeholder="Ingrese su contraseña" value={password} onChange={(e) => setPassword(e.target.value)} required />
           <Select
             label="Rol"
             value={role}

@@ -1,8 +1,10 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
+import { AuthErrorBanner } from "@/components/auth/AuthErrorBanner";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
+import { useLoginErrorFeedback } from "@/hooks/useLoginErrorFeedback";
 import { ApiError } from "@/lib/api";
 import { ROLE_HOME } from "@/lib/utils";
 
@@ -11,22 +13,28 @@ export default function LoginPage() {
   const navigate = useNavigate();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const { inputPulse, showMessage, message, triggerError, clearError } = useLoginErrorFeedback();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError("");
+    clearError();
     setLoading(true);
     try {
       const user = await login(email, password);
       if (user.role === "paciente") {
-        setError("Use el portal de pacientes para este acceso");
+        triggerError("Use el portal de pacientes para este acceso");
         return;
       }
       navigate(ROLE_HOME[user.role]);
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Error al iniciar sesión");
+      triggerError(
+        err instanceof ApiError && err.code === "INVALID_CREDENTIALS"
+          ? "Credenciales inválidas"
+          : err instanceof ApiError
+            ? err.message
+            : "Credenciales inválidas",
+      );
     } finally {
       setLoading(false);
     }
@@ -48,6 +56,7 @@ export default function LoginPage() {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               placeholder="Ingrese su email"
+              errorPulse={inputPulse}
               required
             />
             <Input
@@ -57,13 +66,10 @@ export default function LoginPage() {
               placeholder="Ingrese su contraseña"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
+              errorPulse={inputPulse}
               required
             />
-            {error && (
-              <p className="text-sm text-red-600" role="alert">
-                {error}
-              </p>
-            )}
+            <AuthErrorBanner message={message} visible={showMessage} />
             <Button type="submit" className="w-full cursor-pointer" loading={loading}>
               Acceder al portal
             </Button>

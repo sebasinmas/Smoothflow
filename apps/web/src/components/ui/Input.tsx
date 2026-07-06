@@ -20,6 +20,7 @@ type LucideIcon = ComponentType<LucideProps>;
 interface InputProps extends InputHTMLAttributes<HTMLInputElement> {
   label: string;
   error?: string;
+  errorPulse?: boolean;
   icon?: LucideIcon | null;
 }
 
@@ -39,7 +40,7 @@ function getDefaultIcon(type?: string, label?: string): LucideIcon | undefined {
 }
 
 export const Input = forwardRef<HTMLInputElement, InputProps>(
-  ({ label, error, id, className = "", type, icon, ...props }, ref) => {
+  ({ label, error, errorPulse, id, className = "", type, icon, ...props }, ref) => {
     const inputId = id ?? label.toLowerCase().replace(/\s+/g, "-");
     const isPassword = type === "password";
     const [visible, setVisible] = useState(false);
@@ -67,8 +68,8 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
             aria-invalid={!!error}
             aria-describedby={error ? `${inputId}-error` : undefined}
             className={`h-12 w-full rounded border border-border bg-white text-sm text-text transition-colors duration-200 placeholder:text-text-muted hover:border-brand/40 focus-visible:border-brand ${
-              hasStartIcon ? "pl-10" : "px-3"
-            } ${hasToggle ? "pr-10" : hasStartIcon ? "pr-3" : ""} ${className}`}
+              errorPulse ? "login-input-error" : ""
+            } ${hasStartIcon ? "pl-10" : "px-3"} ${hasToggle ? "pr-10" : hasStartIcon ? "pr-3" : ""} ${className}`}
             {...props}
           />
           {hasToggle && (
@@ -79,7 +80,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
               aria-label={visible ? "Ocultar contraseña" : "Mostrar contraseña"}
               tabIndex={-1}
             >
-              {visible ? (
+              {!visible ? (
                 <EyeOff className="size-[18px]" aria-hidden="true" />
               ) : (
                 <Eye className="size-[18px]" aria-hidden="true" />
