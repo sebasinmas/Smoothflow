@@ -50,6 +50,10 @@ async function assertNoConflict(
   endAt: Date,
   excludeId?: string,
 ) {
+  if (startAt.getTime() < Date.now()) {
+    throw new AppError("No se puede agendar ni solicitar citas en el pasado.", 400);
+  }
+
   const conditions = [
     eq(appointments.clinicId, clinicId),
     eq(appointments.practitionerId, practitionerId),
@@ -486,5 +490,8 @@ export async function getAvailability(
     }
   }
 
-  return allSlots.sort((a, b) => a.startAt.localeCompare(b.startAt));
+  const now = Date.now();
+  const validSlots = allSlots.filter((s) => new Date(s.startAt).getTime() > now);
+
+  return validSlots.sort((a, b) => a.startAt.localeCompare(b.startAt));
 }
