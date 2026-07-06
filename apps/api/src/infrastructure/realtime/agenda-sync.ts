@@ -1,5 +1,5 @@
 import * as Y from "yjs";
-import type { AppointmentDto } from "@smoothflow/shared";
+import type { AgendaEvent } from "../../domain/ports/agenda-sync.port.js";
 
 const clinicDocs = new Map<string, Y.Doc>();
 const revokedListeners = new Map<string, Set<(userId: string) => void>>();
@@ -12,12 +12,6 @@ export function getClinicDoc(clinicId: string): Y.Doc {
   }
   return doc;
 }
-
-export type AgendaEvent =
-  | { type: "appointment:created"; appointment: AppointmentDto }
-  | { type: "appointment:updated"; appointment: AppointmentDto }
-  | { type: "appointment:blocked"; appointment: AppointmentDto }
-  | { type: "session:revoked"; userId: string };
 
 export function broadcastAgendaUpdate(clinicId: string, event: AgendaEvent): void {
   const doc = getClinicDoc(clinicId);

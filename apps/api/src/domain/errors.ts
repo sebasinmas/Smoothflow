@@ -1,5 +1,7 @@
-import type { SessionUser } from "@smoothflow/shared";
-
+/**
+ * Error de aplicación con código HTTP para mapeo en el adaptador HTTP.
+ * Los errores de negocio puros viven en domain/scheduling y domain/staff-rules.
+ */
 export class AppError extends Error {
   constructor(
     message: string,
@@ -9,24 +11,4 @@ export class AppError extends Error {
     super(message);
     this.name = "AppError";
   }
-}
-
-export function toSessionUser(row: {
-  id: string;
-  email: string;
-  role: SessionUser["role"];
-  clinicId: string | null;
-  givenName: string;
-  familyName: string;
-  active: boolean;
-}): SessionUser {
-  return {
-    id: row.id,
-    email: row.email,
-    role: row.role,
-    clinicId: row.clinicId,
-    givenName: row.givenName,
-    familyName: row.familyName,
-    active: row.active,
-  };
 }

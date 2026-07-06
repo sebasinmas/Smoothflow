@@ -21,9 +21,10 @@ import {
   appointments,
 } from "../infrastructure/db/schema.js";
 import { AppError } from "../domain/errors.js";
+import { canUnlinkStaff } from "../domain/staff-rules.js";
 import { hashPassword, unlinkUser } from "../infrastructure/auth/password.js";
 import { writeAuditLog } from "../infrastructure/audit/audit-logger.js";
-import { broadcastSessionRevoked } from "../adapters/ws/agenda-sync.js";
+import { agendaSyncPort } from "../infrastructure/realtime/agenda-sync.port-impl.js";
 
 function requireClinic(user: SessionUser): string {
   if (!user.clinicId) throw new AppError("Clínica no asignada", 400);
@@ -150,10 +151,10 @@ export async function unlinkStaff(user: SessionUser, staffId: string, ip: string
   const clinicId = requireClinic(user);
   const [existing] = await db.select().from(users).where(eq(users.id, staffId)).limit(1);
   if (!existing || existing.clinicId !== clinicId) throw new AppError("Usuario no encontrado", 404);
-  if (existing.role === "dueno") throw new AppError("No se puede desvincular al dueño", 400);
+  if (!canUnlinkStaff(existing.role)) throw new AppError("No se puede desvincular al dueño", 400);
 
   await unlinkUser(staffId);
-  broadcastSessionRevoked(staffId);
+  agendaSyncPort.broadcastSessionRevoked(staffId);
 
   await writeAuditLog({
     clinicId,

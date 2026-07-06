@@ -18,9 +18,14 @@ import {
   scheduleTemplates,
 } from "../infrastructure/db/schema.js";
 import { AppError } from "../domain/errors.js";
+import {
+  findBookingConflict,
+  hasAppointmentsBlockingRange,
+} from "../domain/scheduling/appointment-rules.js";
+import { generateSlotsFromTemplate } from "../domain/scheduling/slot-generator.js";
 import { writeAuditLog } from "../infrastructure/audit/audit-logger.js";
 import { sendAppointmentConfirmation } from "../infrastructure/email/email-service.js";
-import { broadcastAgendaUpdate } from "../adapters/ws/agenda-sync.js";
+import { agendaSyncPort } from "../infrastructure/realtime/agenda-sync.port-impl.js";
 
 function toAppointmentDto(
   row: typeof appointments.$inferSelect,
@@ -49,18 +54,20 @@ async function assertNoConflict(
   endAt: Date,
   excludeId?: string,
 ) {
-  const conditions = [
-    eq(appointments.clinicId, clinicId),
-    eq(appointments.practitionerId, practitionerId),
-    ne(appointments.status, "cancelado"),
-    lte(appointments.startAt, endAt),
-    gte(appointments.endAt, startAt),
-  ];
   const rows = await db
     .select()
     .from(appointments)
-    .where(and(...conditions));
-  const conflict = rows.find((r) => r.id !== excludeId && r.status !== "disponible");
+    .where(
+      and(
+        eq(appointments.clinicId, clinicId),
+        eq(appointments.practitionerId, practitionerId),
+        ne(appointments.status, "cancelado"),
+        lte(appointments.startAt, endAt),
+        gte(appointments.endAt, startAt),
+      ),
+    );
+
+  const conflict = findBookingConflict(rows, startAt, endAt, excludeId);
   if (conflict) {
     throw new AppError("El horario ya está ocupado o bloqueado", 409, "DOUBLE_BOOKING");
   }
@@ -192,7 +199,7 @@ async function createAppointmentForClinic(
   }
 
   const dto = toAppointmentDto(created);
-  broadcastAgendaUpdate(clinicId, { type: "appointment:created", appointment: dto });
+  agendaSyncPort.broadcastUpdate(clinicId, { type: "appointment:created", appointment: dto });
   return dto;
 }
 
@@ -262,7 +269,7 @@ export async function updateAppointment(
   }
 
   const dto = toAppointmentDto(updated);
-  broadcastAgendaUpdate(existing.clinicId, { type: "appointment:updated", appointment: dto });
+  agendaSyncPort.broadcastUpdate(existing.clinicId, { type: "appointment:updated", appointment: dto });
   return dto;
 }
 
@@ -285,7 +292,7 @@ async function assertNoConfirmedAppointmentsInBlockRange(
       ),
     );
 
-  if (rows.length > 0) {
+  if (hasAppointmentsBlockingRange(rows, startAt, endAt)) {
     throw new AppError(
       "Existen citas confirmadas en el rango seleccionado. Gestiónelas antes de bloquear.",
       409,
@@ -333,65 +340,13 @@ export async function createBlock(
   });
 
   const dto = toAppointmentDto(created);
-  broadcastAgendaUpdate(user.clinicId, { type: "appointment:blocked", appointment: dto });
+  agendaSyncPort.broadcastUpdate(user.clinicId, { type: "appointment:blocked", appointment: dto });
   return dto;
 }
 
 type BookedAppointment = typeof appointments.$inferSelect & {
   patientName?: string;
 };
-
-function generateSlotsFromTemplate(
-  template: typeof scheduleTemplates.$inferSelect,
-  from: Date,
-  to: Date,
-  practitioner: typeof practitioners.$inferSelect & { specialtyName: string },
-  booked: BookedAppointment[],
-): AvailabilitySlotDto[] {
-  const slots: AvailabilitySlotDto[] = [];
-  const cursor = new Date(from);
-  while (cursor <= to) {
-    if (cursor.getDay() === template.dayOfWeek) {
-      const [sh, sm] = template.startTime.split(":").map(Number);
-      const [eh, em] = template.endTime.split(":").map(Number);
-      let slotStart = new Date(cursor);
-      slotStart.setHours(sh, sm, 0, 0);
-      const dayEnd = new Date(cursor);
-      dayEnd.setHours(eh, em, 0, 0);
-      while (slotStart < dayEnd) {
-        const slotEnd = new Date(slotStart.getTime() + template.slotDurationMinutes * 60000);
-        if (slotEnd <= dayEnd && slotStart >= from && slotStart <= to) {
-          const overlap = booked.find(
-            (b) =>
-              b.status !== "cancelado" &&
-              b.startAt < slotEnd &&
-              b.endAt > slotStart,
-          );
-          let status: AvailabilitySlotDto["status"] = "disponible";
-          if (overlap) {
-            status = overlap.status === "bloqueado" ? "bloqueado" : "reservado";
-          }
-          slots.push({
-            startAt: slotStart.toISOString(),
-            endAt: slotEnd.toISOString(),
-            status,
-            appointmentId: overlap?.id,
-            practitionerId: practitioner.id,
-            practitionerName: `${practitioner.givenName} ${practitioner.familyName}`,
-            specialtyId: practitioner.specialtyId,
-            specialtyName: practitioner.specialtyName,
-            patientName: overlap?.patientName,
-            blockReason:
-              overlap?.status === "bloqueado" ? (overlap.notes ?? undefined) : undefined,
-          });
-        }
-        slotStart = slotEnd;
-      }
-    }
-    cursor.setDate(cursor.getDate() + 1);
-  }
-  return slots;
-}
 
 export async function getAvailability(
   clinicId: string,

@@ -1,9 +1,7 @@
 import type { Request, Response, NextFunction } from "express";
 import type { Role, SessionUser } from "@smoothflow/shared";
-import { eq } from "drizzle-orm";
-import { db } from "../../../infrastructure/db/client.js";
-import { users } from "../../../infrastructure/db/schema.js";
-import { AppError, toSessionUser } from "../../../domain/errors.js";
+import { AppError } from "../../../domain/errors.js";
+import { getUserById } from "../../../use-cases/auth.js";
 
 export interface AuthenticatedRequest extends Request {
   user: SessionUser;
@@ -11,9 +9,7 @@ export interface AuthenticatedRequest extends Request {
 
 export async function loadSessionUser(req: Request): Promise<SessionUser | null> {
   if (!req.session.userId) return null;
-  const [row] = await db.select().from(users).where(eq(users.id, req.session.userId)).limit(1);
-  if (!row || !row.active || row.revokedAt) return null;
-  return toSessionUser(row);
+  return getUserById(req.session.userId);
 }
 
 export function requireAuth(roles?: Role[]) {
