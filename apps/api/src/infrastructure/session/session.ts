@@ -1,19 +1,12 @@
 import session from "express-session";
-import connectPgSimple from "connect-pg-simple";
-import { pool } from "../db/client.js";
-
-const PgSession = connectPgSimple(session);
+import { SESSION_SECRET, sessionStore } from "./session-store.js";
 
 export function createSessionMiddleware() {
   const isProd = process.env.NODE_ENV === "production";
   return session({
-    store: new PgSession({
-      pool,
-      tableName: "session",
-      createTableIfMissing: true,
-    }),
+    store: sessionStore,
     name: "smoothflow.sid",
-    secret: process.env.SESSION_SECRET ?? "dev-session-secret-change-me",
+    secret: SESSION_SECRET,
     resave: false,
     saveUninitialized: false,
     cookie: {

@@ -1,8 +1,11 @@
 import { NavLink, useNavigate } from "react-router-dom";
+import { LogOut } from "lucide-react";
 import type { Role } from "@smoothflow/shared";
 import { ROLE_LABELS } from "@smoothflow/shared";
 import { useAuth } from "@/contexts/AuthContext";
+import { useSidebar } from "@/contexts/SidebarContext";
 import { Button } from "@/components/ui/Button";
+import { getNavIcon } from "@/lib/navigation";
 import { formatPersonName } from "@/lib/utils";
 
 export interface NavItem {
@@ -18,7 +21,10 @@ interface SideNavProps {
 
 export function SideNav({ role, items, primaryAction }: SideNavProps) {
   const { user, logout } = useAuth();
+  const { collapsed, mobileOpen, isMobile, closeMobile } = useSidebar();
   const navigate = useNavigate();
+
+  const isExpanded = isMobile ? mobileOpen : !collapsed;
 
   const handleLogout = async () => {
     await logout();
@@ -26,64 +32,119 @@ export function SideNav({ role, items, primaryAction }: SideNavProps) {
   };
 
   return (
-    <nav
-      aria-label="Navegación principal"
-      className="flex h-full w-60 shrink-0 flex-col border-r border-border bg-white px-4 py-6"
-    >
-      <div className="mb-6 flex items-center gap-2">
-        <div
-          className="flex h-8 w-8 items-center justify-center rounded bg-brand text-sm font-bold text-white"
-          aria-hidden="true"
-        >
-          SF
-        </div>
-        <div>
-          <p className="text-xl font-bold text-brand">Smooth Flow</p>
-          {user && (
-            <p className="text-sm text-text-muted">{ROLE_LABELS[role]}</p>
-          )}
-        </div>
-      </div>
-
-      {primaryAction && (
-        <Button className="mb-6 w-full" onClick={primaryAction.onClick}>
-          {primaryAction.label}
-        </Button>
-      )}
-
-      <ul className="flex flex-1 flex-col gap-1">
-        {items.map((item) => (
-          <li key={item.to}>
-            <NavLink
-              to={item.to}
-              className={({ isActive }) =>
-                `block rounded px-4 py-2 text-sm transition-colors ${
-                  isActive
-                    ? "border-r-3 border-brand bg-surface-muted font-medium text-brand"
-                    : "text-text hover:bg-surface-muted"
-                }`
-              }
-            >
-              {item.label}
-            </NavLink>
-          </li>
-        ))}
-      </ul>
-
-      <div className="mt-auto border-t border-border pt-4">
-        {user && (
-          <p className="mb-2 truncate px-2 text-xs text-text-muted">
-            {formatPersonName(user.givenName, user.familyName)}
-          </p>
-        )}
+    <>
+      {isMobile && mobileOpen && (
         <button
           type="button"
-          onClick={handleLogout}
-          className="w-full rounded px-4 py-2 text-left text-sm text-text hover:bg-surface-muted"
+          aria-label="Cerrar menú"
+          className="fixed inset-0 z-30 bg-black/40 backdrop-blur-[2px] transition-opacity duration-300 animate-in fade-in md:hidden"
+          onClick={closeMobile}
+        />
+      )}
+
+      <nav
+        aria-label="Navegación principal"
+        className={`fixed inset-y-0 left-0 z-40 flex h-screen flex-col border-r border-border bg-white shadow-sm transition-[width,transform] duration-300 ease-in-out md:relative md:translate-x-0 md:shadow-none ${
+          isExpanded ? "w-60" : "w-18"
+        } ${isMobile && !mobileOpen ? "-translate-x-full" : "translate-x-0"}`}
+      >
+        <div
+          className={`flex shrink-0 items-center gap-3 border-b border-border px-4 py-5 ${
+            isExpanded ? "" : "justify-center px-0"
+          }`}
         >
-          Cerrar sesión
-        </button>
-      </div>
-    </nav>
+          <div
+            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-brand text-sm font-bold text-white shadow-sm"
+            aria-hidden="true"
+          >
+            SF
+          </div>
+          <div
+            className={`min-w-0 overflow-hidden transition-all duration-300 ${
+              isExpanded ? "w-auto opacity-100" : "w-0 opacity-0"
+            }`}
+          >
+            <p className="truncate text-lg font-bold text-brand">Smooth Flow</p>
+            {user && (
+              <p className="truncate text-xs text-text-muted">{ROLE_LABELS[role]}</p>
+            )}
+          </div>
+        </div>
+
+        <div className="flex min-h-0 flex-1 flex-col overflow-y-auto px-3 py-4">
+          {primaryAction && (
+            <Button
+              className={`mb-4 transition-all duration-300 ${isExpanded ? "w-full" : "w-full px-0"}`}
+              onClick={primaryAction.onClick}
+              title={!isExpanded ? primaryAction.label : undefined}
+            >
+              {isExpanded ? primaryAction.label : "+"}
+            </Button>
+          )}
+
+          <ul className="flex flex-1 flex-col gap-1">
+            {items.map((item) => {
+              const Icon = getNavIcon(item.to);
+              return (
+                <li key={item.to}>
+                  <NavLink
+                    to={item.to}
+                    onClick={closeMobile}
+                    title={!isExpanded ? item.label : undefined}
+                    className={({ isActive }) =>
+                      `group flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition-all duration-200 ${
+                        isActive
+                          ? "bg-brand/10 font-medium text-brand shadow-sm"
+                          : "text-text hover:bg-surface-muted hover:translate-x-0.5"
+                      } ${isExpanded ? "" : "justify-center px-2"}`
+                    }
+                  >
+                    <Icon
+                      className="size-[18px] shrink-0 transition-transform duration-200 group-hover:scale-110"
+                      aria-hidden="true"
+                    />
+                    <span
+                      className={`truncate transition-all duration-300 ${
+                        isExpanded ? "w-auto opacity-100" : "w-0 overflow-hidden opacity-0"
+                      }`}
+                    >
+                      {item.label}
+                    </span>
+                  </NavLink>
+                </li>
+              );
+            })}
+          </ul>
+        </div>
+
+        <div className="shrink-0 border-t border-border px-3 py-4">
+          {user && isExpanded && (
+            <p className="mb-2 truncate px-2 text-xs text-text-muted">
+              {formatPersonName(user.givenName, user.familyName)}
+            </p>
+          )}
+          <button
+            type="button"
+            onClick={handleLogout}
+            title={!isExpanded ? "Cerrar sesión" : undefined}
+            className={`group flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm text-text transition-all duration-200 hover:bg-red-50 hover:text-red-600 ${
+              isExpanded ? "" : "justify-center px-2"
+            }`}
+          >
+            <LogOut
+              className="size-[18px] shrink-0 transition-transform duration-200 group-hover:scale-110"
+              aria-hidden="true"
+            />
+            <span
+              className={`truncate transition-all duration-300 ${
+                isExpanded ? "w-auto opacity-100" : "w-0 overflow-hidden opacity-0"
+              }`}
+            >
+              Cerrar sesión
+            </span>
+          </button>
+        </div>
+      </nav>
+    </>
   );
 }

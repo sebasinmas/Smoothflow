@@ -2,15 +2,10 @@ import { WebSocketServer, type WebSocket } from "ws";
 import type { Server } from "node:http";
 import * as Y from "yjs";
 import { unsign } from "cookie-signature";
-import connectPgSimple from "connect-pg-simple";
 import session from "express-session";
 import { getClinicDoc, onSessionRevoked } from "./agenda-sync.js";
 import { getUserById } from "../../use-cases/auth.js";
-import { pool } from "../../infrastructure/db/client.js";
-
-const PgSession = connectPgSimple(session);
-const sessionStore = new PgSession({ pool, tableName: "session", createTableIfMissing: true });
-const SESSION_SECRET = process.env.SESSION_SECRET ?? "dev-session-secret-change-me";
+import { SESSION_SECRET, sessionStore } from "../../infrastructure/session/session-store.js";
 
 interface WsClient {
   ws: WebSocket;
@@ -39,6 +34,15 @@ function getSessionId(cookieHeader: string | undefined): string | null {
   return typeof unsigned === "string" ? unsigned : null;
 }
 
+function getSessionData(sessionId: string): Promise<session.SessionData | null | undefined> {
+  return new Promise((resolve, reject) => {
+    sessionStore.get(sessionId, (err, data) => {
+      if (err) reject(err);
+      else resolve(data);
+    });
+  });
+}
+
 export function closeUserConnections(userId: string): void {
   const conns = userConnections.get(userId);
   if (!conns) return;
@@ -61,13 +65,7 @@ export function setupWebSocketServer(server: Server): WebSocketServer {
           return;
         }
 
-        const sess = await new Promise<session.SessionData | null | undefined>((resolve, reject) => {
-          sessionStore.get(sessionId, (err, data) => {
-            if (err) reject(err);
-            else resolve(data);
-          });
-        });
-
+        const sess = await getSessionData(sessionId);
         const userId = sess?.userId;
         if (!userId) {
           ws.close(4001, "unauthorized");
@@ -108,8 +106,17 @@ export function setupWebSocketServer(server: Server): WebSocketServer {
         if (!userConnections.has(userId)) userConnections.set(userId, new Set());
         userConnections.get(userId)!.add(ws);
 
-        ws.send(Y.encodeStateAsUpdate(doc));
-      } catch {
+        if (ws.readyState === ws.OPEN) {
+          ws.send(Y.encodeStateAsUpdate(doc));
+        }
+
+        if (process.env.NODE_ENV !== "production") {
+          console.log(`[ws] connected user=${userId} clinic=${user.clinicId}`);
+        }
+      } catch (err) {
+        if (process.env.NODE_ENV !== "production") {
+          console.error("[ws] connection error:", err);
+        }
         ws.close(1011, "error");
       }
     })();

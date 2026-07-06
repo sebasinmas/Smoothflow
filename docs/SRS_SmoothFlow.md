@@ -17,7 +17,7 @@ Cristopher Bastián Gallegos Jiménez
 
 Versión 1.0 (Final)  |  03 de julio de 2026
 
-Control de Versiones
+Control de Versiones
 
 Versión
 
@@ -89,7 +89,7 @@ BPMN del proceso de agendamiento. Integración de comentarios
 de revisión anteriores y consolidación de la versión final del
 documento conforme a IEEE 830-1998.
 
-Tabla de Contenidos
+Tabla de Contenidos
 
 1.0  Introducción
 
@@ -111,7 +111,7 @@ Diseño · 3.5 Atributos del Sistema de Software · 3.6 Otros Requisitos
        Anexo A: Diagrama y Documentación de Casos de Uso · Anexo B: Indicadores de Cumplimiento de NFR (ISO/IEC 9126 ·
 Sommerville) · Anexo C: Diseño de Interfaces Gráficas · Anexo D: Diagrama BPMN del Proceso de Agendamiento
 
-1.0  Introducción
+1.0  Introducción
 
 Este  documento  describe  la  Especificación  de  Requisitos  de  Software  (SRS)  del  sistema  Smooth  Flow,
 elaborada conforme al estándar IEEE 830-1998 [REF-01]. Su propósito es especificar los requisitos funcionales
@@ -166,7 +166,7 @@ basadas en el protocolo WebSocket (RFC 6455).
 
 gestionada por las secretarías y la agenda visible por los médicos de turno.
 
-●  Proveer a los pacientes un canal de autogestión remota de sus citas, disponible las 24 horas del día.
+●  Proveer a los pacientes un canal de autogestión remota de sus citas, disponible las 24 horas del día.
 
 El  sistema  no  incluye  en  su  alcance  inicial:  módulos  de facturación, gestión de fichas clínicas, teleconsulta,
 prescripción  electrónica  ni  integración  directa  con  sistemas de salud pública. La integración con estándares
@@ -263,7 +263,7 @@ sistema, sin necesidad de recargar la página.
 Capacidad del sistema para recibir y gestionar solicitudes de citas a través de múltiples
 canales (web, móvil) de forma unificada.
 
-Término / Acrónimo
+Término / Acrónimo
 
 Definición
 
@@ -380,7 +380,7 @@ actualizaciones en tiempo real.
 
 Requisito Técnico
 
-ID
+ID
 
 Título / Fuente
 
@@ -467,7 +467,7 @@ que se utilizan a lo largo de todo el documento.
 
 — Fin de la Sección 1 —
 
-2.0  Descripción General
+2.0  Descripción General
 
 Esta  sección  proporciona  una  visión  de  alto  nivel  del  sistema  Smooth  Flow,  describiendo  su  contexto
 operativo, las funciones que debe realizar, las características de sus usuarios y las limitaciones bajo las cuales
@@ -538,7 +538,7 @@ Emite alertas automáticas ante eventos de agendamiento
 Secretaria, Médico,
 Paciente
 
-Módulo
+Módulo
 
 Descripción funcional
 
@@ -657,7 +657,7 @@ sistemas operativos móviles (iOS/Android) en esta versión inicial.
 
 Descripción
 
-ID
+ID
 
 R-02
 
@@ -740,7 +740,7 @@ Las siguientes funcionalidades se identifican como extensiones naturales del sis
 Su  exclusión  del  alcance  actual  no  obedece  a  falta  de  valor,  sino  a  restricciones  de  tiempo, complejidad y
 prioridad en esta primera iteración:
 
-ID
+ID
 
 Funcionalidad futura
 
@@ -813,7 +813,7 @@ pospone para el futuro porque requiere implementar medidas de
 seguridad y privacidad mucho más estrictas exigidas por la Ley N.°
 20.584.
 
-3.0  Requisitos Específicos
+3.0  Requisitos Específicos
 
 Esta sección constituye el núcleo normativo del presente documento y detalla, de forma verificable y trazable,
 los requisitos que el sistema Smooth Flow debe satisfacer. Se organiza siguiendo la estructura recomendada
@@ -900,7 +900,7 @@ electrónico a los pacientes.
 
 HTTPS.
 
-●  Las comunicaciones en tiempo real se realizarán mediante el protocolo WebSocket Secure (WSS),
+●  Las comunicaciones en tiempo real se realizarán mediante el protocolo WebSocket Secure (WSS),
 operando sobre TLS/SSL en el puerto 443, conforme a RFC 6455 [REF-05] y a la restricción R-02.
 
 ●  La comunicación con el proveedor de correo electrónico transaccional se realizará mediante una API
@@ -1006,7 +1006,7 @@ del cambio.
 
 UC5
 
-3.2.3  Módulo: Notificaciones en Tiempo Real
+3.2.3  Módulo: Notificaciones en Tiempo Real
 
 ID
 
@@ -1110,7 +1110,7 @@ en la Sección 1.5, condicionan de forma no negociable las decisiones de diseño
 
 6455) en su variante segura WSS/TLS sobre el puerto 443 (deriva de R-02).
 
-●  El almacenamiento de datos debe realizarse exclusivamente en un sistema gestor de bases de datos
+●  El almacenamiento de datos debe realizarse exclusivamente en un sistema gestor de bases de datos
 
 relacional (deriva de R-06).
 
@@ -1192,7 +1192,7 @@ permitiendo su despliegue en distintos proveedores de infraestructura.
 20.584 sobre Derechos y Deberes de los Pacientes, en todo tratamiento de datos personales y
 clínico-administrativos (REF-02, REF-03).
 
-●  El sistema deberá considerar los lineamientos de la Ley N.° 21.541 de Salud Digital respecto a la
+●  El sistema deberá considerar los lineamientos de la Ley N.° 21.541 de Salud Digital respecto a la
 
 equivalencia entre registros digitales y presenciales (REF-04).
 
@@ -1202,14 +1202,14 @@ FHIR, sin que ello constituya un requisito de la versión actual (ver EV-01, Sec
 
 — Fin de la Sección 3 —
 
-4.0  Anexos
+4.0  Anexos
 
 La presente sección reúne los cuatro anexos solicitados como material complementario a la especificación de
 requisitos: el Diagrama de Casos de Uso y su documentación (Anexo A), los indicadores de cumplimiento de
 requisitos  no  funcionales  clasificados  según  ISO/IEC  9126  y  Sommerville  (Anexo  B), el diseño de interfaces
 gráficas (Anexo C) y el diagrama de procesos de negocio en notación BPMN (Anexo D).
 
-Anexo A — Diagrama de Casos de Uso (DCU) y Documentación de Casos de
+Anexo A — Diagrama de Casos de Uso (DCU) y Documentación de Casos de
 Uso
 
 El  presente  anexo  contiene  el  Diagrama  de  Casos  de  Uso  (DCU)  del  sistema  Smooth  Flow,  elaborado  en
@@ -1222,7 +1222,7 @@ casos  de  uso,  incluyendo  relaciones  «include»  hacia  los  casos  de  uso
 Disponibilidad)  y  UC8  (Recibir  Notificación  en  Tiempo  Real),  que  son  invocados  por  múltiples  flujos  de
 agendamiento.
 
-UC1 — Reservar Cita
+UC1 — Reservar Cita
 
 Actor(es)
 
@@ -1310,7 +1310,7 @@ Requisitos relacionados
 
 RF-03, RF-05
 
-UC3 — Cancelar Cita (Paciente)
+UC3 — Cancelar Cita (Paciente)
 
 Actor(es)
 
@@ -1393,7 +1393,7 @@ Requisitos relacionados
 
 RF-02, RF-06
 
-UC5 — Gestionar Agenda (Crear / Modificar / Cancelar Cita)
+UC5 — Gestionar Agenda (Crear / Modificar / Cancelar Cita)
 
 Actor(es)
 
@@ -1477,7 +1477,7 @@ Requisitos relacionados
 
 RF-09
 
-UC7 — Visualizar Calendario
+UC7 — Visualizar Calendario
 
 Actor(es)
 
@@ -1562,7 +1562,7 @@ Requisitos relacionados
 
 RF-10, RF-12, RF-14
 
-UC9 — Consultar Historial de Citas
+UC9 — Consultar Historial de Citas
 
 Actor(es)
 
@@ -1639,7 +1639,7 @@ Requisitos relacionados
 
 RF-16
 
-UC11 — Gestionar Usuarios
+UC11 — Gestionar Usuarios
 
 Actor(es)
 
@@ -1721,7 +1721,7 @@ Requisitos relacionados
 
 RF-18
 
-Anexo B — Indicadores de Cumplimiento de Requisitos No Funcionales
+Anexo B — Indicadores de Cumplimiento de Requisitos No Funcionales
 
 Este anexo define dos indicadores de cumplimiento para requisitos no funcionales (NFR) críticos del sistema
 Smooth Flow. Cada indicador se clasifica según las categorías y subcategorías del modelo de calidad ISO/IEC
@@ -1781,7 +1781,7 @@ Clasificación Sommerville
 Requisito de Producto → Requisito de Eficiencia → Requisito de Rendimiento
 (Performance Requirement).
 
-Campo
+Campo
 
 Detalle
 
@@ -1866,7 +1866,7 @@ Auditoría técnica periódica (escaneo de configuración TLS en todos los endpo
 verificación de completitud del log de auditoría mediante comparación contra el total
 de transacciones registradas en la base de datos.
 
-Justificación:  a  diferencia  de  RNF-01, este indicador no nace de una decisión de diseño interna sino de una
+Justificación:  a  diferencia  de  RNF-01, este indicador no nace de una decisión de diseño interna sino de una
 obligación legal externa e inevitable (Ley N.° 19.628 sobre protección de la vida privada y Ley N.° 20.584 sobre
 derechos y deberes de los pacientes, ambas citadas en la Sección 1.0 e identificadas como restricciones R-03
 y  R-04).  Por  ello  se  clasifica  primariamente  como  requisito  externo  según  Sommerville,  aun  cuando  su
@@ -1902,7 +1902,7 @@ Externo (legal) → Producto → Confiabilidad
 
 100%
 
-Anexo C — Diseño de Interfaces Gráficas
+Anexo C — Diseño de Interfaces Gráficas
 
 Este  anexo  presenta  el  diseño  de baja/media fidelidad (wireframes) de las principales pantallas del sistema
 Smooth  Flow,  una  por  cada  rol  de  usuario  definido  en la Sección 2.3, más una vista de indicadores para el
@@ -1928,7 +1928,7 @@ recientes, seguido de una lista de la agenda del día con estado de cada cita, a
 Panel del Dueño de la Clínica: resume la ocupación semanal en un gráfico de barras y muestra un ejemplo de
 la notificación por correo enviada al paciente, permitiendo validar de forma conjunta RF-05, RF-13 y RF-18.
 
-Anexo D — Diagrama de Procesos de Negocio (BPMN)
+Anexo D — Diagrama de Procesos de Negocio (BPMN)
 
 Este  anexo  presenta  el modelamiento en notación BPMN (Business Process Model and Notation) de nivel 1
 del principal proceso de negocio del sistema Smooth Flow: el proceso de agendamiento de una cita médica,

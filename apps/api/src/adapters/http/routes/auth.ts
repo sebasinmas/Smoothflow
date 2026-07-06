@@ -6,11 +6,18 @@ import { closeUserConnections } from "../../ws/ws-server.js";
 
 const router = Router();
 
+function saveSession(req: import("express").Request): Promise<void> {
+  return new Promise((resolve, reject) => {
+    req.session.save((err) => (err ? reject(err) : resolve()));
+  });
+}
+
 router.post("/login", async (req, res, next) => {
   try {
     const input = loginSchema.parse(req.body);
     const user = await loginUser(input, getClientIp(req));
     req.session.userId = user.id;
+    await saveSession(req);
     res.json({ user });
   } catch (err) {
     next(err);
@@ -22,6 +29,7 @@ router.post("/patient/register", async (req, res, next) => {
     const input = patientRegisterSchema.parse(req.body);
     const user = await registerPatient(input, getClientIp(req));
     req.session.userId = user.id;
+    await saveSession(req);
     res.status(201).json({ user });
   } catch (err) {
     next(err);
@@ -37,6 +45,7 @@ router.post("/patient/login", async (req, res, next) => {
       return;
     }
     req.session.userId = user.id;
+    await saveSession(req);
     res.json({ user });
   } catch (err) {
     next(err);

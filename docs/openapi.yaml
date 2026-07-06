@@ -1,0 +1,126 @@
+openapi: 3.1.0
+info:
+  title: Smooth Flow API
+  version: 0.1.0
+  description: API REST para gestión de agendamiento clínico en tiempo real.
+
+servers:
+  - url: /api
+    description: API base path
+
+paths:
+  /health:
+    get:
+      summary: Health check
+      responses:
+        "200":
+          description: OK
+
+  /auth/login:
+    post:
+      summary: Iniciar sesión (personal)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password]
+              properties:
+                email: { type: string, format: email }
+                password: { type: string, minLength: 8 }
+      responses:
+        "200":
+          description: Sesión creada (cookie)
+
+  /auth/logout:
+    post:
+      summary: Cerrar sesión
+      responses:
+        "200":
+          description: Sesión destruida
+
+  /auth/me:
+    get:
+      summary: Usuario autenticado
+      responses:
+        "200":
+          description: Datos de sesión
+
+  /appointments:
+    get:
+      summary: Listar citas
+    post:
+      summary: Crear cita
+
+  /appointments/{id}:
+    patch:
+      summary: Actualizar o cancelar cita
+
+  /availability:
+    get:
+      summary: Consultar disponibilidad
+
+  /patients:
+    get:
+      summary: Listar pacientes (secretaria/dueño)
+    post:
+      summary: Crear paciente
+
+  /owner/staff:
+    get:
+      summary: Listar personal
+    post:
+      summary: Crear usuario de personal
+
+  /owner/staff/{id}/unlink:
+    post:
+      summary: Desvincular usuario y revocar sesiones
+
+  /owner/specialties:
+    get:
+      summary: Listar especialidades
+    post:
+      summary: Crear especialidad
+
+  /owner/practitioners:
+    get:
+      summary: Listar médicos
+    post:
+      summary: Crear médico
+
+  /owner/schedules:
+    get:
+      summary: Listar horarios base
+    post:
+      summary: Crear horario base
+
+  /owner/reports/occupancy:
+    get:
+      summary: Reporte de ocupación semanal
+
+  /audit:
+    get:
+      summary: Logs de auditoría (dueño)
+
+  /fhir/Patient:
+    get:
+      summary: Bundle FHIR Patient (stub interoperabilidad)
+
+  /fhir/Practitioner:
+    get:
+      summary: Bundle FHIR Practitioner
+
+  /fhir/Appointment:
+    get:
+      summary: Bundle FHIR Appointment
+
+components:
+  securitySchemes:
+    sessionCookie:
+      type: apiKey
+      in: cookie
+      name: smoothflow.sid
+
+security:
+  - sessionCookie: []
