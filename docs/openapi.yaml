@@ -1,0 +1,1844 @@
+openapi: 3.1.0
+info:
+  title: Smooth Flow API
+  version: 0.1.0
+  description: |
+    API REST para gestión de agendamiento clínico en tiempo real.
+    Contrato alineado con la implementación en `apps/api` y la SRS Smooth Flow v1.0 (IEEE 830-1998).
+
+servers:
+  - url: /api
+    description: API base path
+
+tags:
+  - name: Sistema
+    description: Health check y catálogos públicos
+  - name: Auth
+    description: Autenticación y sesiones (RF-14, RF-15)
+  - name: Agendamiento
+    description: Citas, disponibilidad y bloqueos (RF-01 a RF-06, RF-09)
+  - name: Pacientes
+    description: Fichas de pacientes (RF-11)
+  - name: Dueño
+    description: Administración de clínica (RF-16, RF-17, RF-18)
+  - name: Auditoría
+    description: Logs de auditoría inmutables (RF-16)
+  - name: FHIR
+    description: Stubs de interoperabilidad HL7 FHIR Chile (REF-06)
+
+paths:
+  /health:
+    get:
+      tags: [Sistema]
+      summary: Health check
+      security: []
+      responses:
+        "200":
+          description: Servicio operativo
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [status]
+                properties:
+                  status:
+                    type: string
+                    example: ok
+
+  /auth/login:
+    post:
+      tags: [Auth]
+      summary: Iniciar sesión (personal)
+      security: []
+      x-srs: [RF-14]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LoginInput"
+      responses:
+        "200":
+          description: Sesión creada (cookie `smoothflow.sid`)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SessionUserResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "422":
+          $ref: "#/components/responses/ValidationError"
+
+  /auth/patient/register:
+    post:
+      tags: [Auth]
+      summary: Autoregistro de paciente (portal)
+      description: |
+        Crea cuenta de portal. Si ya existe una ficha administrativa con el mismo email o RUT
+        (creada por secretaría), vincula la cuenta a esa ficha sin duplicar el registro.
+      security: []
+      x-srs: [RF-11]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PatientRegisterInput"
+      responses:
+        "201":
+          description: Cuenta creada o vinculada a ficha existente
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SessionUserResponse"
+        "409":
+          description: Email ya registrado o paciente ya tiene cuenta de portal
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              examples:
+                emailExists:
+                  value: { error: "El email ya está registrado", code: EMAIL_EXISTS }
+                portalExists:
+                  value: { error: "Este paciente ya tiene cuenta de portal", code: PORTAL_ACCOUNT_EXISTS }
+        "422":
+          $ref: "#/components/responses/ValidationError"
+        "503":
+          description: No hay clínicas configuradas
+
+  /auth/patient/login:
+    post:
+      tags: [Auth]
+      summary: Iniciar sesión (paciente)
+      security: []
+      x-srs: [RF-14]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LoginInput"
+      responses:
+        "200":
+          description: Sesión de paciente creada
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SessionUserResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          description: Credenciales de personal en portal de paciente
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "422":
+          $ref: "#/components/responses/ValidationError"
+
+  /auth/logout:
+    post:
+      tags: [Auth]
+      summary: Cerrar sesión
+      x-srs: [RF-14]
+      responses:
+        "200":
+          description: Sesión destruida y conexiones WebSocket cerradas
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OkResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /auth/me:
+    get:
+      tags: [Auth]
+      summary: Usuario autenticado
+      description: No requiere middleware; valida sesión directamente.
+      security: []
+      responses:
+        "200":
+          description: Datos de sesión
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SessionUserResponse"
+        "401":
+          description: No autenticado o sesión inválida
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /availability:
+    get:
+      tags: [Agendamiento, Sistema]
+      summary: Consultar disponibilidad
+      security: []
+      x-srs: [RF-01, RF-02]
+      parameters:
+        - name: from
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date-time
+        - name: to
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date-time
+        - name: practitionerId
+          in: query
+          schema:
+            type: string
+            format: uuid
+        - name: specialtyId
+          in: query
+          schema:
+            type: string
+            format: uuid
+        - name: clinicId
+          in: query
+          description: Requerido si no hay sesión ni DEFAULT_CLINIC_ID
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Slots de disponibilidad
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [slots]
+                properties:
+                  slots:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/AvailabilitySlot"
+        "400":
+          description: clinicId requerido
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "422":
+          $ref: "#/components/responses/ValidationError"
+
+  /specialties:
+    get:
+      tags: [Sistema]
+      summary: Listar especialidades (lectura para staff y pacientes)
+      x-srs: [RF-01]
+      parameters:
+        - name: clinicId
+          in: query
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Lista de especialidades
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SpecialtyListResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+  /appointments:
+    get:
+      tags: [Agendamiento]
+      summary: Listar citas
+      description: |
+        Filtrado por rol: médico ve sus citas, paciente las suyas,
+        secretaría/dueño ven toda la clínica.
+      x-srs: [RF-07, RF-10]
+      parameters:
+        - name: from
+          in: query
+          schema:
+            type: string
+            format: date-time
+        - name: to
+          in: query
+          schema:
+            type: string
+            format: date-time
+        - name: practitionerId
+          in: query
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Lista de citas
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AppointmentListResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+    post:
+      tags: [Agendamiento]
+      summary: Crear cita
+      x-srs: [RF-01, RF-02, RF-05, RF-06]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateAppointmentInput"
+      responses:
+        "201":
+          description: Cita creada
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AppointmentResponse"
+        "400":
+          description: Validación de negocio (cita en el pasado, clínica no asignada)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          description: Doble reserva
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              example:
+                error: "El horario ya está ocupado o bloqueado"
+                code: DOUBLE_BOOKING
+        "422":
+          $ref: "#/components/responses/ValidationError"
+
+  /appointments/blocks:
+    post:
+      tags: [Agendamiento]
+      summary: Bloquear rango de agenda (secretaría/dueño)
+      x-srs: [RF-09]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateBlockInput"
+      responses:
+        "201":
+          description: Bloqueo registrado
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AppointmentResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "409":
+          description: Existen citas confirmadas en el rango
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              example:
+                error: "Existen citas confirmadas en el rango seleccionado. Gestiónelas antes de bloquear."
+                code: BLOCK_CONFLICT
+        "422":
+          $ref: "#/components/responses/ValidationError"
+
+  /appointments/{id}:
+    patch:
+      tags: [Agendamiento]
+      summary: Actualizar, reagendar o cancelar cita
+      x-srs: [RF-03, RF-04, RF-05, RF-08]
+      parameters:
+        - $ref: "#/components/parameters/AppointmentId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateAppointmentInput"
+      responses:
+        "200":
+          description: Cita actualizada
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AppointmentResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          description: Acceso denegado o ventana de 24h para paciente
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          description: Conflicto de horario o estado inválido
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "422":
+          $ref: "#/components/responses/ValidationError"
+
+  /appointments/{id}/doctor-actions:
+    post:
+      tags: [Agendamiento]
+      summary: Acción del médico de turno sobre una cita
+      x-srs: [RF-10, RF-11]
+      parameters:
+        - $ref: "#/components/parameters/AppointmentId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DoctorActionInput"
+      responses:
+        "200":
+          description: Cita actualizada
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AppointmentResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          description: Estado de cita no admite la acción
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              example:
+                error: "La cita no admite esta acción en su estado actual"
+                code: INVALID_STATUS
+        "422":
+          $ref: "#/components/responses/ValidationError"
+
+  /appointments/{id}/review-request:
+    patch:
+      tags: [Agendamiento]
+      summary: Revisar solicitud de cancelación del médico
+      x-srs: [RF-08]
+      parameters:
+        - $ref: "#/components/parameters/AppointmentId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ReviewCancellationInput"
+      responses:
+        "200":
+          description: Solicitud revisada
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AppointmentResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          description: Sin solicitud pendiente
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              example:
+                error: "La cita no tiene una solicitud de cancelación pendiente"
+                code: INVALID_STATUS
+        "422":
+          $ref: "#/components/responses/ValidationError"
+
+  /patients:
+    get:
+      tags: [Pacientes]
+      summary: Listar pacientes (secretaría/dueño)
+      x-srs: [RF-11]
+      responses:
+        "200":
+          description: Lista de fichas con hasPortalAccess
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PatientListResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+    post:
+      tags: [Pacientes]
+      summary: Crear ficha de paciente
+      x-srs: [RF-11]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreatePatientInput"
+      responses:
+        "201":
+          description: Ficha creada
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PatientResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "409":
+          description: Email o RUT ya registrado en la clínica
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              examples:
+                email:
+                  value: { error: "Ya existe un paciente con este email", code: PATIENT_EMAIL_EXISTS }
+                rut:
+                  value: { error: "Ya existe un paciente con este RUT", code: PATIENT_IDENTIFIER_EXISTS }
+        "422":
+          $ref: "#/components/responses/ValidationError"
+
+  /owner/staff:
+    get:
+      tags: [Dueño]
+      summary: Listar personal
+      x-srs: [RF-17]
+      responses:
+        "200":
+          description: Lista de usuarios de personal
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserListResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+    post:
+      tags: [Dueño]
+      summary: Crear usuario de personal
+      x-srs: [RF-17]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateStaffInput"
+      responses:
+        "201":
+          description: Personal creado
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StaffResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "422":
+          $ref: "#/components/responses/ValidationError"
+
+  /owner/staff/{id}:
+    patch:
+      tags: [Dueño]
+      summary: Actualizar usuario de personal
+      x-srs: [RF-17]
+      parameters:
+        - $ref: "#/components/parameters/StaffId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateStaffInput"
+      responses:
+        "200":
+          description: Personal actualizado
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StaffResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "422":
+          $ref: "#/components/responses/ValidationError"
+
+  /owner/staff/{id}/unlink:
+    post:
+      tags: [Dueño]
+      summary: Desvincular usuario y revocar sesiones
+      description: Invalida sesiones activas y cierra conexiones WebSocket del usuario.
+      x-srs: [RF-15, RF-17]
+      parameters:
+        - $ref: "#/components/parameters/StaffId"
+      responses:
+        "200":
+          description: Usuario desvinculado
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OkResponse"
+        "400":
+          description: No se puede desvincular al dueño
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /owner/specialties:
+    get:
+      tags: [Dueño]
+      summary: Listar especialidades (dueño)
+      x-srs: [RF-18]
+      responses:
+        "200":
+          description: Lista de especialidades
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SpecialtyListResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+    post:
+      tags: [Dueño]
+      summary: Crear especialidad
+      x-srs: [RF-18]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateSpecialtyInput"
+      responses:
+        "201":
+          description: Especialidad creada
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SpecialtyResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "422":
+          $ref: "#/components/responses/ValidationError"
+
+  /owner/specialties/{id}:
+    patch:
+      tags: [Dueño]
+      summary: Actualizar especialidad
+      x-srs: [RF-18]
+      parameters:
+        - $ref: "#/components/parameters/SpecialtyId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateSpecialtyInput"
+      responses:
+        "200":
+          description: Especialidad actualizada
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SpecialtyResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "422":
+          $ref: "#/components/responses/ValidationError"
+    delete:
+      tags: [Dueño]
+      summary: Eliminar especialidad
+      x-srs: [RF-18]
+      parameters:
+        - $ref: "#/components/parameters/SpecialtyId"
+      responses:
+        "200":
+          description: Especialidad eliminada
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OkResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          description: Hay médicos asignados a la especialidad
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /owner/practitioners:
+    get:
+      tags: [Dueño]
+      summary: Listar médicos
+      x-srs: [RF-01, RF-18]
+      parameters:
+        - name: clinicId
+          in: query
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Lista de profesionales
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PractitionerListResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+    post:
+      tags: [Dueño]
+      summary: Crear médico
+      x-srs: [RF-18]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreatePractitionerInput"
+      responses:
+        "201":
+          description: Médico creado con horario base por defecto
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PractitionerResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "422":
+          $ref: "#/components/responses/ValidationError"
+
+  /owner/schedules:
+    get:
+      tags: [Dueño]
+      summary: Listar horarios base
+      x-srs: [RF-18]
+      responses:
+        "200":
+          description: Plantillas de horario
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ScheduleListResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+    post:
+      tags: [Dueño]
+      summary: Crear horario base
+      x-srs: [RF-18]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateScheduleTemplateInput"
+      responses:
+        "201":
+          description: Horario creado
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ScheduleResponse"
+        "400":
+          description: Rango horario inválido
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          description: Solapamiento con otro bloque del mismo día
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "422":
+          $ref: "#/components/responses/ValidationError"
+
+  /owner/schedules/{id}:
+    patch:
+      tags: [Dueño]
+      summary: Actualizar horario base
+      x-srs: [RF-18]
+      parameters:
+        - $ref: "#/components/parameters/ScheduleId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateScheduleTemplateInput"
+      responses:
+        "200":
+          description: Horario actualizado
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ScheduleResponse"
+        "400":
+          description: Rango horario inválido
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          description: Solapamiento con otro bloque
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "422":
+          $ref: "#/components/responses/ValidationError"
+    delete:
+      tags: [Dueño]
+      summary: Eliminar horario base
+      x-srs: [RF-18]
+      parameters:
+        - $ref: "#/components/parameters/ScheduleId"
+      responses:
+        "200":
+          description: Horario eliminado
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OkResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /owner/reports/occupancy:
+    get:
+      tags: [Dueño]
+      summary: Reporte de ocupación semanal
+      x-srs: [RF-18]
+      parameters:
+        - name: weekStart
+          in: query
+          description: Fecha ISO del inicio de semana (default hoy)
+          schema:
+            type: string
+            format: date
+      responses:
+        "200":
+          description: Reporte de ocupación
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OccupancyReportResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+  /audit:
+    get:
+      tags: [Auditoría]
+      summary: Logs de auditoría (dueño)
+      description: Últimos 100 registros, ordenados por fecha descendente.
+      x-srs: [RF-16]
+      responses:
+        "200":
+          description: Entradas de auditoría
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuditListResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+  /fhir/Patient:
+    get:
+      tags: [FHIR]
+      summary: Bundle FHIR Patient
+      x-srs: [RF-16]
+      responses:
+        "200":
+          description: Bundle searchset de pacientes
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FhirBundle"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+  /fhir/Practitioner:
+    get:
+      tags: [FHIR]
+      summary: Bundle FHIR Practitioner
+      responses:
+        "200":
+          description: Bundle searchset de profesionales
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FhirBundle"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+  /fhir/Appointment:
+    get:
+      tags: [FHIR]
+      summary: Bundle FHIR Appointment
+      x-srs: [RF-10]
+      responses:
+        "200":
+          description: Bundle searchset de citas
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FhirBundle"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+components:
+  securitySchemes:
+    sessionCookie:
+      type: apiKey
+      in: cookie
+      name: smoothflow.sid
+      description: Sesión server-side (express-session)
+
+  parameters:
+    AppointmentId:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    StaffId:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    SpecialtyId:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    ScheduleId:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+
+  responses:
+    Unauthorized:
+      description: No autenticado
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+          example:
+            error: No autenticado
+            code: UNAUTHORIZED
+    Forbidden:
+      description: Acceso denegado
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+          example:
+            error: Acceso denegado
+            code: FORBIDDEN
+    NotFound:
+      description: Recurso no encontrado
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    ValidationError:
+      description: Datos inválidos (Zod)
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ValidationErrorResponse"
+
+  schemas:
+    Role:
+      type: string
+      enum: [paciente, secretaria, medico, dueno]
+
+    StaffRole:
+      type: string
+      enum: [secretaria, medico, dueno]
+
+    AppointmentStatus:
+      type: string
+      enum:
+        - disponible
+        - reservado
+        - confirmado
+        - reagendado
+        - cancelado
+        - bloqueado
+        - atendido
+        - no_asistio
+        - cancelacion_pendiente
+
+    SlotStatus:
+      type: string
+      enum: [disponible, reservado, bloqueado]
+
+    DoctorAction:
+      type: string
+      enum: [atendido, no_asistio, solicitar_cancelacion]
+
+    ErrorResponse:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: string
+        code:
+          type: string
+          enum:
+            - INVALID_CREDENTIALS
+            - UNAUTHORIZED
+            - FORBIDDEN
+            - VALIDATION_ERROR
+            - INTERNAL_ERROR
+            - DOUBLE_BOOKING
+            - BLOCK_CONFLICT
+            - INVALID_STATUS
+            - EMAIL_EXISTS
+            - PORTAL_ACCOUNT_EXISTS
+            - PATIENT_EMAIL_EXISTS
+            - PATIENT_IDENTIFIER_EXISTS
+
+    ValidationErrorResponse:
+      allOf:
+        - $ref: "#/components/schemas/ErrorResponse"
+        - type: object
+          required: [details]
+          properties:
+            code:
+              type: string
+              const: VALIDATION_ERROR
+            details:
+              type: object
+              description: Zod flattened error
+
+    OkResponse:
+      type: object
+      required: [ok]
+      properties:
+        ok:
+          type: boolean
+          example: true
+
+    SessionUser:
+      type: object
+      required: [id, email, role, clinicId, givenName, familyName, active]
+      properties:
+        id:
+          type: string
+          format: uuid
+        email:
+          type: string
+          format: email
+        role:
+          $ref: "#/components/schemas/Role"
+        clinicId:
+          type: string
+          format: uuid
+          nullable: true
+        givenName:
+          type: string
+        familyName:
+          type: string
+        active:
+          type: boolean
+
+    SessionUserResponse:
+      type: object
+      required: [user]
+      properties:
+        user:
+          $ref: "#/components/schemas/SessionUser"
+
+    LoginInput:
+      type: object
+      required: [email, password]
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          minLength: 8
+
+    PatientRegisterInput:
+      type: object
+      required: [email, password, givenName, familyName]
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          minLength: 8
+        givenName:
+          type: string
+          minLength: 1
+        familyName:
+          type: string
+          minLength: 1
+        phone:
+          type: string
+          minLength: 8
+        identifier:
+          type: string
+          minLength: 8
+          description: RUT u otro identificador
+
+    User:
+      type: object
+      required: [id, clinicId, email, role, givenName, familyName, active, revokedAt, createdAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+        clinicId:
+          type: string
+          format: uuid
+          nullable: true
+        email:
+          type: string
+          format: email
+        role:
+          $ref: "#/components/schemas/Role"
+        givenName:
+          type: string
+        familyName:
+          type: string
+        active:
+          type: boolean
+        revokedAt:
+          type: string
+          format: date-time
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+
+    Patient:
+      type: object
+      required: [id, clinicId, givenName, familyName, email, phone, identifier, hasPortalAccess, createdAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+        clinicId:
+          type: string
+          format: uuid
+        givenName:
+          type: string
+        familyName:
+          type: string
+        email:
+          type: string
+          format: email
+          nullable: true
+        phone:
+          type: string
+          nullable: true
+        identifier:
+          type: string
+          nullable: true
+        hasPortalAccess:
+          type: boolean
+          description: true si el paciente tiene cuenta de portal vinculada
+        createdAt:
+          type: string
+          format: date-time
+
+    Specialty:
+      type: object
+      required: [id, clinicId, name, description]
+      properties:
+        id:
+          type: string
+          format: uuid
+        clinicId:
+          type: string
+          format: uuid
+        name:
+          type: string
+        description:
+          type: string
+          nullable: true
+
+    Practitioner:
+      type: object
+      required: [id, clinicId, userId, specialtyId, givenName, familyName, email]
+      properties:
+        id:
+          type: string
+          format: uuid
+        clinicId:
+          type: string
+          format: uuid
+        userId:
+          type: string
+          format: uuid
+          nullable: true
+        specialtyId:
+          type: string
+          format: uuid
+        givenName:
+          type: string
+        familyName:
+          type: string
+        email:
+          type: string
+          format: email
+          nullable: true
+        specialtyName:
+          type: string
+
+    ScheduleTemplate:
+      type: object
+      required: [id, practitionerId, dayOfWeek, startTime, endTime, slotDurationMinutes]
+      properties:
+        id:
+          type: string
+          format: uuid
+        practitionerId:
+          type: string
+          format: uuid
+        dayOfWeek:
+          type: integer
+          minimum: 0
+          maximum: 6
+          description: "0=domingo, 1=lunes, …, 6=sábado"
+        startTime:
+          type: string
+          pattern: '^\d{2}:\d{2}$'
+          example: "09:00"
+        endTime:
+          type: string
+          pattern: '^\d{2}:\d{2}$'
+          example: "17:00"
+        slotDurationMinutes:
+          type: integer
+          minimum: 15
+          maximum: 120
+
+    Appointment:
+      type: object
+      required:
+        - id
+        - clinicId
+        - patientId
+        - practitionerId
+        - status
+        - startAt
+        - endAt
+        - notes
+        - createdByUserId
+        - createdAt
+        - updatedAt
+      properties:
+        id:
+          type: string
+          format: uuid
+        clinicId:
+          type: string
+          format: uuid
+        patientId:
+          type: string
+          format: uuid
+          nullable: true
+        practitionerId:
+          type: string
+          format: uuid
+        status:
+          $ref: "#/components/schemas/AppointmentStatus"
+        startAt:
+          type: string
+          format: date-time
+        endAt:
+          type: string
+          format: date-time
+        notes:
+          type: string
+          nullable: true
+        pendingReschedule:
+          type: object
+          nullable: true
+          properties:
+            startAt:
+              type: string
+              format: date-time
+            endAt:
+              type: string
+              format: date-time
+        createdByUserId:
+          type: string
+          format: uuid
+          nullable: true
+        patientName:
+          type: string
+        practitionerName:
+          type: string
+        specialtyName:
+          type: string
+        requestReason:
+          type: string
+          nullable: true
+        reviewNote:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    AvailabilitySlot:
+      type: object
+      required:
+        - startAt
+        - endAt
+        - status
+        - practitionerId
+        - practitionerName
+        - specialtyId
+        - specialtyName
+      properties:
+        startAt:
+          type: string
+          format: date-time
+        endAt:
+          type: string
+          format: date-time
+        status:
+          $ref: "#/components/schemas/SlotStatus"
+        appointmentId:
+          type: string
+          format: uuid
+        appointmentStatus:
+          $ref: "#/components/schemas/AppointmentStatus"
+        practitionerId:
+          type: string
+          format: uuid
+        practitionerName:
+          type: string
+        specialtyId:
+          type: string
+          format: uuid
+        specialtyName:
+          type: string
+        patientName:
+          type: string
+        blockReason:
+          type: string
+        requestReason:
+          type: string
+
+    OccupancyReport:
+      type: object
+      required: [weekStart, days]
+      properties:
+        weekStart:
+          type: string
+          format: date
+        days:
+          type: array
+          items:
+            type: object
+            required: [date, totalSlots, bookedSlots, occupancyRate]
+            properties:
+              date:
+                type: string
+                format: date
+              totalSlots:
+                type: integer
+              bookedSlots:
+                type: integer
+              occupancyRate:
+                type: number
+                format: float
+
+    AuditEntry:
+      type: object
+      required: [id, userId, action, resource, resourceId, ipAddress, metadata, createdAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+        userId:
+          type: string
+          format: uuid
+          nullable: true
+        action:
+          type: string
+        resource:
+          type: string
+        resourceId:
+          type: string
+          nullable: true
+        ipAddress:
+          type: string
+          nullable: true
+        metadata:
+          type: object
+          additionalProperties: true
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+
+    CreateAppointmentInput:
+      type: object
+      required: [practitionerId, startAt, endAt]
+      properties:
+        patientId:
+          type: string
+          format: uuid
+        practitionerId:
+          type: string
+          format: uuid
+        startAt:
+          type: string
+          format: date-time
+        endAt:
+          type: string
+          format: date-time
+        notes:
+          type: string
+          maxLength: 500
+
+    UpdateAppointmentInput:
+      type: object
+      properties:
+        startAt:
+          type: string
+          format: date-time
+        endAt:
+          type: string
+          format: date-time
+        status:
+          $ref: "#/components/schemas/AppointmentStatus"
+        notes:
+          type: string
+          maxLength: 500
+        pendingReschedule:
+          type: object
+          nullable: true
+          properties:
+            startAt:
+              type: string
+              format: date-time
+            endAt:
+              type: string
+              format: date-time
+
+    CreateBlockInput:
+      type: object
+      required: [practitionerId, startAt, endAt]
+      properties:
+        practitionerId:
+          type: string
+          format: uuid
+        startAt:
+          type: string
+          format: date-time
+        endAt:
+          type: string
+          format: date-time
+        reason:
+          type: string
+          maxLength: 200
+
+    DoctorActionInput:
+      type: object
+      required: [action]
+      properties:
+        action:
+          $ref: "#/components/schemas/DoctorAction"
+        reason:
+          type: string
+          maxLength: 300
+          description: Obligatorio (mín. 10 caracteres) si action es solicitar_cancelacion
+
+    ReviewCancellationInput:
+      type: object
+      required: [decision, note]
+      properties:
+        decision:
+          type: string
+          enum: [aprobar, rechazar]
+        note:
+          type: string
+          minLength: 5
+          maxLength: 300
+
+    CreatePatientInput:
+      type: object
+      required: [givenName, familyName]
+      properties:
+        givenName:
+          type: string
+          minLength: 1
+        familyName:
+          type: string
+          minLength: 1
+        email:
+          type: string
+          format: email
+        phone:
+          type: string
+          minLength: 8
+        identifier:
+          type: string
+          minLength: 8
+
+    CreateStaffInput:
+      type: object
+      required: [email, password, role, givenName, familyName]
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          minLength: 8
+        role:
+          $ref: "#/components/schemas/StaffRole"
+        givenName:
+          type: string
+          minLength: 1
+        familyName:
+          type: string
+          minLength: 1
+        specialtyId:
+          type: string
+          format: uuid
+          description: Requerido si role es medico
+
+    UpdateStaffInput:
+      type: object
+      properties:
+        givenName:
+          type: string
+          minLength: 1
+        familyName:
+          type: string
+          minLength: 1
+        role:
+          $ref: "#/components/schemas/StaffRole"
+        active:
+          type: boolean
+        specialtyId:
+          type: string
+          format: uuid
+          nullable: true
+
+    CreateSpecialtyInput:
+      type: object
+      required: [name]
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 100
+        description:
+          type: string
+          maxLength: 300
+
+    UpdateSpecialtyInput:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 100
+        description:
+          type: string
+          maxLength: 300
+          nullable: true
+
+    CreatePractitionerInput:
+      type: object
+      required: [givenName, familyName, specialtyId]
+      properties:
+        userId:
+          type: string
+          format: uuid
+        givenName:
+          type: string
+          minLength: 1
+        familyName:
+          type: string
+          minLength: 1
+        specialtyId:
+          type: string
+          format: uuid
+        email:
+          type: string
+          format: email
+
+    CreateScheduleTemplateInput:
+      type: object
+      required: [practitionerId, dayOfWeek, startTime, endTime]
+      properties:
+        practitionerId:
+          type: string
+          format: uuid
+        dayOfWeek:
+          type: integer
+          minimum: 0
+          maximum: 6
+        startTime:
+          type: string
+          pattern: '^\d{2}:\d{2}$'
+        endTime:
+          type: string
+          pattern: '^\d{2}:\d{2}$'
+        slotDurationMinutes:
+          type: integer
+          minimum: 15
+          maximum: 120
+          default: 30
+
+    UpdateScheduleTemplateInput:
+      type: object
+      minProperties: 1
+      properties:
+        dayOfWeek:
+          type: integer
+          minimum: 0
+          maximum: 6
+        startTime:
+          type: string
+          pattern: '^\d{2}:\d{2}$'
+        endTime:
+          type: string
+          pattern: '^\d{2}:\d{2}$'
+        slotDurationMinutes:
+          type: integer
+          minimum: 15
+          maximum: 120
+
+    AppointmentListResponse:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/Appointment"
+
+    AppointmentResponse:
+      type: object
+      required: [appointment]
+      properties:
+        appointment:
+          $ref: "#/components/schemas/Appointment"
+
+    PatientListResponse:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/Patient"
+
+    PatientResponse:
+      type: object
+      required: [patient]
+      properties:
+        patient:
+          $ref: "#/components/schemas/Patient"
+
+    UserListResponse:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/User"
+
+    StaffResponse:
+      type: object
+      required: [staff]
+      properties:
+        staff:
+          $ref: "#/components/schemas/User"
+
+    SpecialtyListResponse:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/Specialty"
+
+    SpecialtyResponse:
+      type: object
+      required: [specialty]
+      properties:
+        specialty:
+          $ref: "#/components/schemas/Specialty"
+
+    PractitionerListResponse:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/Practitioner"
+
+    PractitionerResponse:
+      type: object
+      required: [practitioner]
+      properties:
+        practitioner:
+          $ref: "#/components/schemas/Practitioner"
+
+    ScheduleListResponse:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/ScheduleTemplate"
+
+    ScheduleResponse:
+      type: object
+      required: [schedule]
+      properties:
+        schedule:
+          $ref: "#/components/schemas/ScheduleTemplate"
+
+    OccupancyReportResponse:
+      type: object
+      required: [report]
+      properties:
+        report:
+          $ref: "#/components/schemas/OccupancyReport"
+
+    AuditListResponse:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/AuditEntry"
+
+    FhirBundle:
+      type: object
+      required: [resourceType, type, entry]
+      properties:
+        resourceType:
+          type: string
+          const: Bundle
+        type:
+          type: string
+          const: searchset
+        entry:
+          type: array
+          items:
+            type: object
+            required: [resource]
+            properties:
+              resource:
+                type: object
+                description: FHIR Patient, Practitioner o Appointment
+
+security:
+  - sessionCookie: []
