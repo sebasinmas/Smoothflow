@@ -1,5 +1,5 @@
 import { NavLink, useNavigate } from "react-router-dom";
-import { LogOut } from "lucide-react";
+import { LogOut, Plus } from "lucide-react";
 import type { Role } from "@smoothflow/shared";
 import { ROLE_LABELS } from "@smoothflow/shared";
 import { useAuth } from "@/contexts/AuthContext";
@@ -116,9 +116,17 @@ export function SideNav({ role, items, bottomNavItems, primaryAction }: SideNavP
             <Button
               className={`mb-4 transition-all duration-300 ${isExpanded ? "w-full" : "w-full px-0"}`}
               onClick={primaryAction.onClick}
-              title={!isExpanded ? primaryAction.label : undefined}
+              title={primaryAction.label}
+              aria-label={primaryAction.label}
             >
-              {isExpanded ? primaryAction.label : "+"}
+              <Plus className="size-[18px] shrink-0" aria-hidden="true" />
+              <span
+                className={`truncate transition-all duration-300 ${
+                  isExpanded ? "w-auto opacity-100" : "w-0 overflow-hidden opacity-0"
+                }`}
+              >
+                {primaryAction.label}
+              </span>
             </Button>
           )}
 

@@ -79,7 +79,7 @@ interface CalendarToolbarProps {
 
 export function CalendarToolbar({ children }: CalendarToolbarProps) {
   return (
-    <div className="mb-4 flex shrink-0 flex-wrap items-end gap-4 rounded-xl border border-border bg-white p-4 shadow-card">
+    <div className="mb-4 flex shrink-0 flex-wrap items-center gap-x-4 gap-y-3 rounded-xl border border-border bg-white p-3 shadow-card">
       {children}
     </div>
   );
