@@ -30,17 +30,17 @@ export default function SecretaryPanelPage() {
   const blocked = data?.items.filter((a) => a.status === "bloqueado").length ?? 0;
 
   return (
-    <AppShell role="secretaria" navItems={navItems} title="Panel de control" showLive>
+    <AppShell role="secretaria" navItems={navItems} title="Panel de control" showNotifications>
       <div className="grid gap-6 md:grid-cols-3">
-        <div className="rounded-lg border border-border bg-white p-6">
+        <div className="rounded-xl border border-border bg-white p-6 shadow-card">
           <p className="text-sm text-text-muted">Citas hoy</p>
           <p className="text-3xl font-bold text-brand">{data?.items.length ?? 0}</p>
         </div>
-        <div className="rounded-lg border border-border bg-white p-6">
+        <div className="rounded-xl border border-border bg-white p-6 shadow-card">
           <p className="text-sm text-text-muted">Confirmadas</p>
           <p className="text-3xl font-bold text-success">{confirmed}</p>
         </div>
-        <div className="rounded-lg border border-border bg-white p-6">
+        <div className="rounded-xl border border-border bg-white p-6 shadow-card">
           <p className="text-sm text-text-muted">Bloqueos</p>
           <p className="text-3xl font-bold text-red-600">{blocked}</p>
         </div>

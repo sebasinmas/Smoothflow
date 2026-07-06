@@ -8,5 +8,5 @@ export const ROLE_LABELS: Record<Role, string> = {
   paciente: "Paciente",
   secretaria: "Secretaria",
   medico: "Médico",
-  dueno: "Dueño de la clínica",
+  dueno: "Dueño",
 };

@@ -13,26 +13,79 @@ import { useAuth } from "@/contexts/AuthContext";
 
 type ConnectionStatus = "connected" | "reconnecting" | "offline";
 
+export interface RealtimeNotification {
+  id: string;
+  message: string;
+  timestamp: Date;
+  read: boolean;
+}
+
+const MAX_NOTIFICATIONS = 20;
+
 interface RealtimeContextValue {
   status: ConnectionStatus;
   lastEvent: string | null;
+  notifications: RealtimeNotification[];
+  unreadCount: number;
+  markRead: (id: string) => void;
+  markAllRead: () => void;
   doc: Y.Doc | null;
 }
 
 const RealtimeContext = createContext<RealtimeContextValue>({
   status: "offline",
   lastEvent: null,
+  notifications: [],
+  unreadCount: 0,
+  markRead: () => {},
+  markAllRead: () => {},
   doc: null,
 });
+
+function eventLabel(type: string): string {
+  switch (type) {
+    case "appointment:created":
+      return "Nueva cita registrada";
+    case "appointment:updated":
+      return "Cita actualizada";
+    case "appointment:blocked":
+      return "Bloqueo de agenda";
+    default:
+      return "Actualización de agenda";
+  }
+}
 
 export function RealtimeProvider({ children }: { children: ReactNode }) {
   const { user, purgeSensitiveData } = useAuth();
   const [status, setStatus] = useState<ConnectionStatus>("offline");
   const [lastEvent, setLastEvent] = useState<string | null>(null);
+  const [notifications, setNotifications] = useState<RealtimeNotification[]>([]);
   const [doc, setDoc] = useState<Y.Doc | null>(null);
   const wsRef = useRef<WebSocket | null>(null);
   const retryRef = useRef(0);
   const docRef = useRef<Y.Doc | null>(null);
+  const lastProcessedRef = useRef(0);
+
+  const pushNotification = useCallback((message: string) => {
+    const notification: RealtimeNotification = {
+      id: crypto.randomUUID(),
+      message,
+      timestamp: new Date(),
+      read: false,
+    };
+    setNotifications((prev) => [notification, ...prev].slice(0, MAX_NOTIFICATIONS));
+    setLastEvent(message);
+  }, []);
+
+  const markRead = useCallback((id: string) => {
+    setNotifications((prev) =>
+      prev.map((n) => (n.id === id ? { ...n, read: true } : n)),
+    );
+  }, []);
+
+  const markAllRead = useCallback(() => {
+    setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
+  }, []);
 
   const connect = useCallback(() => {
     if (!user || user.role === "paciente" || !user.clinicId) {
@@ -59,17 +112,13 @@ export function RealtimeProvider({ children }: { children: ReactNode }) {
       const data = event.data instanceof ArrayBuffer ? new Uint8Array(event.data) : new Uint8Array();
       Y.applyUpdate(ydoc, data);
       const events = ydoc.getArray<{ type: string }>("events");
-      const last = events.get(events.length - 1);
-      if (last) {
-        const label =
-          last.type === "appointment:created"
-            ? "Nueva cita registrada"
-            : last.type === "appointment:updated"
-              ? "Cita actualizada"
-              : last.type === "appointment:blocked"
-                ? "Bloqueo de agenda"
-                : "Actualización de agenda";
-        setLastEvent(label);
+      const length = events.length;
+      if (length > lastProcessedRef.current) {
+        for (let i = lastProcessedRef.current; i < length; i++) {
+          const ev = events.get(i);
+          if (ev) pushNotification(eventLabel(ev.type));
+        }
+        lastProcessedRef.current = length;
       }
     };
 
@@ -92,7 +141,7 @@ export function RealtimeProvider({ children }: { children: ReactNode }) {
     };
 
     ws.onerror = () => ws.close();
-  }, [user, purgeSensitiveData]);
+  }, [user, purgeSensitiveData, pushNotification]);
 
   useEffect(() => {
     connect();
@@ -101,12 +150,26 @@ export function RealtimeProvider({ children }: { children: ReactNode }) {
       docRef.current?.destroy();
       docRef.current = null;
       setDoc(null);
+      lastProcessedRef.current = 0;
     };
   }, [connect]);
 
+  const unreadCount = useMemo(
+    () => notifications.filter((n) => !n.read).length,
+    [notifications],
+  );
+
   const value = useMemo(
-    () => ({ status, lastEvent, doc }),
-    [status, lastEvent, doc],
+    () => ({
+      status,
+      lastEvent,
+      notifications,
+      unreadCount,
+      markRead,
+      markAllRead,
+      doc,
+    }),
+    [status, lastEvent, notifications, unreadCount, markRead, markAllRead, doc],
   );
 
   return <RealtimeContext.Provider value={value}>{children}</RealtimeContext.Provider>;

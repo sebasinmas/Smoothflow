@@ -7,8 +7,10 @@ import type { Role } from "@smoothflow/shared";
 interface AppShellProps {
   role: Role;
   navItems: NavItem[];
+  bottomNavItems?: NavItem[];
   title?: string;
-  showLive?: boolean;
+  showNotifications?: boolean;
+  fillContent?: boolean;
   primaryAction?: { label: string; onClick: () => void };
   children: ReactNode;
   headerExtra?: ReactNode;
@@ -17,8 +19,10 @@ interface AppShellProps {
 export function AppShell({
   role,
   navItems,
+  bottomNavItems,
   title,
-  showLive,
+  showNotifications,
+  fillContent,
   primaryAction,
   children,
   headerExtra,
@@ -32,14 +36,23 @@ export function AppShell({
         >
           Ir al contenido
         </a>
-        <SideNav role={role} items={navItems} primaryAction={primaryAction} />
+        <SideNav
+          role={role}
+          items={navItems}
+          bottomNavItems={bottomNavItems}
+          primaryAction={primaryAction}
+        />
         <div className="flex min-h-0 min-w-0 flex-1 flex-col">
-          <TopAppBar title={title} showLive={showLive}>
+          <TopAppBar title={title} showNotifications={showNotifications}>
             {headerExtra}
           </TopAppBar>
           <main
             id="main-content"
-            className="flex-1 overflow-y-auto p-4 md:p-6 lg:p-8 animate-in fade-in duration-300"
+            className={`flex-1 p-4 md:p-6 lg:p-8 animate-in fade-in duration-300 ${
+              fillContent
+                ? "flex min-h-0 flex-col overflow-hidden"
+                : "overflow-y-auto"
+            }`}
           >
             {children}
           </main>

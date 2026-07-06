@@ -3,3 +3,4 @@ dist
 .env
 .pnpm-store
 *.tsbuildinfo
+.codebase-memory/

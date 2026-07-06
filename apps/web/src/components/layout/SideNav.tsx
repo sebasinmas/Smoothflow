@@ -6,7 +6,6 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useSidebar } from "@/contexts/SidebarContext";
 import { Button } from "@/components/ui/Button";
 import { getNavIcon } from "@/lib/navigation";
-import { formatPersonName } from "@/lib/utils";
 
 export interface NavItem {
   to: string;
@@ -16,10 +15,51 @@ export interface NavItem {
 interface SideNavProps {
   role: Role;
   items: NavItem[];
+  bottomNavItems?: NavItem[];
   primaryAction?: { label: string; onClick: () => void };
 }
 
-export function SideNav({ role, items, primaryAction }: SideNavProps) {
+function NavLinkItem({
+  item,
+  isExpanded,
+  onNavigate,
+}: {
+  item: NavItem;
+  isExpanded: boolean;
+  onNavigate: () => void;
+}) {
+  const Icon = getNavIcon(item.to);
+  return (
+    <li>
+      <NavLink
+        to={item.to}
+        onClick={onNavigate}
+        title={!isExpanded ? item.label : undefined}
+        className={({ isActive }) =>
+          `group flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition-all duration-200 ${
+            isActive
+              ? "bg-brand/10 font-medium text-brand shadow-sm"
+              : "text-text hover:bg-surface-muted hover:translate-x-0.5"
+          } ${isExpanded ? "" : "justify-center px-2"}`
+        }
+      >
+        <Icon
+          className="size-[18px] shrink-0 transition-transform duration-200 group-hover:scale-110"
+          aria-hidden="true"
+        />
+        <span
+          className={`truncate transition-all duration-300 ${
+            isExpanded ? "w-auto opacity-100" : "w-0 overflow-hidden opacity-0"
+          }`}
+        >
+          {item.label}
+        </span>
+      </NavLink>
+    </li>
+  );
+}
+
+export function SideNav({ role, items, bottomNavItems, primaryAction }: SideNavProps) {
   const { user, logout } = useAuth();
   const { collapsed, mobileOpen, isMobile, closeMobile } = useSidebar();
   const navigate = useNavigate();
@@ -83,45 +123,29 @@ export function SideNav({ role, items, primaryAction }: SideNavProps) {
           )}
 
           <ul className="flex flex-1 flex-col gap-1">
-            {items.map((item) => {
-              const Icon = getNavIcon(item.to);
-              return (
-                <li key={item.to}>
-                  <NavLink
-                    to={item.to}
-                    onClick={closeMobile}
-                    title={!isExpanded ? item.label : undefined}
-                    className={({ isActive }) =>
-                      `group flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition-all duration-200 ${
-                        isActive
-                          ? "bg-brand/10 font-medium text-brand shadow-sm"
-                          : "text-text hover:bg-surface-muted hover:translate-x-0.5"
-                      } ${isExpanded ? "" : "justify-center px-2"}`
-                    }
-                  >
-                    <Icon
-                      className="size-[18px] shrink-0 transition-transform duration-200 group-hover:scale-110"
-                      aria-hidden="true"
-                    />
-                    <span
-                      className={`truncate transition-all duration-300 ${
-                        isExpanded ? "w-auto opacity-100" : "w-0 overflow-hidden opacity-0"
-                      }`}
-                    >
-                      {item.label}
-                    </span>
-                  </NavLink>
-                </li>
-              );
-            })}
+            {items.map((item) => (
+              <NavLinkItem
+                key={item.to}
+                item={item}
+                isExpanded={isExpanded}
+                onNavigate={closeMobile}
+              />
+            ))}
           </ul>
         </div>
 
         <div className="shrink-0 border-t border-border px-3 py-4">
-          {user && isExpanded && (
-            <p className="mb-2 truncate px-2 text-xs text-text-muted">
-              {formatPersonName(user.givenName, user.familyName)}
-            </p>
+          {bottomNavItems && bottomNavItems.length > 0 && (
+            <ul className="mb-2 flex flex-col gap-1">
+              {bottomNavItems.map((item) => (
+                <NavLinkItem
+                  key={item.to}
+                  item={item}
+                  isExpanded={isExpanded}
+                  onNavigate={closeMobile}
+                />
+              ))}
+            </ul>
           )}
           <button
             type="button"

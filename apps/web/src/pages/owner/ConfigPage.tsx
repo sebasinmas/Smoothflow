@@ -9,9 +9,10 @@ import { api } from "@/lib/api";
 
 const navItems = [
   { to: "/owner/staff", label: "Personal" },
-  { to: "/owner/configuracion", label: "Configuración" },
   { to: "/owner/reportes", label: "Reportes" },
 ];
+
+const bottomNavItems = [{ to: "/owner/configuracion", label: "Configuración" }];
 
 const DAYS = [
   { value: "1", label: "Lunes" },
@@ -64,7 +65,7 @@ export default function OwnerConfigPage() {
     })) ?? [];
 
   return (
-    <AppShell role="dueno" navItems={navItems} title="Configuración de la clínica">
+    <AppShell role="dueno" navItems={navItems} bottomNavItems={bottomNavItems} title="Configuración de la clínica">
       <div className="grid gap-8 lg:grid-cols-2">
         <section className="rounded-lg border border-border bg-white p-6">
           <h2 className="mb-4 text-lg font-semibold">Especialidades</h2>

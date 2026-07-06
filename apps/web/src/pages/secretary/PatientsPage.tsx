@@ -40,7 +40,7 @@ export default function SecretaryPatientsPage() {
   });
 
   return (
-    <AppShell role="secretaria" navItems={navItems} title="Gestión de pacientes" showLive>
+    <AppShell role="secretaria" navItems={navItems} title="Gestión de pacientes" showNotifications>
       <div className="mb-6 flex items-center justify-between">
         <p className="text-text-muted">Administre pacientes y cree citas en su representación.</p>
         <Button onClick={() => setShowForm(!showForm)}>

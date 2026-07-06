@@ -6,9 +6,10 @@ import { startOfWeek } from "@/lib/utils";
 
 const navItems = [
   { to: "/owner/staff", label: "Personal" },
-  { to: "/owner/configuracion", label: "Configuración" },
   { to: "/owner/reportes", label: "Reportes" },
 ];
+
+const bottomNavItems = [{ to: "/owner/configuracion", label: "Configuración" }];
 
 export default function OwnerReportsPage() {
   const weekStart = startOfWeek().toISOString().slice(0, 10);
@@ -22,7 +23,7 @@ export default function OwnerReportsPage() {
   const maxRate = Math.max(...(data?.report.days.map((d) => d.occupancyRate) ?? [1]), 1);
 
   return (
-    <AppShell role="dueno" navItems={navItems} title="Reportes de ocupación">
+    <AppShell role="dueno" navItems={navItems} bottomNavItems={bottomNavItems} title="Reportes de ocupación">
       <p className="mb-6 text-text-muted">
         Ocupación semanal de la agenda — semana del {weekStart}
       </p>

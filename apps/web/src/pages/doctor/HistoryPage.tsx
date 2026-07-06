@@ -22,7 +22,7 @@ export default function DoctorHistoryPage() {
   });
 
   return (
-    <AppShell role="medico" navItems={navItems} title="Historial de citas" showLive>
+    <AppShell role="medico" navItems={navItems} title="Historial de citas" showNotifications>
       <div className="overflow-x-auto rounded-lg border border-border bg-white">
         <table className="w-full text-left text-sm">
           <thead className="border-b border-border bg-surface-muted">

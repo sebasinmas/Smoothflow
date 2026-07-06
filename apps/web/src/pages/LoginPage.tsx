@@ -64,7 +64,7 @@ export default function LoginPage() {
                 {error}
               </p>
             )}
-            <Button type="submit" className="w-full" loading={loading}>
+            <Button type="submit" className="w-full cursor-pointer" loading={loading}>
               Acceder al portal
             </Button>
           </form>
