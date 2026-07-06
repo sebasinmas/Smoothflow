@@ -5,9 +5,11 @@ WORKDIR /app
 FROM base AS build
 COPY pnpm-workspace.yaml package.json pnpm-lock.yaml .npmrc ./
 COPY apps/api/package.json apps/api/package.json
+COPY packages/shared/package.json packages/shared/package.json
 RUN echo "node-linker=hoisted" >> .npmrc && \
     pnpm install --frozen-lockfile --config.minimum-release-age=0
 COPY apps/api apps/api
+COPY packages/shared packages/shared
 COPY tsconfig.base.json .
 RUN cd apps/api && ../../node_modules/.bin/tsc --project tsconfig.build.json
 
