@@ -1,10 +1,14 @@
 import type { SlotStatus } from "@smoothflow/shared";
 import { SLOT_STATUS_LABELS } from "@smoothflow/shared";
-import { CurrentTimeLine } from "@/components/calendar/CurrentTimeLine";
+import { CurrentTimeIndicator } from "@/components/calendar/CurrentTimeLine";
+import { AppTooltip } from "@/components/ui/Tooltip";
 import {
   ROW_HEIGHT,
   MINUTES_PER_ROW,
   type CalendarEventItem,
+  type EventLayout,
+  buildEventTooltip,
+  computeDayEventLayouts,
   computeTimeRange,
   dayKey,
   eventHeight,
@@ -12,9 +16,11 @@ import {
   formatEventTime,
   formatHourLabel,
   isSameDay,
+  minutesSinceMidnight,
 } from "@/components/calendar/calendar-utils";
 
 const TIME_COL_WIDTH = "4.5rem";
+const EVENT_GAP_PX = 2;
 
 const eventStyles: Record<SlotStatus, string> = {
   disponible: "bg-slot-available border-l-slot-available-border text-green-900",
@@ -37,28 +43,39 @@ interface ScheduleCalendarProps {
 function CalendarEventBlock({
   event,
   dayStartMinutes,
+  layout,
   onClick,
 }: {
   event: CalendarEventItem;
   dayStartMinutes: number;
+  layout?: EventLayout;
   onClick?: () => void;
 }) {
   const top = eventTop(event.startAt, dayStartMinutes);
   const height = eventHeight(event.startAt, event.endAt);
   const statusLabel = SLOT_STATUS_LABELS[event.status];
   const interactive = Boolean(onClick);
+  const columnIndex = layout?.columnIndex ?? 0;
+  const columnCount = layout?.columnCount ?? 1;
+  const widthPercent = 100 / columnCount;
+  const leftPercent = columnIndex * widthPercent;
 
-  return (
+  const block = (
     <button
       type="button"
       onClick={onClick}
       disabled={!interactive}
-      className={`group absolute inset-x-1 z-10 flex flex-col overflow-hidden rounded-lg border-l-[3px] px-2 py-1 text-left shadow-sm transition-all duration-150 ${eventStyles[event.status]} ${
+      className={`group absolute z-1 flex flex-col overflow-hidden rounded-lg border-l-[3px] px-2 py-1 text-left shadow-sm transition-all duration-150 ${eventStyles[event.status]} ${
         interactive
           ? "cursor-pointer hover:-translate-y-px hover:shadow-md focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-brand"
           : "cursor-default"
       }`}
-      style={{ top, height: Math.max(height - 2, 22) }}
+      style={{
+        top,
+        height: Math.max(height - 2, 22),
+        left: `calc(${leftPercent}% + ${EVENT_GAP_PX}px)`,
+        width: `calc(${widthPercent}% - ${EVENT_GAP_PX * 2}px)`,
+      }}
       aria-label={`${formatEventTime(event.startAt)}, ${event.label}, ${statusLabel}`}
     >
       <span className="block truncate text-[10px] font-semibold uppercase tracking-wide leading-tight opacity-80">
@@ -70,6 +87,8 @@ function CalendarEventBlock({
       )}
     </button>
   );
+
+  return <AppTooltip content={buildEventTooltip(event)}>{block}</AppTooltip>;
 }
 
 export function ScheduleCalendar({ days, events, onEventClick }: ScheduleCalendarProps) {
@@ -88,14 +107,19 @@ export function ScheduleCalendar({ days, events, onEventClick }: ScheduleCalenda
     return events.filter((ev) => ev.startAt.startsWith(key));
   });
 
+  const layoutsByDay = eventsByDay.map((dayEvents) => computeDayEventLayouts(dayEvents));
+
   const gridTemplateColumns = `${TIME_COL_WIDTH} repeat(${days.length}, minmax(0, 1fr))`;
+  const todayVisible = days.some((day) => isSameDay(day, today));
+  const nowMinutes = minutesSinceMidnight(today);
+  const showTimeInGutter =
+    todayVisible && nowMinutes >= dayStartMinutes && nowMinutes <= dayEndMinutes;
 
   return (
     <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-2xl border border-border bg-white shadow-card">
       <div className="min-h-0 flex-1 overflow-y-auto" style={{ scrollbarGutter: "stable" }}>
-        {/* Header row — shares the exact same grid template as the body so columns stay aligned */}
         <div
-          className="sticky top-0 z-20 grid border-b border-border bg-white/95 backdrop-blur-sm"
+          className="sticky top-0 z-sticky-in-content grid border-b border-border bg-white/95 backdrop-blur-sm"
           style={{ gridTemplateColumns }}
         >
           <div className="border-r border-border bg-surface-muted/40" />
@@ -129,9 +153,7 @@ export function ScheduleCalendar({ days, events, onEventClick }: ScheduleCalenda
           })}
         </div>
 
-        {/* Body */}
-        <div className="grid" style={{ gridTemplateColumns, minHeight: gridHeight }}>
-          {/* Time gutter */}
+        <div className="relative grid" style={{ gridTemplateColumns, minHeight: gridHeight }}>
           <div className="relative border-r border-border bg-white" style={{ height: gridHeight }}>
             {hourLabels.map((minutes, i) =>
               minutes % 60 === 0 ? (
@@ -146,10 +168,10 @@ export function ScheduleCalendar({ days, events, onEventClick }: ScheduleCalenda
             )}
           </div>
 
-          {/* Day columns */}
           {days.map((day, dayIndex) => {
             const isToday = isSameDay(day, today);
             const dayEvents = eventsByDay[dayIndex];
+            const dayLayouts = layoutsByDay[dayIndex];
 
             return (
               <div
@@ -169,28 +191,29 @@ export function ScheduleCalendar({ days, events, onEventClick }: ScheduleCalenda
                   />
                 ))}
 
-                {isToday && (
-                  <CurrentTimeLine
-                    dayStartMinutes={dayStartMinutes}
-                    dayEndMinutes={dayEndMinutes}
-                  />
-                )}
-
                 {dayEvents.map((event) => (
                   <CalendarEventBlock
                     key={event.id}
                     event={event}
                     dayStartMinutes={dayStartMinutes}
+                    layout={dayLayouts.get(event.id)}
                     onClick={onEventClick ? () => onEventClick(event) : undefined}
                   />
                 ))}
               </div>
             );
           })}
+
+          {showTimeInGutter && (
+            <CurrentTimeIndicator
+              dayStartMinutes={dayStartMinutes}
+              dayEndMinutes={dayEndMinutes}
+              gutterWidth={TIME_COL_WIDTH}
+            />
+          )}
         </div>
       </div>
 
-      {/* Legend — color coding for slot states (accessibility + intuitiveness) */}
       <div className="flex shrink-0 flex-wrap items-center gap-x-5 gap-y-2 border-t border-border bg-surface-muted/30 px-4 py-2.5">
         <span className="text-[11px] font-semibold uppercase tracking-wide text-text-muted">
           Estados

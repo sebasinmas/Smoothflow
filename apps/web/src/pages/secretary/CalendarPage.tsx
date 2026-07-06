@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 import { ChevronLeft, ChevronRight, RefreshCw } from "lucide-react";
+import { toast } from "sonner";
 import type { AppointmentDto, AvailabilitySlotDto } from "@smoothflow/shared";
 import { AppShell } from "@/components/layout/AppShell";
 import { CalendarToolbar, SegmentedControl } from "@/components/calendar/CalendarToolbar";
@@ -17,6 +18,7 @@ import { Button } from "@/components/ui/Button";
 import { LiveIndicator } from "@/components/ui/LiveIndicator";
 import { LoadingState } from "@/components/ui/LoadingState";
 import { Select } from "@/components/ui/Select";
+import { AppTooltip } from "@/components/ui/Tooltip";
 import { api } from "@/lib/api";
 import { addDays, startOfWeek } from "@/lib/utils";
 import { useRealtime } from "@/contexts/RealtimeContext";
@@ -32,6 +34,7 @@ export default function SecretaryCalendarPage() {
   const [reservationPreset, setReservationPreset] = useState<ReservationPreset | undefined>();
   const [selectedEvent, setSelectedEvent] = useState<CalendarEventItem | null>(null);
   const [actionsOpen, setActionsOpen] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
   const step = view === "week" ? 7 : 1;
   const weekEnd = addDays(weekStart, step);
@@ -46,7 +49,7 @@ export default function SecretaryCalendarPage() {
 
   const {
     data: appointments,
-    refetch,
+    refetch: refetchAppointments,
     isLoading: loadingAppointments,
     isError: appointmentsError,
   } = useQuery({
@@ -63,6 +66,7 @@ export default function SecretaryCalendarPage() {
 
   const {
     data: availability,
+    refetch: refetchAvailability,
     isLoading: loadingAvailability,
     isError: availabilityError,
   } = useQuery({
@@ -131,6 +135,23 @@ export default function SecretaryCalendarPage() {
     setActionsOpen(true);
   };
 
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    try {
+      const results = await Promise.all([refetchAppointments(), refetchAvailability()]);
+      const hasError = results.some((r) => r.isError);
+      if (hasError) {
+        toast.error("No se pudo actualizar la agenda");
+      } else {
+        toast.success("Agenda actualizada");
+      }
+    } catch {
+      toast.error("No se pudo actualizar la agenda");
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
+
   const isLoading = loadingAppointments || loadingAvailability;
   const hasError = appointmentsError || availabilityError;
 
@@ -152,25 +173,31 @@ export default function SecretaryCalendarPage() {
       <div className="flex min-h-0 flex-1 flex-col">
         <CalendarToolbar>
           <div className="flex items-center gap-2">
-            <Button
-              variant="secondary"
-              className="size-9 px-0"
-              onClick={() => setWeekStart(addDays(weekStart, -step))}
-              aria-label={view === "week" ? "Semana anterior" : "Día anterior"}
-            >
-              <ChevronLeft className="size-[18px] shrink-0" aria-hidden="true" />
-            </Button>
-            <Button
-              variant="secondary"
-              className="size-9 px-0"
-              onClick={() => setWeekStart(addDays(weekStart, step))}
-              aria-label={view === "week" ? "Semana siguiente" : "Día siguiente"}
-            >
-              <ChevronRight className="size-[18px] shrink-0" aria-hidden="true" />
-            </Button>
-            <Button variant="secondary" onClick={() => setWeekStart(startOfWeek())}>
-              Hoy
-            </Button>
+            <AppTooltip content={view === "week" ? "Semana anterior" : "Día anterior"}>
+              <Button
+                variant="secondary"
+                className="size-9 px-0"
+                onClick={() => setWeekStart(addDays(weekStart, -step))}
+                aria-label={view === "week" ? "Semana anterior" : "Día anterior"}
+              >
+                <ChevronLeft className="size-[18px] shrink-0" aria-hidden="true" />
+              </Button>
+            </AppTooltip>
+            <AppTooltip content={view === "week" ? "Semana siguiente" : "Día siguiente"}>
+              <Button
+                variant="secondary"
+                className="size-9 px-0"
+                onClick={() => setWeekStart(addDays(weekStart, step))}
+                aria-label={view === "week" ? "Semana siguiente" : "Día siguiente"}
+              >
+                <ChevronRight className="size-[18px] shrink-0" aria-hidden="true" />
+              </Button>
+            </AppTooltip>
+            <AppTooltip content="Ir al día de hoy">
+              <Button variant="secondary" onClick={() => setWeekStart(startOfWeek())}>
+                Hoy
+              </Button>
+            </AppTooltip>
           </div>
 
           <p className="min-w-40 text-sm font-semibold capitalize text-text">{rangeLabel}</p>
@@ -182,25 +209,37 @@ export default function SecretaryCalendarPage() {
               onChange={(e) => setSelectedPractitioner(e.target.value)}
               options={practitionerOptions}
             />
-            <SegmentedControl
-              value={view}
-              options={[
-                { value: "week", label: "Semanal" },
-                { value: "day", label: "Diaria" },
-              ]}
-              onChange={(v) => setView(v as "week" | "day")}
-            />
-            <Button variant="secondary" onClick={() => setBlockOpen(true)}>
-              Bloquear agenda
-            </Button>
-            <Button
-              variant="secondary"
-              className="size-9 px-0"
-              onClick={() => refetch()}
-              aria-label="Actualizar agenda"
-            >
-              <RefreshCw className="size-[18px] shrink-0" aria-hidden="true" />
-            </Button>
+            <AppTooltip content={view === "week" ? "Vista semanal" : "Vista diaria"}>
+              <div>
+                <SegmentedControl
+                  value={view}
+                  options={[
+                    { value: "week", label: "Semanal" },
+                    { value: "day", label: "Diaria" },
+                  ]}
+                  onChange={(v) => setView(v as "week" | "day")}
+                />
+              </div>
+            </AppTooltip>
+            <AppTooltip content="Bloquear horarios de un médico">
+              <Button variant="secondary" onClick={() => setBlockOpen(true)}>
+                Bloquear agenda
+              </Button>
+            </AppTooltip>
+            <AppTooltip content="Actualizar datos de la agenda">
+              <Button
+                variant="secondary"
+                className="size-9 px-0"
+                onClick={() => void handleRefresh()}
+                disabled={isRefreshing}
+                aria-label="Actualizar agenda"
+              >
+                <RefreshCw
+                  className={`size-[18px] shrink-0 ${isRefreshing ? "animate-spin" : ""}`}
+                  aria-hidden="true"
+                />
+              </Button>
+            </AppTooltip>
           </div>
         </CalendarToolbar>
 

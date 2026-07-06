@@ -19,7 +19,7 @@ export function SecretaryModal({
   return (
     <DialogTrigger isOpen={isOpen} onOpenChange={onOpenChange}>
       <ModalOverlay
-        className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm entering:animate-in entering:fade-in exiting:animate-out exiting:fade-out"
+        className="fixed inset-0 z-modal flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm entering:animate-in entering:fade-in exiting:animate-out exiting:fade-out"
         isDismissable
       >
         <Modal className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-xl border border-border bg-white shadow-xl entering:animate-in entering:fade-in entering:zoom-in-95 exiting:animate-out exiting:fade-out exiting:zoom-out-95">

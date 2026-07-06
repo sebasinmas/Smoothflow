@@ -84,6 +84,8 @@ export interface AvailabilitySlotDto {
   practitionerName: string;
   specialtyId: string;
   specialtyName: string;
+  patientName?: string;
+  blockReason?: string;
 }
 
 export interface OccupancyReportDto {

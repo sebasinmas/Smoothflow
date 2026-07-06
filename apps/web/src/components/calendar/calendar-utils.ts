@@ -15,6 +15,14 @@ export interface CalendarEventItem {
   appointmentId?: string;
   patientId?: string;
   practitionerId?: string;
+  practitionerName?: string;
+  patientName?: string;
+  specialtyName?: string;
+}
+
+export interface EventLayout {
+  columnIndex: number;
+  columnCount: number;
 }
 
 export function minutesSinceMidnight(date: Date): number {
@@ -89,36 +97,142 @@ export function eventHeight(startAt: string, endAt: string): number {
   return (duration / MINUTES_PER_ROW) * ROW_HEIGHT;
 }
 
+function formatDoctorSublabel(practitionerName: string, specialtyName?: string): string {
+  const doctor = practitionerName.startsWith("Dr.")
+    ? practitionerName
+    : `Dr. ${practitionerName}`;
+  return specialtyName ? `${doctor} · ${specialtyName}` : doctor;
+}
+
+function eventsOverlap(a: CalendarEventItem, b: CalendarEventItem): boolean {
+  const aStart = parseIsoMinutes(a.startAt);
+  const aEnd = parseIsoMinutes(a.endAt);
+  const bStart = parseIsoMinutes(b.startAt);
+  const bEnd = parseIsoMinutes(b.endAt);
+  return aStart < bEnd && bStart < aEnd;
+}
+
+export function computeDayEventLayouts(events: CalendarEventItem[]): Map<string, EventLayout> {
+  const sorted = [...events].sort((a, b) => a.startAt.localeCompare(b.startAt));
+  const layouts = new Map<string, EventLayout>();
+
+  const clusters: CalendarEventItem[][] = [];
+  let currentCluster: CalendarEventItem[] = [];
+
+  for (const event of sorted) {
+    if (currentCluster.length === 0) {
+      currentCluster.push(event);
+      continue;
+    }
+    const overlapsCluster = currentCluster.some((e) => eventsOverlap(e, event));
+    if (overlapsCluster) {
+      currentCluster.push(event);
+    } else {
+      clusters.push(currentCluster);
+      currentCluster = [event];
+    }
+  }
+  if (currentCluster.length) clusters.push(currentCluster);
+
+  for (const cluster of clusters) {
+    const columns: CalendarEventItem[][] = [];
+
+    for (const event of cluster) {
+      let columnIndex = 0;
+      while (true) {
+        if (!columns[columnIndex]) columns[columnIndex] = [];
+        const hasOverlap = columns[columnIndex].some((e) => eventsOverlap(e, event));
+        if (!hasOverlap) {
+          columns[columnIndex].push(event);
+          break;
+        }
+        columnIndex++;
+      }
+    }
+
+    const columnCount = columns.length;
+    columns.forEach((col, columnIndex) => {
+      for (const event of col) {
+        layouts.set(event.id, { columnIndex, columnCount });
+      }
+    });
+  }
+
+  return layouts;
+}
+
 function slotsToEvents(slots: AvailabilitySlotDto[]): CalendarEventItem[] {
-  return slots.map((slot) => ({
-    id: slot.appointmentId ?? `${slot.startAt}-${slot.practitionerId}`,
-    startAt: slot.startAt,
-    endAt: slot.endAt,
-    status: slot.status,
-    label: slot.status === "disponible" ? slot.practitionerName : slot.practitionerName,
-    sublabel:
-      slot.status === "reservado"
-        ? slot.specialtyName
-        : slot.status === "disponible"
-          ? "Disponible"
-          : undefined,
-    appointmentId: slot.appointmentId,
-    practitionerId: slot.practitionerId,
-  }));
+  return slots.map((slot) => {
+    const practitionerName = slot.practitionerName;
+    const specialtyName = slot.specialtyName;
+
+    if (slot.status === "reservado") {
+      return {
+        id: slot.appointmentId ?? `${slot.startAt}-${slot.practitionerId}`,
+        startAt: slot.startAt,
+        endAt: slot.endAt,
+        status: slot.status,
+        label: slot.patientName ?? "Sin paciente",
+        sublabel: formatDoctorSublabel(practitionerName, specialtyName),
+        appointmentId: slot.appointmentId,
+        practitionerId: slot.practitionerId,
+        practitionerName,
+        patientName: slot.patientName,
+        specialtyName,
+      };
+    }
+
+    if (slot.status === "bloqueado") {
+      return {
+        id: slot.appointmentId ?? `${slot.startAt}-${slot.practitionerId}`,
+        startAt: slot.startAt,
+        endAt: slot.endAt,
+        status: slot.status,
+        label: practitionerName,
+        sublabel: slot.blockReason,
+        appointmentId: slot.appointmentId,
+        practitionerId: slot.practitionerId,
+        practitionerName,
+        specialtyName,
+      };
+    }
+
+    return {
+      id: `${slot.startAt}-${slot.practitionerId}`,
+      startAt: slot.startAt,
+      endAt: slot.endAt,
+      status: slot.status,
+      label: practitionerName,
+      sublabel: "Disponible",
+      practitionerId: slot.practitionerId,
+      practitionerName,
+      specialtyName,
+    };
+  });
 }
 
 function appointmentsToEvents(appointments: AppointmentDto[]): CalendarEventItem[] {
-  return appointments.map((appt) => ({
-    id: appt.id,
-    startAt: appt.startAt,
-    endAt: appt.endAt,
-    status: appt.status === "bloqueado" ? "bloqueado" : "reservado",
-    label: appt.patientName ?? appt.practitionerName ?? "Cita",
-    sublabel: appt.specialtyName,
-    appointmentId: appt.id,
-    patientId: appt.patientId ?? undefined,
-    practitionerId: appt.practitionerId,
-  }));
+  return appointments.map((appt) => {
+    const practitionerName = appt.practitionerName ?? "Médico";
+    const isBlocked = appt.status === "bloqueado";
+
+    return {
+      id: appt.id,
+      startAt: appt.startAt,
+      endAt: appt.endAt,
+      status: isBlocked ? "bloqueado" : "reservado",
+      label: isBlocked ? practitionerName : (appt.patientName ?? practitionerName ?? "Cita"),
+      sublabel: isBlocked
+        ? (appt.notes ?? undefined)
+        : formatDoctorSublabel(practitionerName, appt.specialtyName),
+      appointmentId: appt.id,
+      patientId: appt.patientId ?? undefined,
+      practitionerId: appt.practitionerId,
+      practitionerName,
+      patientName: appt.patientName,
+      specialtyName: appt.specialtyName,
+    };
+  });
 }
 
 export function mergeCalendarEvents(
@@ -134,4 +248,18 @@ export function mergeCalendarEvents(
   }
   const orphanAppts = appointments.filter((a) => !bookedIds.has(a.id));
   return appointmentsToEvents(orphanAppts);
+}
+
+export function buildEventTooltip(event: CalendarEventItem): string {
+  const time = formatEventTime(event.startAt);
+  if (event.status === "reservado") {
+    const parts = [time, event.patientName ?? event.label];
+    if (event.practitionerName) parts.push(`Dr. ${event.practitionerName}`);
+    if (event.specialtyName) parts.push(event.specialtyName);
+    return parts.join(" · ");
+  }
+  if (event.status === "bloqueado") {
+    return [time, event.practitionerName ?? event.label, event.sublabel].filter(Boolean).join(" · ");
+  }
+  return [time, event.label, event.sublabel].filter(Boolean).join(" · ");
 }

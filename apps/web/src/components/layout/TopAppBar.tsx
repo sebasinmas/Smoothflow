@@ -22,7 +22,7 @@ export function TopAppBar({ title, children, showNotifications }: TopAppBarProps
   const sidebarExpanded = isMobile ? true : !collapsed;
 
   return (
-    <header className="sticky top-0 z-20 flex h-16 shrink-0 items-center justify-between border-b border-border bg-white/95 px-4 backdrop-blur-sm md:px-6">
+    <header className="sticky top-0 z-chrome flex h-16 shrink-0 items-center justify-between border-b border-border bg-white/95 px-4 backdrop-blur-sm md:px-6">
       <div className="flex min-w-0 items-center gap-3">
         <button
           type="button"

@@ -337,12 +337,16 @@ export async function createBlock(
   return dto;
 }
 
+type BookedAppointment = typeof appointments.$inferSelect & {
+  patientName?: string;
+};
+
 function generateSlotsFromTemplate(
   template: typeof scheduleTemplates.$inferSelect,
   from: Date,
   to: Date,
   practitioner: typeof practitioners.$inferSelect & { specialtyName: string },
-  booked: Array<typeof appointments.$inferSelect>,
+  booked: BookedAppointment[],
 ): AvailabilitySlotDto[] {
   const slots: AvailabilitySlotDto[] = [];
   const cursor = new Date(from);
@@ -376,6 +380,9 @@ function generateSlotsFromTemplate(
             practitionerName: `${practitioner.givenName} ${practitioner.familyName}`,
             specialtyId: practitioner.specialtyId,
             specialtyName: practitioner.specialtyName,
+            patientName: overlap?.patientName,
+            blockReason:
+              overlap?.status === "bloqueado" ? (overlap.notes ?? undefined) : undefined,
           });
         }
         slotStart = slotEnd;
@@ -413,9 +420,14 @@ export async function getAvailability(
   const practitionerIds = practitionerRows.map((p) => p.practitioner.id);
   if (practitionerIds.length === 0) return [];
 
-  const booked = await db
-    .select()
+  const bookedRows = await db
+    .select({
+      appointment: appointments,
+      patientGiven: patients.givenName,
+      patientFamily: patients.familyName,
+    })
     .from(appointments)
+    .leftJoin(patients, eq(appointments.patientId, patients.id))
     .where(
       and(
         eq(appointments.clinicId, clinicId),
@@ -425,6 +437,11 @@ export async function getAvailability(
         ne(appointments.status, "cancelado"),
       ),
     );
+
+  const booked: BookedAppointment[] = bookedRows.map((r) => ({
+    ...r.appointment,
+    patientName: r.patientGiven ? `${r.patientGiven} ${r.patientFamily}` : undefined,
+  }));
 
   const templates = await db
     .select()

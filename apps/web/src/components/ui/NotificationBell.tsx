@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { Bell } from "lucide-react";
 import { useRealtime } from "@/contexts/RealtimeContext";
 
@@ -8,17 +9,49 @@ const statusColors = {
   offline: "bg-gray-400",
 };
 
+interface PanelPosition {
+  top: number;
+  right: number;
+}
+
 export function NotificationBell() {
   const { status, notifications, unreadCount, markAllRead, markRead } = useRealtime();
   const [open, setOpen] = useState(false);
+  const [position, setPosition] = useState<PanelPosition>({ top: 0, right: 0 });
+  const buttonRef = useRef<HTMLButtonElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
+
+  const updatePosition = () => {
+    if (!buttonRef.current) return;
+    const rect = buttonRef.current.getBoundingClientRect();
+    setPosition({
+      top: rect.bottom + 8,
+      right: window.innerWidth - rect.right,
+    });
+  };
+
+  useLayoutEffect(() => {
+    if (!open) return;
+    updatePosition();
+    window.addEventListener("resize", updatePosition);
+    window.addEventListener("scroll", updatePosition, true);
+    return () => {
+      window.removeEventListener("resize", updatePosition);
+      window.removeEventListener("scroll", updatePosition, true);
+    };
+  }, [open]);
 
   useEffect(() => {
     if (!open) return;
     const handleClick = (e: MouseEvent) => {
-      if (panelRef.current && !panelRef.current.contains(e.target as Node)) {
-        setOpen(false);
+      const target = e.target as Node;
+      if (
+        panelRef.current?.contains(target) ||
+        buttonRef.current?.contains(target)
+      ) {
+        return;
       }
+      setOpen(false);
     };
     document.addEventListener("mousedown", handleClick);
     return () => document.removeEventListener("mousedown", handleClick);
@@ -30,8 +63,9 @@ export function NotificationBell() {
   };
 
   return (
-    <div className="relative" ref={panelRef}>
+    <div className="relative">
       <button
+        ref={buttonRef}
         type="button"
         onClick={handleToggle}
         className="relative inline-flex size-9 items-center justify-center rounded-lg border border-border text-text-muted transition-all duration-200 hover:border-brand/30 hover:bg-surface-muted hover:text-brand active:scale-95"
@@ -51,51 +85,55 @@ export function NotificationBell() {
         )}
       </button>
 
-      {open && (
-        <div
-          className="absolute right-0 top-full z-50 mt-2 w-80 overflow-hidden rounded-xl border border-border bg-white shadow-lg animate-in fade-in duration-200"
-          role="menu"
-        >
-          <div className="flex items-center justify-between border-b border-border px-4 py-3">
-            <h2 className="text-sm font-semibold text-text">Notificaciones</h2>
-            <span className="text-xs text-text-muted">
-              {status === "connected"
-                ? "Conectado"
-                : status === "reconnecting"
-                  ? "Reconectando…"
-                  : "Sin conexión"}
-            </span>
-          </div>
-          <ul className="max-h-72 overflow-y-auto">
-            {notifications.length === 0 ? (
-              <li className="px-4 py-6 text-center text-sm text-text-muted">
-                No hay notificaciones recientes
-              </li>
-            ) : (
-              notifications.map((n) => (
-                <li key={n.id}>
-                  <button
-                    type="button"
-                    role="menuitem"
-                    onClick={() => markRead(n.id)}
-                    className={`w-full px-4 py-3 text-left text-sm transition-colors hover:bg-surface-muted ${
-                      n.read ? "text-text-muted" : "bg-brand/5 font-medium text-text"
-                    }`}
-                  >
-                    <p>{n.message}</p>
-                    <p className="mt-0.5 text-xs text-text-muted">
-                      {n.timestamp.toLocaleTimeString("es-CL", {
-                        hour: "numeric",
-                        minute: "2-digit",
-                      })}
-                    </p>
-                  </button>
+      {open &&
+        createPortal(
+          <div
+            ref={panelRef}
+            className="z-popover fixed w-80 overflow-hidden rounded-xl border border-border bg-white shadow-lg animate-in fade-in duration-200"
+            style={{ top: position.top, right: position.right }}
+            role="menu"
+          >
+            <div className="flex items-center justify-between border-b border-border px-4 py-3">
+              <h2 className="text-sm font-semibold text-text">Notificaciones</h2>
+              <span className="text-xs text-text-muted">
+                {status === "connected"
+                  ? "Conectado"
+                  : status === "reconnecting"
+                    ? "Reconectando…"
+                    : "Sin conexión"}
+              </span>
+            </div>
+            <ul className="max-h-72 overflow-y-auto">
+              {notifications.length === 0 ? (
+                <li className="px-4 py-6 text-center text-sm text-text-muted">
+                  No hay notificaciones recientes
                 </li>
-              ))
-            )}
-          </ul>
-        </div>
-      )}
+              ) : (
+                notifications.map((n) => (
+                  <li key={n.id}>
+                    <button
+                      type="button"
+                      role="menuitem"
+                      onClick={() => markRead(n.id)}
+                      className={`w-full px-4 py-3 text-left text-sm transition-colors hover:bg-surface-muted ${
+                        n.read ? "text-text-muted" : "bg-brand/5 font-medium text-text"
+                      }`}
+                    >
+                      <p>{n.message}</p>
+                      <p className="mt-0.5 text-xs text-text-muted">
+                        {n.timestamp.toLocaleTimeString("es-CL", {
+                          hour: "numeric",
+                          minute: "2-digit",
+                        })}
+                      </p>
+                    </button>
+                  </li>
+                ))
+              )}
+            </ul>
+          </div>,
+          document.body,
+        )}
     </div>
   );
 }

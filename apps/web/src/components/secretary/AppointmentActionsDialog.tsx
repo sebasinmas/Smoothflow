@@ -63,6 +63,8 @@ export function AppointmentActionsDialog({
   if (!event) return null;
 
   const isBlocked = event.status === "bloqueado";
+  const patientName = event.patientName ?? (isBlocked ? undefined : event.label);
+  const practitionerName = event.practitionerName ?? (isBlocked ? event.label : undefined);
 
   return (
     <>
@@ -104,13 +106,34 @@ export function AppointmentActionsDialog({
             <dt className="text-text-muted">Horario</dt>
             <dd className="font-medium">{formatDateTime(event.startAt)}</dd>
           </div>
-          <div>
-            <dt className="text-text-muted">{isBlocked ? "Médico" : "Paciente"}</dt>
-            <dd className="font-medium">{event.label}</dd>
-          </div>
-          {event.sublabel && (
+          {isBlocked ? (
+            <div>
+              <dt className="text-text-muted">Médico</dt>
+              <dd className="font-medium">{practitionerName}</dd>
+            </div>
+          ) : (
+            <>
+              <div>
+                <dt className="text-text-muted">Paciente</dt>
+                <dd className="font-medium">{patientName}</dd>
+              </div>
+              {practitionerName && (
+                <div>
+                  <dt className="text-text-muted">Médico</dt>
+                  <dd className="font-medium">{practitionerName}</dd>
+                </div>
+              )}
+            </>
+          )}
+          {event.specialtyName && (
             <div>
               <dt className="text-text-muted">Especialidad</dt>
+              <dd className="font-medium">{event.specialtyName}</dd>
+            </div>
+          )}
+          {isBlocked && event.sublabel && (
+            <div>
+              <dt className="text-text-muted">Motivo</dt>
               <dd className="font-medium">{event.sublabel}</dd>
             </div>
           )}
@@ -143,7 +166,14 @@ export function AppointmentActionsDialog({
         description={
           <>
             ¿Está seguro que desea cancelar la cita del{" "}
-            <strong>{formatDateTime(event.startAt)}</strong> con {event.label}?
+            <strong>{formatDateTime(event.startAt)}</strong>
+            {patientName ? (
+              <>
+                {" "}
+                con <strong>{patientName}</strong>
+              </>
+            ) : null}
+            ?
           </>
         }
         confirmLabel="Cancelar cita"

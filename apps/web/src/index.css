@@ -16,6 +16,10 @@
   --color-slot-blocked: #fee2e2;
   --color-slot-blocked-border: #dc2626;
   --font-sans: "Inter", system-ui, -apple-system, sans-serif;
+  --z-index-sticky-in-content: 10;
+  --z-index-chrome: 30;
+  --z-index-popover: 40;
+  --z-index-modal: 50;
 }
 
 @layer base {
@@ -128,5 +132,21 @@
 
   .auth-error-banner {
     animation: auth-error-in 0.35s ease-out both;
+  }
+
+  .z-sticky-in-content {
+    z-index: var(--z-index-sticky-in-content);
+  }
+
+  .z-chrome {
+    z-index: var(--z-index-chrome);
+  }
+
+  .z-popover {
+    z-index: var(--z-index-popover);
+  }
+
+  .z-modal {
+    z-index: var(--z-index-modal);
   }
 }
