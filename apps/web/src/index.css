@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@plugin "tailwindcss-react-aria-components";
 
 @theme {
   --color-brand: #003d9b;
@@ -74,8 +75,16 @@
     animation-fill-mode: both;
   }
 
+  .animate-out {
+    animation-fill-mode: both;
+  }
+
   .fade-in {
     animation: fade-in 0.3s ease-out;
+  }
+
+  .fade-out {
+    animation: fade-out 0.2s ease-in;
   }
 
   .shadow-card {
@@ -85,11 +94,18 @@
   @keyframes fade-in {
     from {
       opacity: 0;
-      transform: translateY(4px);
     }
     to {
       opacity: 1;
-      transform: translateY(0);
+    }
+  }
+
+  @keyframes fade-out {
+    from {
+      opacity: 1;
+    }
+    to {
+      opacity: 0;
     }
   }
 
@@ -121,6 +137,36 @@
 
   .slide-out-to-right {
     animation: slide-out-to-right 0.25s ease-in;
+  }
+
+  @keyframes zoom-in-95 {
+    from {
+      opacity: 0;
+      transform: scale(0.95);
+    }
+    to {
+      opacity: 1;
+      transform: scale(1);
+    }
+  }
+
+  .zoom-in-95 {
+    animation: zoom-in-95 0.2s ease-out;
+  }
+
+  @keyframes zoom-out-95 {
+    from {
+      opacity: 1;
+      transform: scale(1);
+    }
+    to {
+      opacity: 0;
+      transform: scale(0.95);
+    }
+  }
+
+  .zoom-out-95 {
+    animation: zoom-out-95 0.15s ease-in;
   }
 
   @keyframes login-input-error {

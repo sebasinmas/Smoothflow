@@ -6,6 +6,7 @@ import type {
   UpdateSpecialtyInput,
   CreatePractitionerInput,
   CreateScheduleTemplateInput,
+  UpdateScheduleTemplateInput,
   SessionUser,
   UserDto,
   SpecialtyDto,
@@ -23,6 +24,11 @@ import {
 } from "../infrastructure/db/schema.js";
 import { AppError } from "../domain/errors.js";
 import { canUnlinkStaff } from "../domain/staff-rules.js";
+import { buildScheduleTemplateRows } from "../domain/scheduling/default-schedule.js";
+import {
+  findOverlappingSchedule,
+  isValidScheduleRange,
+} from "../domain/scheduling/schedule-overlap.js";
 import { hashPassword, unlinkUser } from "../infrastructure/auth/password.js";
 import { writeAuditLog } from "../infrastructure/audit/audit-logger.js";
 import { agendaSyncPort } from "../infrastructure/realtime/agenda-sync.port-impl.js";
@@ -72,14 +78,19 @@ export async function createStaff(
   if (input.role === "medico") {
     const specialtyId = input.specialtyId;
     if (!specialtyId) throw new AppError("Especialidad requerida para médicos", 400);
-    await db.insert(practitioners).values({
-      clinicId,
-      userId: created.id,
-      specialtyId,
-      givenName: input.givenName,
-      familyName: input.familyName,
-      email: input.email.toLowerCase(),
-    });
+    const [practitioner] = await db
+      .insert(practitioners)
+      .values({
+        clinicId,
+        userId: created.id,
+        specialtyId,
+        givenName: input.givenName,
+        familyName: input.familyName,
+        email: input.email.toLowerCase(),
+      })
+      .returning();
+
+    await db.insert(scheduleTemplates).values(buildScheduleTemplateRows(practitioner.id));
   }
 
   await writeAuditLog({
@@ -373,6 +384,25 @@ export async function createSchedule(
   if (!practitioner || practitioner.clinicId !== clinicId) {
     throw new AppError("Profesional no encontrado", 404);
   }
+  if (!isValidScheduleRange(input.startTime, input.endTime)) {
+    throw new AppError("La hora de inicio debe ser anterior a la hora de fin", 400);
+  }
+
+  const existing = await db
+    .select()
+    .from(scheduleTemplates)
+    .where(eq(scheduleTemplates.practitionerId, input.practitionerId));
+
+  const overlap = findOverlappingSchedule(
+    input,
+    existing,
+    undefined,
+    existing.map((r) => r.id),
+  );
+  if (overlap) {
+    throw new AppError("El horario se superpone con otro bloque del mismo día", 409);
+  }
+
   const [created] = await db.insert(scheduleTemplates).values(input).returning();
   await writeAuditLog({
     clinicId,
@@ -390,6 +420,100 @@ export async function createSchedule(
     endTime: created.endTime,
     slotDurationMinutes: created.slotDurationMinutes,
   };
+}
+
+async function getScheduleForClinic(
+  clinicId: string,
+  scheduleId: string,
+): Promise<typeof scheduleTemplates.$inferSelect> {
+  const rows = await db
+    .select({ template: scheduleTemplates })
+    .from(scheduleTemplates)
+    .innerJoin(practitioners, eq(scheduleTemplates.practitionerId, practitioners.id))
+    .where(and(eq(scheduleTemplates.id, scheduleId), eq(practitioners.clinicId, clinicId)))
+    .limit(1);
+  if (!rows[0]) throw new AppError("Horario no encontrado", 404);
+  return rows[0].template;
+}
+
+export async function updateSchedule(
+  user: SessionUser,
+  scheduleId: string,
+  input: UpdateScheduleTemplateInput,
+  ip: string,
+): Promise<ScheduleTemplateDto> {
+  const clinicId = requireClinic(user);
+  const existing = await getScheduleForClinic(clinicId, scheduleId);
+
+  const next = {
+    dayOfWeek: input.dayOfWeek ?? existing.dayOfWeek,
+    startTime: input.startTime ?? existing.startTime,
+    endTime: input.endTime ?? existing.endTime,
+    slotDurationMinutes: input.slotDurationMinutes ?? existing.slotDurationMinutes,
+  };
+
+  if (!isValidScheduleRange(next.startTime, next.endTime)) {
+    throw new AppError("La hora de inicio debe ser anterior a la hora de fin", 400);
+  }
+
+  const siblings = await db
+    .select()
+    .from(scheduleTemplates)
+    .where(eq(scheduleTemplates.practitionerId, existing.practitionerId));
+
+  const overlap = findOverlappingSchedule(
+    { dayOfWeek: next.dayOfWeek, startTime: next.startTime, endTime: next.endTime },
+    siblings,
+    scheduleId,
+    siblings.map((r) => r.id),
+  );
+  if (overlap) {
+    throw new AppError("El horario se superpone con otro bloque del mismo día", 409);
+  }
+
+  const [updated] = await db
+    .update(scheduleTemplates)
+    .set(next)
+    .where(eq(scheduleTemplates.id, scheduleId))
+    .returning();
+
+  await writeAuditLog({
+    clinicId,
+    userId: user.id,
+    action: "UPDATE",
+    resource: "schedule_template",
+    resourceId: scheduleId,
+    ipAddress: ip,
+  });
+
+  return {
+    id: updated.id,
+    practitionerId: updated.practitionerId,
+    dayOfWeek: updated.dayOfWeek,
+    startTime: updated.startTime,
+    endTime: updated.endTime,
+    slotDurationMinutes: updated.slotDurationMinutes,
+  };
+}
+
+export async function deleteSchedule(
+  user: SessionUser,
+  scheduleId: string,
+  ip: string,
+): Promise<void> {
+  const clinicId = requireClinic(user);
+  await getScheduleForClinic(clinicId, scheduleId);
+
+  await db.delete(scheduleTemplates).where(eq(scheduleTemplates.id, scheduleId));
+
+  await writeAuditLog({
+    clinicId,
+    userId: user.id,
+    action: "DELETE",
+    resource: "schedule_template",
+    resourceId: scheduleId,
+    ipAddress: ip,
+  });
 }
 
 export async function getOccupancyReport(

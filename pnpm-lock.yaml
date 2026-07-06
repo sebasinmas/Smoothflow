@@ -139,6 +139,9 @@ importers:
       tailwindcss:
         specifier: ^4.1.10
         version: 4.3.2
+      tailwindcss-react-aria-components:
+        specifier: ^2.2.0
+        version: 2.2.0(tailwindcss@4.3.2)
       typescript:
         specifier: ^5.8.3
         version: 5.9.3
@@ -1785,6 +1788,11 @@ packages:
     resolution: {integrity: sha512-DvEy55V3DB7uknRo+4iOGT5fP1slR8wQohVdknigZPMpMstaKJQWhwiYBACJE3Ul2pTnATihhBYnRhZQHGBiRw==}
     engines: {node: '>= 0.8'}
 
+  tailwindcss-react-aria-components@2.2.0:
+    resolution: {integrity: sha512-iNVDSQd6haXWiu4RakjaYnCUnLw/nOEFSFHEelFeIkT/0f8HSrJ23fwt59F93yNw4FrjjHDXIGHgEtqProNcmQ==}
+    peerDependencies:
+      tailwindcss: ^4.0.0
+
   tailwindcss@4.3.2:
     resolution: {integrity: sha512-WtctNNSH8A9jlMIqxzuYumOHU5uGZyRv0Q5svQl+oEPy5w84YpBxdb7MdqyiSPQge5jTJ6zFQLq0PFygdccSBA==}
 
@@ -3294,6 +3302,10 @@ snapshots:
   split2@4.2.0: {}
 
   statuses@2.0.2: {}
+
+  tailwindcss-react-aria-components@2.2.0(tailwindcss@4.3.2):
+    dependencies:
+      tailwindcss: 4.3.2
 
   tailwindcss@4.3.2: {}
 

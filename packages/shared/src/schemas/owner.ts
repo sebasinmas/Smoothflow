@@ -52,6 +52,17 @@ export const createScheduleTemplateSchema = z.object({
   slotDurationMinutes: z.number().int().min(15).max(120).default(30),
 });
 
+export const updateScheduleTemplateSchema = z
+  .object({
+    dayOfWeek: z.number().int().min(0).max(6).optional(),
+    startTime: z.string().regex(/^\d{2}:\d{2}$/).optional(),
+    endTime: z.string().regex(/^\d{2}:\d{2}$/).optional(),
+    slotDurationMinutes: z.number().int().min(15).max(120).optional(),
+  })
+  .refine((data) => Object.keys(data).length > 0, {
+    message: "Debe indicar al menos un campo a actualizar",
+  });
+
 export type CreatePatientInput = z.infer<typeof createPatientSchema>;
 export type CreateStaffInput = z.infer<typeof createStaffSchema>;
 export type UpdateStaffInput = z.infer<typeof updateStaffSchema>;
@@ -59,3 +70,4 @@ export type CreateSpecialtyInput = z.infer<typeof createSpecialtySchema>;
 export type UpdateSpecialtyInput = z.infer<typeof updateSpecialtySchema>;
 export type CreatePractitionerInput = z.infer<typeof createPractitionerSchema>;
 export type CreateScheduleTemplateInput = z.infer<typeof createScheduleTemplateSchema>;
+export type UpdateScheduleTemplateInput = z.infer<typeof updateScheduleTemplateSchema>;

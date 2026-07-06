@@ -6,6 +6,7 @@ import {
   updateSpecialtySchema,
   createPractitionerSchema,
   createScheduleTemplateSchema,
+  updateScheduleTemplateSchema,
 } from "@smoothflow/shared";
 import {
   listStaff,
@@ -20,6 +21,8 @@ import {
   createPractitioner,
   listSchedules,
   createSchedule,
+  updateSchedule,
+  deleteSchedule,
   getOccupancyReport,
 } from "../../../use-cases/owner.js";
 import { requireAuth, getClientIp, type AuthenticatedRequest } from "../middleware/auth.js";
@@ -153,6 +156,27 @@ router.post("/schedules", ownerOnly, async (req, res, next) => {
     const input = createScheduleTemplateSchema.parse(req.body);
     const schedule = await createSchedule(user, input, getClientIp(req));
     res.status(201).json({ schedule });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.patch("/schedules/:id", ownerOnly, async (req, res, next) => {
+  try {
+    const user = (req as AuthenticatedRequest).user;
+    const input = updateScheduleTemplateSchema.parse(req.body);
+    const schedule = await updateSchedule(user, String(req.params.id), input, getClientIp(req));
+    res.json({ schedule });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.delete("/schedules/:id", ownerOnly, async (req, res, next) => {
+  try {
+    const user = (req as AuthenticatedRequest).user;
+    await deleteSchedule(user, String(req.params.id), getClientIp(req));
+    res.json({ ok: true });
   } catch (err) {
     next(err);
   }

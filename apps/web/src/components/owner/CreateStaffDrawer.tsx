@@ -45,7 +45,12 @@ function CreateStaffDrawerActive({
     }) => api.post("/owner/staff", body),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["staff"] });
-      toast.success("Empleado creado correctamente");
+      queryClient.invalidateQueries({ queryKey: ["practitioners"] });
+      queryClient.invalidateQueries({ queryKey: ["schedules"] });
+      queryClient.invalidateQueries({ queryKey: ["availability"] });
+      toast.success(
+        "Empleado creado correctamente. Los médicos incluyen horario Lun–Vie 09:00–17:00; ajústelo en Configuración.",
+      );
       onOpenChange(false);
     },
     onError: (err) => {

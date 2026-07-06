@@ -8,6 +8,7 @@ import {
   patients,
 } from "./infrastructure/db/schema.js";
 import { hashPassword } from "./infrastructure/auth/password.js";
+import { buildScheduleTemplateRows } from "./domain/scheduling/default-schedule.js";
 
 export async function seedDatabase(): Promise<void> {
   const [existingClinic] = await db.select().from(clinics).limit(1);
@@ -79,43 +80,7 @@ export async function seedDatabase(): Promise<void> {
     })
     .returning();
 
-  await db.insert(scheduleTemplates).values([
-    {
-      practitionerId: practitioner.id,
-      dayOfWeek: 1,
-      startTime: "09:00",
-      endTime: "17:00",
-      slotDurationMinutes: 30,
-    },
-    {
-      practitionerId: practitioner.id,
-      dayOfWeek: 2,
-      startTime: "09:00",
-      endTime: "17:00",
-      slotDurationMinutes: 30,
-    },
-    {
-      practitionerId: practitioner.id,
-      dayOfWeek: 3,
-      startTime: "09:00",
-      endTime: "13:00",
-      slotDurationMinutes: 30,
-    },
-    {
-      practitionerId: practitioner.id,
-      dayOfWeek: 4,
-      startTime: "09:00",
-      endTime: "17:00",
-      slotDurationMinutes: 30,
-    },
-    {
-      practitionerId: practitioner.id,
-      dayOfWeek: 5,
-      startTime: "09:00",
-      endTime: "17:00",
-      slotDurationMinutes: 30,
-    },
-  ]);
+  await db.insert(scheduleTemplates).values(buildScheduleTemplateRows(practitioner.id));
 
   const [patientUser] = await db
     .insert(users)
