@@ -131,8 +131,7 @@ export async function createAppointment(
   input: CreateAppointmentInput,
   ip: string,
 ): Promise<AppointmentDto> {
-  const clinicId = user.clinicId;
-  if (!clinicId && user.role === "paciente") {
+  if (user.role === "paciente") {
     const [patient] = await db
       .select()
       .from(patients)
@@ -141,6 +140,7 @@ export async function createAppointment(
     if (!patient) throw new AppError("Paciente no encontrado", 404);
     return createAppointmentForClinic(patient.clinicId, user, input, ip, patient.id);
   }
+  const clinicId = user.clinicId;
   if (!clinicId) throw new AppError("Clínica no asignada", 400);
   if (!input.patientId) throw new AppError("patientId requerido", 400);
   return createAppointmentForClinic(clinicId, user, input, ip, input.patientId);

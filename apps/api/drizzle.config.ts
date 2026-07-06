@@ -1,9 +1,11 @@
 import { existsSync } from "node:fs";
 import { resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 import { config } from "dotenv";
 import { defineConfig } from "drizzle-kit";
 
-const rootEnv = resolve(import.meta.dirname, "../../.env");
+const __dirname = import.meta.dirname || fileURLToPath(new URL('.', import.meta.url));
+const rootEnv = resolve(__dirname, "../../.env");
 if (existsSync(rootEnv)) config({ path: rootEnv });
 
 export default defineConfig({
