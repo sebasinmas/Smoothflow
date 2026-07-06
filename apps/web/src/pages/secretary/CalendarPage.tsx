@@ -192,10 +192,6 @@ export default function SecretaryCalendarPage() {
     <SecretaryShell
       title="Calendario de agenda"
       fillContent
-      primaryAction={{
-        label: "Crear una reservación",
-        onClick: () => openCreateDialog(),
-      }}
     >
       <div className="flex min-h-0 flex-1 flex-col">
         <CalendarToolbar>
@@ -247,6 +243,7 @@ export default function SecretaryCalendarPage() {
               </span>
             )}
             <div className="ml-auto flex flex-wrap items-center gap-3">
+              <Button onClick={() => openCreateDialog()}>Crear reservación</Button>
               <AppTooltip content={view === "week" ? "Vista semanal" : "Vista diaria"}>
                 <div>
                   <SegmentedControl
