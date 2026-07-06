@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
-import { Link } from "react-router-dom";
 import type { AvailabilitySlotDto, PractitionerDto, SpecialtyDto } from "@smoothflow/shared";
+import { PatientShell } from "@/components/layout/PatientShell";
 import { AppointmentSlot } from "@/components/ui/AppointmentSlot";
 import { Button } from "@/components/ui/Button";
 import { Select } from "@/components/ui/Select";
@@ -17,12 +17,12 @@ export default function PatientBookingPage() {
   const [practitionerId, setPractitionerId] = useState("");
   const [selectedSlot, setSelectedSlot] = useState<AvailabilitySlotDto | null>(null);
 
-  const { data: specialties } = useQuery({
+  const { data: specialties, isLoading: loadingSpecialties } = useQuery({
     queryKey: ["specialties-public"],
     queryFn: () => api.get<{ items: SpecialtyDto[] }>("/specialties"),
   });
 
-  const { data: practitioners } = useQuery({
+  const { data: practitioners, isLoading: loadingPractitioners } = useQuery({
     queryKey: ["practitioners", specialtyId],
     enabled: !!specialtyId,
     queryFn: () =>
@@ -36,7 +36,7 @@ export default function PatientBookingPage() {
   const to = new Date(from);
   to.setDate(to.getDate() + 14);
 
-  const { data: availability } = useQuery({
+  const { data: availability, isLoading: loadingAvailability } = useQuery({
     queryKey: ["availability", practitionerId],
     enabled: !!practitionerId && step === "slot",
     queryFn: () =>
@@ -63,58 +63,49 @@ export default function PatientBookingPage() {
   const availableSlots = availability?.slots.filter((s) => s.status === "disponible") ?? [];
 
   return (
-    <div className="min-h-screen bg-surface">
-      <header className="border-b border-border bg-white px-6 py-4">
-        <div className="mx-auto flex max-w-3xl items-center justify-between">
-          <h1 className="text-xl font-bold text-brand">Smooth Flow — Pacientes</h1>
-          <nav className="flex gap-4 text-sm">
-            <Link to="/paciente/reservar" className="text-brand font-medium">
-              Reservar
-            </Link>
-            <Link to="/paciente/mis-citas" className="text-text-muted hover:text-brand">
-              Mis citas
-            </Link>
-            <button type="button" onClick={() => window.location.href = "/paciente/login"} className="text-text-muted hover:text-brand">
-              Salir
-            </button>
-          </nav>
-        </div>
-      </header>
+    <PatientShell title="Smooth Flow — Pacientes">
+      <ol className="mb-8 flex flex-wrap gap-2 text-sm" aria-label="Pasos de reserva">
+        {(["specialty", "doctor", "slot", "confirm"] as Step[]).map((s, i) => (
+          <li
+            key={s}
+            className={`rounded px-3 py-1 ${step === s ? "bg-brand text-white" : "bg-surface-muted text-text-muted"}`}
+            aria-current={step === s ? "step" : undefined}
+          >
+            {i + 1}. {s === "specialty" ? "Especialidad" : s === "doctor" ? "Médico" : s === "slot" ? "Horario" : "Listo"}
+          </li>
+        ))}
+      </ol>
 
-      <main className="mx-auto max-w-3xl px-6 py-8">
-        <ol className="mb-8 flex gap-2 text-sm" aria-label="Pasos de reserva">
-          {(["specialty", "doctor", "slot", "confirm"] as Step[]).map((s, i) => (
-            <li
-              key={s}
-              className={`rounded px-3 py-1 ${step === s ? "bg-brand text-white" : "bg-surface-muted text-text-muted"}`}
-              aria-current={step === s ? "step" : undefined}
-            >
-              {i + 1}. {s === "specialty" ? "Especialidad" : s === "doctor" ? "Médico" : s === "slot" ? "Horario" : "Listo"}
-            </li>
-          ))}
-        </ol>
+      {step === "specialty" && (
+        <section>
+          <h2 className="mb-4 text-lg font-semibold">Seleccione especialidad</h2>
+          {loadingSpecialties ? (
+            <p className="text-text-muted" role="status">Cargando especialidades…</p>
+          ) : (
+            <>
+              <Select
+                label="Especialidad"
+                value={specialtyId}
+                onChange={(e) => setSpecialtyId(e.target.value)}
+                options={[
+                  { value: "", label: "Seleccionar…" },
+                  ...(specialties?.items.map((s) => ({ value: s.id, label: s.name })) ?? []),
+                ]}
+              />
+              <Button className="mt-4" disabled={!specialtyId} onClick={() => setStep("doctor")}>
+                Continuar
+              </Button>
+            </>
+          )}
+        </section>
+      )}
 
-        {step === "specialty" && (
-          <section>
-            <h2 className="mb-4 text-lg font-semibold">Seleccione especialidad</h2>
-            <Select
-              label="Especialidad"
-              value={specialtyId}
-              onChange={(e) => setSpecialtyId(e.target.value)}
-              options={[
-                { value: "", label: "Seleccionar…" },
-                ...(specialties?.items.map((s) => ({ value: s.id, label: s.name })) ?? []),
-              ]}
-            />
-            <Button className="mt-4" disabled={!specialtyId} onClick={() => setStep("doctor")}>
-              Continuar
-            </Button>
-          </section>
-        )}
-
-        {step === "doctor" && (
-          <section>
-            <h2 className="mb-4 text-lg font-semibold">Seleccione médico</h2>
+      {step === "doctor" && (
+        <section>
+          <h2 className="mb-4 text-lg font-semibold">Seleccione médico</h2>
+          {loadingPractitioners ? (
+            <p className="text-text-muted" role="status">Cargando médicos…</p>
+          ) : (
             <div className="grid gap-3">
               {practitioners?.items
                 .filter((p) => !specialtyId || p.specialtyId === specialtyId)
@@ -126,19 +117,29 @@ export default function PatientBookingPage() {
                       setPractitionerId(p.id);
                       setStep("slot");
                     }}
-                    className="rounded-lg border border-border bg-white p-4 text-left hover:border-brand"
+                    className="rounded-lg border border-border bg-white p-4 text-left transition-colors duration-200 hover:border-brand"
                   >
                     <span className="font-semibold">{p.givenName} {p.familyName}</span>
                     <span className="block text-sm text-text-muted">{p.specialtyName}</span>
                   </button>
                 ))}
+              {practitioners?.items.length === 0 && (
+                <p className="text-text-muted">No hay médicos disponibles para esta especialidad.</p>
+              )}
             </div>
-          </section>
-        )}
+          )}
+          <Button variant="secondary" className="mt-4" onClick={() => setStep("specialty")}>
+            Volver
+          </Button>
+        </section>
+      )}
 
-        {step === "slot" && (
-          <section>
-            <h2 className="mb-4 text-lg font-semibold">Seleccione horario disponible</h2>
+      {step === "slot" && (
+        <section>
+          <h2 className="mb-4 text-lg font-semibold">Seleccione horario disponible</h2>
+          {loadingAvailability ? (
+            <p className="text-text-muted" role="status">Buscando horarios disponibles…</p>
+          ) : (
             <div className="grid gap-2 sm:grid-cols-2">
               {availableSlots.map((slot) => (
                 <AppointmentSlot
@@ -154,24 +155,40 @@ export default function PatientBookingPage() {
                 <p className="text-text-muted">No hay horarios disponibles en las próximas 2 semanas.</p>
               )}
             </div>
+          )}
+          {bookMutation.isError && (
+            <p className="mt-3 text-sm text-red-600" role="alert">
+              No se pudo confirmar la reserva. Intente con otro horario.
+            </p>
+          )}
+          <div className="mt-4 flex gap-2">
+            <Button
+              variant="secondary"
+              onClick={() => {
+                setSelectedSlot(null);
+                setStep("doctor");
+              }}
+            >
+              Volver
+            </Button>
             {selectedSlot && (
-              <Button className="mt-4" loading={bookMutation.isPending} onClick={() => bookMutation.mutate()}>
+              <Button loading={bookMutation.isPending} onClick={() => bookMutation.mutate()}>
                 Confirmar reserva
               </Button>
             )}
-          </section>
-        )}
+          </div>
+        </section>
+      )}
 
-        {step === "confirm" && (
-          <section className="rounded-lg border border-success bg-green-50 p-6 text-center" role="status">
-            <h2 className="text-lg font-semibold text-success">¡Cita confirmada!</h2>
-            <p className="mt-2 text-sm">Recibirá un correo de confirmación.</p>
-            <Button className="mt-4" onClick={() => { setStep("specialty"); setSelectedSlot(null); }}>
-              Reservar otra cita
-            </Button>
-          </section>
-        )}
-      </main>
-    </div>
+      {step === "confirm" && (
+        <section className="rounded-lg border border-success bg-green-50 p-6 text-center" role="status">
+          <h2 className="text-lg font-semibold text-success">¡Cita confirmada!</h2>
+          <p className="mt-2 text-sm">Recibirá un correo de confirmación.</p>
+          <Button className="mt-4" onClick={() => { setStep("specialty"); setSelectedSlot(null); }}>
+            Reservar otra cita
+          </Button>
+        </section>
+      )}
+    </PatientShell>
   );
 }

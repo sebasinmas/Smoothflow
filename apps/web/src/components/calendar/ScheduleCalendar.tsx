@@ -92,7 +92,7 @@ export function ScheduleCalendar({ days, events, onEventClick }: ScheduleCalenda
 
   return (
     <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-2xl border border-border bg-white shadow-card">
-      <div className="min-h-0 flex-1 overflow-y-auto scrollbar-gutter-stable">
+      <div className="min-h-0 flex-1 overflow-y-auto" style={{ scrollbarGutter: "stable" }}>
         {/* Header row — shares the exact same grid template as the body so columns stay aligned */}
         <div
           className="sticky top-0 z-20 grid border-b border-border bg-white/95 backdrop-blur-sm"
@@ -155,7 +155,7 @@ export function ScheduleCalendar({ days, events, onEventClick }: ScheduleCalenda
               <div
                 key={dayKey(day)}
                 className={`relative min-w-0 border-r border-border last:border-r-0 ${
-                  isToday ? "bg-brand/2" : ""
+                  isToday ? "bg-brand/5" : ""
                 }`}
                 style={{ height: gridHeight }}
               >

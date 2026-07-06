@@ -1,20 +1,17 @@
 import { useQuery } from "@tanstack/react-query";
+import { BarChart3 } from "lucide-react";
 import type { OccupancyReportDto } from "@smoothflow/shared";
 import { AppShell } from "@/components/layout/AppShell";
+import { EmptyState } from "@/components/ui/EmptyState";
+import { LoadingState } from "@/components/ui/LoadingState";
 import { api } from "@/lib/api";
 import { startOfWeek } from "@/lib/utils";
-
-const navItems = [
-  { to: "/owner/staff", label: "Personal" },
-  { to: "/owner/reportes", label: "Reportes" },
-];
-
-const bottomNavItems = [{ to: "/owner/configuracion", label: "Configuración" }];
+import { OWNER_NAV, OWNER_BOTTOM_NAV } from "@/lib/navigation";
 
 export default function OwnerReportsPage() {
   const weekStart = startOfWeek().toISOString().slice(0, 10);
 
-  const { data } = useQuery({
+  const { data, isLoading } = useQuery({
     queryKey: ["occupancy", weekStart],
     queryFn: () =>
       api.get<{ report: OccupancyReportDto }>(`/owner/reports/occupancy?weekStart=${weekStart}`),
@@ -23,11 +20,22 @@ export default function OwnerReportsPage() {
   const maxRate = Math.max(...(data?.report.days.map((d) => d.occupancyRate) ?? [1]), 1);
 
   return (
-    <AppShell role="dueno" navItems={navItems} bottomNavItems={bottomNavItems} title="Reportes de ocupación">
+    <AppShell role="dueno" navItems={OWNER_NAV} bottomNavItems={OWNER_BOTTOM_NAV} title="Reportes de ocupación">
       <p className="mb-6 text-text-muted">
         Ocupación semanal de la agenda — semana del {weekStart}
       </p>
 
+      {isLoading && <LoadingState message="Cargando reporte de ocupación…" />}
+
+      {!isLoading && (data?.report.days.length ?? 0) === 0 && (
+        <EmptyState
+          icon={BarChart3}
+          message="No hay datos de ocupación para esta semana."
+        />
+      )}
+
+      {!isLoading && (data?.report.days.length ?? 0) > 0 && (
+      <>
       <div
         className="flex h-64 items-end gap-4 rounded-lg border border-border bg-white p-6"
         role="img"
@@ -68,6 +76,8 @@ export default function OwnerReportsPage() {
           ))}
         </tbody>
       </table>
+      </>
+      )}
     </AppShell>
   );
 }

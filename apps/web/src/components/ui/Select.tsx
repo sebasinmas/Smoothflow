@@ -16,7 +16,7 @@ export function Select({ label, options, error, id, className = "", ...props }: 
       <select
         id={selectId}
         aria-invalid={!!error}
-        className={`h-10 rounded border border-border bg-white px-3 text-sm text-text ${className}`}
+        className={`h-10 rounded border border-border bg-white px-3 text-sm text-text transition-colors duration-200 hover:border-brand/40 focus-visible:border-brand ${className}`}
         {...props}
       >
         {options.map((o) => (

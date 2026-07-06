@@ -66,7 +66,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
             type={isPassword && visible ? "text" : type}
             aria-invalid={!!error}
             aria-describedby={error ? `${inputId}-error` : undefined}
-            className={`h-12 w-full rounded border border-border bg-white text-sm text-text placeholder:text-text-muted focus:border-brand ${
+            className={`h-12 w-full rounded border border-border bg-white text-sm text-text transition-colors duration-200 placeholder:text-text-muted hover:border-brand/40 focus-visible:border-brand ${
               hasStartIcon ? "pl-10" : "px-3"
             } ${hasToggle ? "pr-10" : hasStartIcon ? "pr-3" : ""} ${className}`}
             {...props}

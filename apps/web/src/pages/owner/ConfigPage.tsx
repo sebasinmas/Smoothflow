@@ -6,13 +6,7 @@ import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Select } from "@/components/ui/Select";
 import { api } from "@/lib/api";
-
-const navItems = [
-  { to: "/owner/staff", label: "Personal" },
-  { to: "/owner/reportes", label: "Reportes" },
-];
-
-const bottomNavItems = [{ to: "/owner/configuracion", label: "Configuración" }];
+import { OWNER_NAV, OWNER_BOTTOM_NAV } from "@/lib/navigation";
 
 const DAYS = [
   { value: "1", label: "Lunes" },
@@ -65,7 +59,7 @@ export default function OwnerConfigPage() {
     })) ?? [];
 
   return (
-    <AppShell role="dueno" navItems={navItems} bottomNavItems={bottomNavItems} title="Configuración de la clínica">
+    <AppShell role="dueno" navItems={OWNER_NAV} bottomNavItems={OWNER_BOTTOM_NAV} title="Configuración de la clínica">
       <div className="grid gap-8 lg:grid-cols-2">
         <section className="rounded-lg border border-border bg-white p-6">
           <h2 className="mb-4 text-lg font-semibold">Especialidades</h2>
@@ -94,6 +88,9 @@ export default function OwnerConfigPage() {
                 {s.name}
               </li>
             ))}
+            {specialties?.items.length === 0 && (
+              <li className="px-3 py-2 text-text-muted">Aún no hay especialidades registradas.</li>
+            )}
           </ul>
         </section>
 
@@ -142,6 +139,9 @@ export default function OwnerConfigPage() {
                 </li>
               );
             })}
+            {schedules?.items.length === 0 && (
+              <li className="px-3 py-2 text-text-muted">Aún no hay horarios configurados.</li>
+            )}
           </ul>
         </section>
       </div>

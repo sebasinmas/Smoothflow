@@ -1,15 +1,14 @@
 import { useQuery } from "@tanstack/react-query";
+import { Link } from "react-router-dom";
+import { CalendarOff } from "lucide-react";
 import { AppShell } from "@/components/layout/AppShell";
+import { EmptyState } from "@/components/ui/EmptyState";
+import { LoadingState } from "@/components/ui/LoadingState";
 import { api } from "@/lib/api";
 import type { AppointmentDto } from "@smoothflow/shared";
 import { formatDateTime } from "@/lib/utils";
 import { useRealtime } from "@/contexts/RealtimeContext";
-
-const navItems = [
-  { to: "/secretaria/panel", label: "Panel de control" },
-  { to: "/secretaria/calendario", label: "Calendario" },
-  { to: "/secretaria/pacientes", label: "Pacientes" },
-];
+import { SECRETARIA_NAV } from "@/lib/navigation";
 
 export default function SecretaryPanelPage() {
   const { lastEvent } = useRealtime();
@@ -18,7 +17,7 @@ export default function SecretaryPanelPage() {
   const tomorrow = new Date(today);
   tomorrow.setDate(tomorrow.getDate() + 1);
 
-  const { data } = useQuery({
+  const { data, isLoading } = useQuery({
     queryKey: ["appointments", "today", lastEvent],
     queryFn: () =>
       api.get<{ items: AppointmentDto[] }>(
@@ -30,7 +29,7 @@ export default function SecretaryPanelPage() {
   const blocked = data?.items.filter((a) => a.status === "bloqueado").length ?? 0;
 
   return (
-    <AppShell role="secretaria" navItems={navItems} title="Panel de control" showNotifications>
+    <AppShell role="secretaria" navItems={SECRETARIA_NAV} title="Panel de control" showNotifications>
       <div className="grid gap-6 md:grid-cols-3">
         <div className="rounded-xl border border-border bg-white p-6 shadow-card">
           <p className="text-sm text-text-muted">Citas hoy</p>
@@ -50,16 +49,32 @@ export default function SecretaryPanelPage() {
         <h2 id="today-heading" className="mb-4 text-lg font-semibold">
           Agenda de hoy
         </h2>
-        <ul className="space-y-2">
-          {data?.items.map((a) => (
-            <li key={a.id} className="rounded border border-border bg-white px-4 py-3">
-              <span className="font-medium">{formatDateTime(a.startAt)}</span>
-              {" — "}
-              {a.patientName ?? "Sin paciente"} con {a.practitionerName}
-            </li>
-          ))}
-          {data?.items.length === 0 && <li className="text-text-muted">No hay citas programadas hoy.</li>}
-        </ul>
+        {isLoading ? (
+          <LoadingState message="Cargando agenda de hoy…" />
+        ) : data?.items.length === 0 ? (
+          <EmptyState
+            icon={CalendarOff}
+            message="No hay citas programadas hoy."
+            action={
+              <Link
+                to="/secretaria/calendario"
+                className="text-sm font-medium text-brand underline"
+              >
+                Ir al calendario
+              </Link>
+            }
+          />
+        ) : (
+          <ul className="space-y-2">
+            {data?.items.map((a) => (
+              <li key={a.id} className="rounded border border-border bg-white px-4 py-3">
+                <span className="font-medium">{formatDateTime(a.startAt)}</span>
+                {" — "}
+                {a.patientName ?? "Sin paciente"} con {a.practitionerName}
+              </li>
+            ))}
+          </ul>
+        )}
       </section>
     </AppShell>
   );

@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { ChevronLeft, ChevronRight, RefreshCw } from "lucide-react";
 import type { AppointmentDto, AvailabilitySlotDto } from "@smoothflow/shared";
 import { AppShell } from "@/components/layout/AppShell";
@@ -10,15 +11,11 @@ import { Select } from "@/components/ui/Select";
 import { api } from "@/lib/api";
 import { addDays, startOfWeek } from "@/lib/utils";
 import { useRealtime } from "@/contexts/RealtimeContext";
-
-const navItems = [
-  { to: "/secretaria/panel", label: "Panel de control" },
-  { to: "/secretaria/calendario", label: "Calendario" },
-  { to: "/secretaria/pacientes", label: "Pacientes" },
-];
+import { SECRETARIA_NAV } from "@/lib/navigation";
 
 export default function SecretaryCalendarPage() {
   const { lastEvent } = useRealtime();
+  const navigate = useNavigate();
   const [view, setView] = useState<"week" | "day">("week");
   const [weekStart, setWeekStart] = useState(() => startOfWeek());
   const [selectedPractitioner, setSelectedPractitioner] = useState("");
@@ -97,13 +94,13 @@ export default function SecretaryCalendarPage() {
   return (
     <AppShell
       role="secretaria"
-      navItems={navItems}
+      navItems={SECRETARIA_NAV}
       title="Calendario de agenda"
       showNotifications
       fillContent
       primaryAction={{
         label: "Crear una reservación",
-        onClick: () => document.getElementById("new-booking")?.focus(),
+        onClick: () => navigate("/secretaria/pacientes"),
       }}
     >
       <div className="flex min-h-0 flex-1 flex-col">
@@ -115,7 +112,7 @@ export default function SecretaryCalendarPage() {
               onClick={() => setWeekStart(addDays(weekStart, -step))}
               aria-label={view === "week" ? "Semana anterior" : "Día anterior"}
             >
-              <ChevronLeft className="size-[18px]" aria-hidden="true" />
+              <ChevronLeft className="size-[18px] shrink-0" aria-hidden="true" />
             </Button>
             <Button
               variant="secondary"
@@ -123,7 +120,7 @@ export default function SecretaryCalendarPage() {
               onClick={() => setWeekStart(addDays(weekStart, step))}
               aria-label={view === "week" ? "Semana siguiente" : "Día siguiente"}
             >
-              <ChevronRight className="size-[18px]" aria-hidden="true" />
+              <ChevronRight className="size-[18px] shrink-0" aria-hidden="true" />
             </Button>
             <Button variant="secondary" onClick={() => setWeekStart(startOfWeek())}>
               Hoy
@@ -153,16 +150,12 @@ export default function SecretaryCalendarPage() {
               onClick={() => refetch()}
               aria-label="Actualizar agenda"
             >
-              <RefreshCw className="size-[18px]" aria-hidden="true" />
+              <RefreshCw className="size-[18px] shrink-0" aria-hidden="true" />
             </Button>
           </div>
         </CalendarToolbar>
 
         <ScheduleCalendar days={days} events={events} />
-      </div>
-
-      <div id="new-booking" tabIndex={-1} className="sr-only">
-        Use la vista de pacientes para crear reservas en representación del paciente.
       </div>
     </AppShell>
   );

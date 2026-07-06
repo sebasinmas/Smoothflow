@@ -85,7 +85,7 @@ export function SideNav({ role, items, bottomNavItems, primaryAction }: SideNavP
       <nav
         aria-label="Navegación principal"
         className={`fixed inset-y-0 left-0 z-40 flex h-screen flex-col border-r border-border bg-white shadow-sm transition-[width,transform] duration-300 ease-in-out md:relative md:translate-x-0 md:shadow-none ${
-          isExpanded ? "w-60" : "w-18"
+          isExpanded ? "w-60" : "w-[4.5rem]"
         } ${isMobile && !mobileOpen ? "-translate-x-full" : "translate-x-0"}`}
       >
         <div

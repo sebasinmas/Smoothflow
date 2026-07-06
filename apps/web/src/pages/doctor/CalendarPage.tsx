@@ -1,16 +1,15 @@
 import { useQuery } from "@tanstack/react-query";
 import { useMemo } from "react";
 import type { AppointmentDto, AvailabilitySlotDto } from "@smoothflow/shared";
+import { CalendarOff } from "lucide-react";
 import { AppShell } from "@/components/layout/AppShell";
 import { mergeCalendarEvents } from "@/components/calendar/CalendarToolbar";
 import { ScheduleCalendar } from "@/components/calendar/ScheduleCalendar";
+import { EmptyState } from "@/components/ui/EmptyState";
+import { LoadingState } from "@/components/ui/LoadingState";
 import { api } from "@/lib/api";
 import { useRealtime } from "@/contexts/RealtimeContext";
-
-const navItems = [
-  { to: "/doctor/calendario", label: "Agenda del día" },
-  { to: "/doctor/historial", label: "Historial" },
-];
+import { DOCTOR_NAV } from "@/lib/navigation";
 
 export default function DoctorCalendarPage() {
   const { lastEvent } = useRealtime();
@@ -25,7 +24,7 @@ export default function DoctorCalendarPage() {
     return d;
   }, [today]);
 
-  const { data: appointments } = useQuery({
+  const { data: appointments, isLoading: loadingAppointments } = useQuery({
     queryKey: ["appointments", "doctor-today", lastEvent],
     queryFn: () =>
       api.get<{ items: AppointmentDto[] }>(
@@ -33,7 +32,7 @@ export default function DoctorCalendarPage() {
       ),
   });
 
-  const { data: availability } = useQuery({
+  const { data: availability, isLoading: loadingAvailability } = useQuery({
     queryKey: ["availability", "doctor-today", lastEvent],
     queryFn: () =>
       api.get<{ slots: AvailabilitySlotDto[] }>(
@@ -53,14 +52,16 @@ export default function DoctorCalendarPage() {
   return (
     <AppShell
       role="medico"
-      navItems={navItems}
+      navItems={DOCTOR_NAV}
       title="Agenda del día"
       showNotifications
       fillContent
     >
       <div className="flex min-h-0 flex-1 flex-col">
-        {events.length === 0 ? (
-          <p className="text-text-muted">No tiene citas programadas para hoy.</p>
+        {loadingAppointments || loadingAvailability ? (
+          <LoadingState message="Cargando agenda del día…" />
+        ) : events.length === 0 ? (
+          <EmptyState icon={CalendarOff} message="No tiene citas programadas para hoy." />
         ) : (
           <ScheduleCalendar days={[today]} events={events} />
         )}

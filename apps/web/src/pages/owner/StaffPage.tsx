@@ -5,17 +5,13 @@ import { AppShell } from "@/components/layout/AppShell";
 import { StaffCard } from "@/components/ui/StaffCard";
 import { Button } from "@/components/ui/Button";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
+import { EmptyState } from "@/components/ui/EmptyState";
 import { Input } from "@/components/ui/Input";
+import { LoadingState } from "@/components/ui/LoadingState";
 import { Select } from "@/components/ui/Select";
 import { api } from "@/lib/api";
 import { formatPersonName } from "@/lib/utils";
-
-const navItems = [
-  { to: "/owner/staff", label: "Personal" },
-  { to: "/owner/reportes", label: "Reportes" },
-];
-
-const bottomNavItems = [{ to: "/owner/configuracion", label: "Configuración" }];
+import { OWNER_NAV, OWNER_BOTTOM_NAV } from "@/lib/navigation";
 
 export default function OwnerStaffPage() {
   const queryClient = useQueryClient();
@@ -27,7 +23,7 @@ export default function OwnerStaffPage() {
   const [familyName, setFamilyName] = useState("");
   const [role, setRole] = useState<"secretaria" | "medico" | "dueno">("secretaria");
 
-  const { data } = useQuery({
+  const { data, isLoading } = useQuery({
     queryKey: ["staff"],
     queryFn: () => api.get<{ items: UserDto[] }>("/owner/staff"),
   });
@@ -51,8 +47,8 @@ export default function OwnerStaffPage() {
   return (
     <AppShell
       role="dueno"
-      navItems={navItems}
-      bottomNavItems={bottomNavItems}
+      navItems={OWNER_NAV}
+      bottomNavItems={OWNER_BOTTOM_NAV}
       title="Directorio de empleados"
       headerExtra={
         <Button onClick={() => setShowForm(!showForm)}>
@@ -90,19 +86,25 @@ export default function OwnerStaffPage() {
         </form>
       )}
 
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-        {data?.items.map((staff) => (
-          <StaffCard
-            key={staff.id}
-            staff={staff}
-            onUnlink={
-              staff.role !== "dueno"
-                ? () => setUnlinkTarget(staff)
-                : undefined
-            }
-          />
-        ))}
-      </div>
+      {isLoading ? (
+        <LoadingState message="Cargando personal…" />
+      ) : data?.items.length === 0 ? (
+        <EmptyState message="Aún no hay empleados registrados. Use 'Añadir empleado' para crear el primero." />
+      ) : (
+        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+          {data?.items.map((staff) => (
+            <StaffCard
+              key={staff.id}
+              staff={staff}
+              onUnlink={
+                staff.role !== "dueno"
+                  ? () => setUnlinkTarget(staff)
+                  : undefined
+              }
+            />
+          ))}
+        </div>
+      )}
 
       <ConfirmDialog
         isOpen={unlinkTarget !== null}

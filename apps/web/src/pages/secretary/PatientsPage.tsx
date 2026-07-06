@@ -4,14 +4,10 @@ import type { PatientDto } from "@smoothflow/shared";
 import { AppShell } from "@/components/layout/AppShell";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
+import { LoadingState } from "@/components/ui/LoadingState";
 import { api } from "@/lib/api";
 import { formatDateTime, formatPersonName } from "@/lib/utils";
-
-const navItems = [
-  { to: "/secretaria/panel", label: "Panel de control" },
-  { to: "/secretaria/calendario", label: "Calendario" },
-  { to: "/secretaria/pacientes", label: "Pacientes" },
-];
+import { SECRETARIA_NAV } from "@/lib/navigation";
 
 export default function SecretaryPatientsPage() {
   const queryClient = useQueryClient();
@@ -40,7 +36,7 @@ export default function SecretaryPatientsPage() {
   });
 
   return (
-    <AppShell role="secretaria" navItems={navItems} title="Gestión de pacientes" showNotifications>
+    <AppShell role="secretaria" navItems={SECRETARIA_NAV} title="Gestión de pacientes" showNotifications>
       <div className="mb-6 flex items-center justify-between">
         <p className="text-text-muted">Administre pacientes y cree citas en su representación.</p>
         <Button onClick={() => setShowForm(!showForm)}>
@@ -60,6 +56,11 @@ export default function SecretaryPatientsPage() {
           <Input label="Apellido" value={familyName} onChange={(e) => setFamilyName(e.target.value)} required />
           <Input label="Email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
           <Input label="Teléfono" value={phone} onChange={(e) => setPhone(e.target.value)} />
+          {createMutation.isError && (
+            <p className="text-sm text-red-600" role="alert">
+              No se pudo guardar el paciente. Revise los datos e intente nuevamente.
+            </p>
+          )}
           <Button type="submit" loading={createMutation.isPending}>
             Guardar paciente
           </Button>
@@ -67,7 +68,7 @@ export default function SecretaryPatientsPage() {
       )}
 
       {isLoading ? (
-        <p>Cargando pacientes…</p>
+        <LoadingState message="Cargando pacientes…" />
       ) : (
         <div className="overflow-x-auto rounded-lg border border-border bg-white">
           <table className="w-full text-left text-sm">
@@ -96,6 +97,13 @@ export default function SecretaryPatientsPage() {
                   <td className="px-4 py-3">{formatDateTime(p.createdAt)}</td>
                 </tr>
               ))}
+              {data?.items.length === 0 && (
+                <tr>
+                  <td colSpan={4} className="px-4 py-8 text-center text-text-muted">
+                    Aún no hay pacientes registrados. Use "Nuevo paciente" para agregar el primero.
+                  </td>
+                </tr>
+              )}
             </tbody>
           </table>
         </div>
