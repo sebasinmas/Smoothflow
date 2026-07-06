@@ -16,6 +16,7 @@ export interface BookedAppointmentSlot {
   endAt: Date;
   notes?: string | null;
   patientName?: string;
+  requestReason?: string | null;
 }
 
 export interface PractitionerAvailabilityContext {
@@ -59,6 +60,7 @@ export function generateSlotsFromTemplate(
             endAt: slotEnd.toISOString(),
             status,
             appointmentId: overlap?.id,
+            appointmentStatus: overlap?.status,
             practitionerId: practitioner.id,
             practitionerName: `${practitioner.givenName} ${practitioner.familyName}`,
             specialtyId: practitioner.specialtyId,
@@ -66,6 +68,7 @@ export function generateSlotsFromTemplate(
             patientName: overlap?.patientName,
             blockReason:
               overlap?.status === "bloqueado" ? (overlap.notes ?? undefined) : undefined,
+            requestReason: overlap?.requestReason ?? undefined,
           });
         }
         slotStart = slotEnd;

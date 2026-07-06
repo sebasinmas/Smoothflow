@@ -3,6 +3,7 @@ import type {
   CreateStaffInput,
   UpdateStaffInput,
   CreateSpecialtyInput,
+  UpdateSpecialtyInput,
   CreatePractitionerInput,
   CreateScheduleTemplateInput,
   SessionUser,
@@ -200,6 +201,86 @@ export async function createSpecialty(
     name: created.name,
     description: created.description,
   };
+}
+
+async function getSpecialtyForClinic(
+  clinicId: string,
+  specialtyId: string,
+): Promise<typeof specialties.$inferSelect> {
+  const [row] = await db
+    .select()
+    .from(specialties)
+    .where(and(eq(specialties.id, specialtyId), eq(specialties.clinicId, clinicId)));
+  if (!row) throw new AppError("Especialidad no encontrada", 404);
+  return row;
+}
+
+export async function updateSpecialty(
+  user: SessionUser,
+  specialtyId: string,
+  input: UpdateSpecialtyInput,
+  ip: string,
+): Promise<SpecialtyDto> {
+  const clinicId = requireClinic(user);
+  await getSpecialtyForClinic(clinicId, specialtyId);
+
+  const updates: Partial<{ name: string; description: string | null }> = {};
+  if (input.name !== undefined) updates.name = input.name;
+  if (input.description !== undefined) updates.description = input.description;
+
+  const [updated] = await db
+    .update(specialties)
+    .set(updates)
+    .where(and(eq(specialties.id, specialtyId), eq(specialties.clinicId, clinicId)))
+    .returning();
+
+  await writeAuditLog({
+    clinicId,
+    userId: user.id,
+    action: "UPDATE",
+    resource: "specialty",
+    resourceId: specialtyId,
+    ipAddress: ip,
+  });
+
+  return {
+    id: updated.id,
+    clinicId: updated.clinicId,
+    name: updated.name,
+    description: updated.description,
+  };
+}
+
+export async function deleteSpecialty(
+  user: SessionUser,
+  specialtyId: string,
+  ip: string,
+): Promise<void> {
+  const clinicId = requireClinic(user);
+  await getSpecialtyForClinic(clinicId, specialtyId);
+
+  const linked = await db
+    .select({ id: practitioners.id })
+    .from(practitioners)
+    .where(eq(practitioners.specialtyId, specialtyId))
+    .limit(1);
+
+  if (linked.length > 0) {
+    throw new AppError("No se puede eliminar: hay médicos asignados a esta especialidad", 409);
+  }
+
+  await db
+    .delete(specialties)
+    .where(and(eq(specialties.id, specialtyId), eq(specialties.clinicId, clinicId)));
+
+  await writeAuditLog({
+    clinicId,
+    userId: user.id,
+    action: "DELETE",
+    resource: "specialty",
+    resourceId: specialtyId,
+    ipAddress: ip,
+  });
 }
 
 export async function listPractitioners(clinicId: string): Promise<PractitionerDto[]> {

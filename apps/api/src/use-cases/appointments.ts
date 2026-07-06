@@ -1,4 +1,4 @@
-import { eq, and, gte, lte, ne, inArray } from "drizzle-orm";
+import { eq, and, gte, lte, ne, inArray, desc } from "drizzle-orm";
 import type {
   CreateAppointmentInput,
   UpdateAppointmentInput,
@@ -7,6 +7,9 @@ import type {
   SessionUser,
   AppointmentDto,
   AvailabilitySlotDto,
+  DoctorActionInput,
+  ReviewCancellationInput,
+  AppointmentStatus,
 } from "@smoothflow/shared";
 import { db } from "../infrastructure/db/client.js";
 import {
@@ -41,6 +44,8 @@ function toAppointmentDto(
     endAt: row.endAt.toISOString(),
     notes: row.notes,
     createdByUserId: row.createdByUserId,
+    requestReason: row.requestReason,
+    reviewNote: row.reviewNote,
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
     ...extras,
@@ -265,6 +270,154 @@ export async function updateAppointment(
             ? "reagendamiento"
             : "reserva";
       await sendAppointmentConfirmation(patient.email, action, updated.startAt.toISOString());
+    }
+  }
+
+  const dto = toAppointmentDto(updated);
+  agendaSyncPort.broadcastUpdate(existing.clinicId, { type: "appointment:updated", appointment: dto });
+  return dto;
+}
+
+const DOCTOR_ACTIONABLE_STATUSES = new Set(["reservado", "confirmado", "reagendado"]);
+
+export async function applyDoctorAction(
+  user: SessionUser,
+  id: string,
+  input: DoctorActionInput,
+  ip: string,
+): Promise<AppointmentDto> {
+  const [practitioner] = await db
+    .select()
+    .from(practitioners)
+    .where(eq(practitioners.userId, user.id))
+    .limit(1);
+  if (!practitioner) throw new AppError("Médico no encontrado", 404);
+
+  const [existing] = await db.select().from(appointments).where(eq(appointments.id, id)).limit(1);
+  if (!existing) throw new AppError("Cita no encontrada", 404);
+  if (existing.practitionerId !== practitioner.id) {
+    throw new AppError("Solo puede gestionar sus propias citas", 403);
+  }
+  if (!DOCTOR_ACTIONABLE_STATUSES.has(existing.status)) {
+    throw new AppError("La cita no admite esta acción en su estado actual", 409, "INVALID_STATUS");
+  }
+
+  const newStatus =
+    input.action === "atendido"
+      ? ("atendido" as const)
+      : input.action === "no_asistio"
+        ? ("no_asistio" as const)
+        : ("cancelacion_pendiente" as const);
+
+  const [updated] = await db
+    .update(appointments)
+    .set({
+      status: newStatus,
+      requestedByUserId: input.action === "solicitar_cancelacion" ? user.id : existing.requestedByUserId,
+      requestReason:
+        input.action === "solicitar_cancelacion"
+          ? (input.reason?.trim() ?? null)
+          : existing.requestReason,
+      updatedAt: new Date(),
+    })
+    .where(eq(appointments.id, id))
+    .returning();
+
+  await db.insert(appointmentEvents).values({
+    appointmentId: id,
+    userId: user.id,
+    previousStatus: existing.status,
+    newStatus,
+    metadata: input.reason ? { reason: input.reason } : undefined,
+  });
+
+  await writeAuditLog({
+    clinicId: existing.clinicId,
+    userId: user.id,
+    action: "DOCTOR_ACTION",
+    resource: "appointment",
+    resourceId: id,
+    ipAddress: ip,
+    metadata: { action: input.action, status: newStatus },
+  });
+
+  const dto = toAppointmentDto(updated);
+  agendaSyncPort.broadcastUpdate(existing.clinicId, { type: "appointment:updated", appointment: dto });
+  return dto;
+}
+
+export async function reviewCancellationRequest(
+  user: SessionUser,
+  id: string,
+  input: ReviewCancellationInput,
+  ip: string,
+): Promise<AppointmentDto> {
+  const [existing] = await db.select().from(appointments).where(eq(appointments.id, id)).limit(1);
+  if (!existing) throw new AppError("Cita no encontrada", 404);
+  if (!user.clinicId || existing.clinicId !== user.clinicId) {
+    throw new AppError("Acceso denegado", 403);
+  }
+  if (existing.status !== "cancelacion_pendiente") {
+    throw new AppError("La cita no tiene una solicitud de cancelación pendiente", 409, "INVALID_STATUS");
+  }
+
+  // Al rechazar, restaurar el estado que tenía la cita antes de la solicitud.
+  let restoredStatus: AppointmentStatus = "confirmado";
+  if (input.decision === "rechazar") {
+    const [requestEvent] = await db
+      .select()
+      .from(appointmentEvents)
+      .where(
+        and(
+          eq(appointmentEvents.appointmentId, id),
+          eq(appointmentEvents.newStatus, "cancelacion_pendiente"),
+        ),
+      )
+      .orderBy(desc(appointmentEvents.createdAt))
+      .limit(1);
+    if (requestEvent?.previousStatus) restoredStatus = requestEvent.previousStatus;
+  }
+
+  const newStatus = input.decision === "aprobar" ? ("cancelado" as const) : restoredStatus;
+
+  const [updated] = await db
+    .update(appointments)
+    .set({
+      status: newStatus,
+      reviewedByUserId: user.id,
+      reviewNote: input.note.trim(),
+      reviewedAt: new Date(),
+      updatedAt: new Date(),
+    })
+    .where(eq(appointments.id, id))
+    .returning();
+
+  await db.insert(appointmentEvents).values({
+    appointmentId: id,
+    userId: user.id,
+    previousStatus: existing.status,
+    newStatus,
+    metadata: { decision: input.decision, note: input.note },
+  });
+
+  await writeAuditLog({
+    clinicId: existing.clinicId,
+    userId: user.id,
+    action: "REVIEW_CANCELLATION",
+    resource: "appointment",
+    resourceId: id,
+    ipAddress: ip,
+    metadata: { decision: input.decision },
+  });
+
+  if (input.decision === "aprobar" && existing.patientId) {
+    const [patient] = await db
+      .select()
+      .from(patients)
+      .where(eq(patients.id, existing.patientId))
+      .limit(1);
+    if (patient?.email) {
+      await sendAppointmentConfirmation(patient.email, "cancelación", updated.startAt.toISOString());
     }
   }
 

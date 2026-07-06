@@ -3,6 +3,7 @@ import {
   createStaffSchema,
   updateStaffSchema,
   createSpecialtySchema,
+  updateSpecialtySchema,
   createPractitionerSchema,
   createScheduleTemplateSchema,
 } from "@smoothflow/shared";
@@ -13,6 +14,8 @@ import {
   unlinkStaff,
   listSpecialties,
   createSpecialty,
+  updateSpecialty,
+  deleteSpecialty,
   listPractitioners,
   createPractitioner,
   listSchedules,
@@ -82,6 +85,27 @@ router.post("/specialties", ownerOnly, async (req, res, next) => {
     const input = createSpecialtySchema.parse(req.body);
     const specialty = await createSpecialty(user, input, getClientIp(req));
     res.status(201).json({ specialty });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.patch("/specialties/:id", ownerOnly, async (req, res, next) => {
+  try {
+    const user = (req as AuthenticatedRequest).user;
+    const input = updateSpecialtySchema.parse(req.body);
+    const specialty = await updateSpecialty(user, String(req.params.id), input, getClientIp(req));
+    res.json({ specialty });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.delete("/specialties/:id", ownerOnly, async (req, res, next) => {
+  try {
+    const user = (req as AuthenticatedRequest).user;
+    await deleteSpecialty(user, String(req.params.id), getClientIp(req));
+    res.json({ ok: true });
   } catch (err) {
     next(err);
   }

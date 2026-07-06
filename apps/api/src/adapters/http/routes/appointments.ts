@@ -3,12 +3,16 @@ import {
   createAppointmentSchema,
   updateAppointmentSchema,
   createBlockSchema,
+  doctorActionSchema,
+  reviewCancellationSchema,
 } from "@smoothflow/shared";
 import {
   listAppointments,
   createAppointment,
   updateAppointment,
   createBlock,
+  applyDoctorAction,
+  reviewCancellationRequest,
 } from "../../../use-cases/appointments.js";
 import { requireAuth, getClientIp, type AuthenticatedRequest } from "../middleware/auth.js";
 
@@ -55,6 +59,33 @@ router.patch("/:id", requireAuth(["secretaria", "dueno", "paciente", "medico"]),
     const user = (req as AuthenticatedRequest).user;
     const input = updateAppointmentSchema.parse(req.body);
     const appointment = await updateAppointment(user, String(req.params.id), input, getClientIp(req));
+    res.json({ appointment });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.post("/:id/doctor-actions", requireAuth(["medico"]), async (req, res, next) => {
+  try {
+    const user = (req as AuthenticatedRequest).user;
+    const input = doctorActionSchema.parse(req.body);
+    const appointment = await applyDoctorAction(user, String(req.params.id), input, getClientIp(req));
+    res.json({ appointment });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.patch("/:id/review-request", requireAuth(["secretaria", "dueno"]), async (req, res, next) => {
+  try {
+    const user = (req as AuthenticatedRequest).user;
+    const input = reviewCancellationSchema.parse(req.body);
+    const appointment = await reviewCancellationRequest(
+      user,
+      String(req.params.id),
+      input,
+      getClientIp(req),
+    );
     res.json({ appointment });
   } catch (err) {
     next(err);

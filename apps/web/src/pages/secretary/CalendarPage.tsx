@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
-import { ChevronLeft, ChevronRight, RefreshCw } from "lucide-react";
+import { ChevronLeft, ChevronRight, RefreshCw, CalendarOff } from "lucide-react";
 import { toast } from "sonner";
 import type { AppointmentDto, AvailabilitySlotDto } from "@smoothflow/shared";
 import { SecretaryShell } from "@/components/layout/SecretaryShell";
@@ -16,16 +16,23 @@ import {
 } from "@/components/secretary/CreateReservationDialog";
 import { Button } from "@/components/ui/Button";
 import { LoadingState } from "@/components/ui/LoadingState";
+import { EmptyState } from "@/components/ui/EmptyState";
 import { Select } from "@/components/ui/Select";
 import { AppTooltip } from "@/components/ui/Tooltip";
 import { api } from "@/lib/api";
 import { addDays, startOfWeek } from "@/lib/utils";
 import { useRealtime } from "@/contexts/RealtimeContext";
 
+function startOfToday(): Date {
+  const d = new Date();
+  d.setHours(0, 0, 0, 0);
+  return d;
+}
+
 export default function SecretaryCalendarPage() {
   const { lastEvent } = useRealtime();
   const [view, setView] = useState<"week" | "day">("week");
-  const [weekStart, setWeekStart] = useState(() => startOfWeek());
+  const [anchorDate, setAnchorDate] = useState(() => startOfToday());
   const [selectedPractitioner, setSelectedPractitioner] = useState("");
   const [createOpen, setCreateOpen] = useState(false);
   const [blockOpen, setBlockOpen] = useState(false);
@@ -35,7 +42,8 @@ export default function SecretaryCalendarPage() {
   const [isRefreshing, setIsRefreshing] = useState(false);
 
   const step = view === "week" ? 7 : 1;
-  const weekEnd = addDays(weekStart, step);
+  const rangeStart = view === "week" ? startOfWeek(anchorDate) : anchorDate;
+  const rangeEnd = addDays(rangeStart, step);
 
   const { data: practitioners } = useQuery({
     queryKey: ["practitioners"],
@@ -49,13 +57,14 @@ export default function SecretaryCalendarPage() {
     data: appointments,
     refetch: refetchAppointments,
     isLoading: loadingAppointments,
+    isFetching: fetchingAppointments,
     isError: appointmentsError,
   } = useQuery({
-    queryKey: ["appointments", weekStart.toISOString(), selectedPractitioner, lastEvent],
+    queryKey: ["appointments", rangeStart.toISOString(), view, selectedPractitioner, lastEvent],
     queryFn: () => {
       const params = new URLSearchParams({
-        from: weekStart.toISOString(),
-        to: weekEnd.toISOString(),
+        from: rangeStart.toISOString(),
+        to: rangeEnd.toISOString(),
       });
       if (selectedPractitioner) params.set("practitionerId", selectedPractitioner);
       return api.get<{ items: AppointmentDto[] }>(`/appointments?${params}`);
@@ -66,13 +75,14 @@ export default function SecretaryCalendarPage() {
     data: availability,
     refetch: refetchAvailability,
     isLoading: loadingAvailability,
+    isFetching: fetchingAvailability,
     isError: availabilityError,
   } = useQuery({
-    queryKey: ["availability", weekStart.toISOString(), selectedPractitioner, lastEvent],
+    queryKey: ["availability", rangeStart.toISOString(), view, selectedPractitioner, lastEvent],
     queryFn: () => {
       const params = new URLSearchParams({
-        from: weekStart.toISOString(),
-        to: weekEnd.toISOString(),
+        from: rangeStart.toISOString(),
+        to: rangeEnd.toISOString(),
       });
       if (selectedPractitioner) params.set("practitionerId", selectedPractitioner);
       return api.get<{ slots: AvailabilitySlotDto[] }>(`/availability?${params}`);
@@ -81,22 +91,22 @@ export default function SecretaryCalendarPage() {
 
   const days = useMemo(() => {
     const count = view === "week" ? 7 : 1;
-    return Array.from({ length: count }, (_, i) => addDays(weekStart, i));
-  }, [view, weekStart]);
+    return Array.from({ length: count }, (_, i) => addDays(rangeStart, i));
+  }, [view, rangeStart]);
 
   const rangeLabel = useMemo(() => {
     if (view === "day") {
-      return weekStart.toLocaleDateString("es-CL", {
+      return rangeStart.toLocaleDateString("es-CL", {
         weekday: "long",
         day: "numeric",
         month: "long",
       });
     }
-    const last = addDays(weekStart, 6);
-    const start = weekStart.toLocaleDateString("es-CL", { day: "numeric", month: "short" });
+    const last = addDays(rangeStart, 6);
+    const start = rangeStart.toLocaleDateString("es-CL", { day: "numeric", month: "short" });
     const end = last.toLocaleDateString("es-CL", { day: "numeric", month: "short", year: "numeric" });
     return `${start} – ${end}`;
-  }, [view, weekStart]);
+  }, [view, rangeStart]);
 
   const events = useMemo(
     () =>
@@ -133,6 +143,29 @@ export default function SecretaryCalendarPage() {
     setActionsOpen(true);
   };
 
+  const handleViewChange = (nextView: "week" | "day") => {
+    if (nextView === "day" && view === "week") {
+      const todayDate = startOfToday();
+      const weekStartDate = startOfWeek(anchorDate);
+      const weekEndDate = addDays(weekStartDate, 6);
+      const inRange = todayDate >= weekStartDate && todayDate <= weekEndDate;
+      if (inRange) setAnchorDate(todayDate);
+    }
+    setView(nextView);
+  };
+
+  const handleDayClick = (day: Date) => {
+    const d = new Date(day);
+    d.setHours(0, 0, 0, 0);
+    setAnchorDate(d);
+    setView("day");
+  };
+
+  const handleGoToToday = () => {
+    const todayDate = startOfToday();
+    setAnchorDate(view === "week" ? startOfWeek(todayDate) : todayDate);
+  };
+
   const handleRefresh = async () => {
     setIsRefreshing(true);
     try {
@@ -151,6 +184,8 @@ export default function SecretaryCalendarPage() {
   };
 
   const isLoading = loadingAppointments || loadingAvailability;
+  const isBackgroundFetching =
+    (fetchingAppointments || fetchingAvailability) && !isLoading;
   const hasError = appointmentsError || availabilityError;
 
   return (
@@ -164,74 +199,86 @@ export default function SecretaryCalendarPage() {
     >
       <div className="flex min-h-0 flex-1 flex-col">
         <CalendarToolbar>
-          <div className="flex items-center gap-2">
-            <AppTooltip content={view === "week" ? "Semana anterior" : "Día anterior"}>
-              <Button
-                variant="secondary"
-                className="size-9 px-0"
-                onClick={() => setWeekStart(addDays(weekStart, -step))}
-                aria-label={view === "week" ? "Semana anterior" : "Día anterior"}
+          <div className="flex w-full flex-wrap items-center gap-x-4 gap-y-2">
+            <div className="flex items-center gap-2">
+              <AppTooltip content={view === "week" ? "Semana anterior" : "Día anterior"}>
+                <Button
+                  variant="secondary"
+                  className="size-9 px-0"
+                  onClick={() => setAnchorDate(addDays(anchorDate, -step))}
+                  aria-label={view === "week" ? "Semana anterior" : "Día anterior"}
+                >
+                  <ChevronLeft className="size-[18px] shrink-0" aria-hidden="true" />
+                </Button>
+              </AppTooltip>
+              <AppTooltip content={view === "week" ? "Semana siguiente" : "Día siguiente"}>
+                <Button
+                  variant="secondary"
+                  className="size-9 px-0"
+                  onClick={() => setAnchorDate(addDays(anchorDate, step))}
+                  aria-label={view === "week" ? "Semana siguiente" : "Día siguiente"}
+                >
+                  <ChevronRight className="size-[18px] shrink-0" aria-hidden="true" />
+                </Button>
+              </AppTooltip>
+              <AppTooltip
+                content={view === "week" ? "Ir a la semana actual" : "Ir al día de hoy"}
               >
-                <ChevronLeft className="size-[18px] shrink-0" aria-hidden="true" />
-              </Button>
-            </AppTooltip>
-            <AppTooltip content={view === "week" ? "Semana siguiente" : "Día siguiente"}>
-              <Button
-                variant="secondary"
-                className="size-9 px-0"
-                onClick={() => setWeekStart(addDays(weekStart, step))}
-                aria-label={view === "week" ? "Semana siguiente" : "Día siguiente"}
-              >
-                <ChevronRight className="size-[18px] shrink-0" aria-hidden="true" />
-              </Button>
-            </AppTooltip>
-            <AppTooltip content="Ir al día de hoy">
-              <Button variant="secondary" onClick={() => setWeekStart(startOfWeek())}>
-                Hoy
-              </Button>
-            </AppTooltip>
+                <Button variant="secondary" onClick={handleGoToToday}>
+                  Hoy
+                </Button>
+              </AppTooltip>
+            </div>
+
+            <p className="min-w-40 text-sm font-semibold capitalize text-text">{rangeLabel}</p>
           </div>
 
-          <p className="min-w-40 text-sm font-semibold capitalize text-text">{rangeLabel}</p>
-
-          <div className="ml-auto flex flex-wrap items-end gap-3">
+          <div className="flex w-full flex-wrap items-center gap-3">
             <Select
-              label="Médico"
+              label="Filtrar por médico"
+              hideLabel
               value={selectedPractitioner}
               onChange={(e) => setSelectedPractitioner(e.target.value)}
               options={practitionerOptions}
             />
-            <AppTooltip content={view === "week" ? "Vista semanal" : "Vista diaria"}>
-              <div>
-                <SegmentedControl
-                  value={view}
-                  options={[
-                    { value: "week", label: "Semanal" },
-                    { value: "day", label: "Diaria" },
-                  ]}
-                  onChange={(v) => setView(v as "week" | "day")}
-                />
-              </div>
-            </AppTooltip>
-            <AppTooltip content="Bloquear horarios de un médico">
-              <Button variant="secondary" onClick={() => setBlockOpen(true)}>
-                Bloquear agenda
-              </Button>
-            </AppTooltip>
-            <AppTooltip content="Actualizar datos de la agenda">
-              <Button
-                variant="secondary"
-                className="size-9 px-0"
-                onClick={() => void handleRefresh()}
-                disabled={isRefreshing}
-                aria-label="Actualizar agenda"
-              >
-                <RefreshCw
-                  className={`size-[18px] shrink-0 ${isRefreshing ? "animate-spin" : ""}`}
-                  aria-hidden="true"
-                />
-              </Button>
-            </AppTooltip>
+            {!selectedPractitioner && (
+              <span className="rounded-full bg-surface-muted px-2.5 py-1 text-[11px] text-text-muted">
+                Mostrando todos los médicos — los horarios pueden superponerse
+              </span>
+            )}
+            <div className="ml-auto flex flex-wrap items-center gap-3">
+              <AppTooltip content={view === "week" ? "Vista semanal" : "Vista diaria"}>
+                <div>
+                  <SegmentedControl
+                    value={view}
+                    options={[
+                      { value: "week", label: "Semanal" },
+                      { value: "day", label: "Diaria" },
+                    ]}
+                    onChange={(v) => handleViewChange(v as "week" | "day")}
+                  />
+                </div>
+              </AppTooltip>
+              <AppTooltip content="Bloquear horarios de un médico">
+                <Button variant="secondary" onClick={() => setBlockOpen(true)}>
+                  Bloquear agenda
+                </Button>
+              </AppTooltip>
+              <AppTooltip content="Actualizar datos de la agenda">
+                <Button
+                  variant="secondary"
+                  className="size-9 px-0"
+                  onClick={() => void handleRefresh()}
+                  disabled={isRefreshing}
+                  aria-label="Actualizar agenda"
+                >
+                  <RefreshCw
+                    className={`size-[18px] shrink-0 ${isRefreshing ? "animate-spin" : ""}`}
+                    aria-hidden="true"
+                  />
+                </Button>
+              </AppTooltip>
+            </div>
           </div>
         </CalendarToolbar>
 
@@ -241,8 +288,25 @@ export default function SecretaryCalendarPage() {
           <p className="text-sm text-red-600" role="alert">
             No se pudo cargar la agenda. Intente actualizar la página.
           </p>
+        ) : events.length === 0 ? (
+          <EmptyState
+            icon={CalendarOff}
+            message="No hay horarios en el rango seleccionado."
+            action={
+              <Button variant="secondary" onClick={() => openCreateDialog()}>
+                Crear una reservación
+              </Button>
+            }
+          />
         ) : (
-          <ScheduleCalendar days={days} events={events} onEventClick={handleEventClick} />
+          <ScheduleCalendar
+            days={days}
+            events={events}
+            onEventClick={handleEventClick}
+            onDayClick={handleDayClick}
+            showPractitionerBadge={!selectedPractitioner}
+            isRefreshing={isBackgroundFetching || isRefreshing}
+          />
         )}
       </div>
 

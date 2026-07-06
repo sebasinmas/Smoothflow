@@ -4,13 +4,17 @@ interface SelectProps extends SelectHTMLAttributes<HTMLSelectElement> {
   label: string;
   options: Array<{ value: string; label: string }>;
   error?: string;
+  hideLabel?: boolean;
 }
 
-export function Select({ label, options, error, id, className = "", ...props }: SelectProps) {
+export function Select({ label, options, error, hideLabel, id, className = "", ...props }: SelectProps) {
   const selectId = id ?? label.toLowerCase().replace(/\s+/g, "-");
   return (
     <div className="flex flex-col gap-1">
-      <label htmlFor={selectId} className="text-sm font-medium text-text">
+      <label
+        htmlFor={selectId}
+        className={hideLabel ? "sr-only" : "text-sm font-medium text-text"}
+      >
         {label}
       </label>
       <select

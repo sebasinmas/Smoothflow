@@ -1,4 +1,9 @@
-import type { AppointmentDto, AvailabilitySlotDto, SlotStatus } from "@smoothflow/shared";
+import type {
+  AppointmentDto,
+  AppointmentStatus,
+  AvailabilitySlotDto,
+  SlotStatus,
+} from "@smoothflow/shared";
 
 export const ROW_HEIGHT = 48;
 export const MINUTES_PER_ROW = 30;
@@ -10,6 +15,7 @@ export interface CalendarEventItem {
   startAt: string;
   endAt: string;
   status: SlotStatus;
+  appointmentStatus?: AppointmentStatus;
   label: string;
   sublabel?: string;
   appointmentId?: string;
@@ -18,6 +24,7 @@ export interface CalendarEventItem {
   practitionerName?: string;
   patientName?: string;
   specialtyName?: string;
+  requestReason?: string;
 }
 
 export interface EventLayout {
@@ -43,7 +50,14 @@ export function isSameDay(a: Date, b: Date): boolean {
 }
 
 export function dayKey(date: Date): string {
-  return date.toISOString().slice(0, 10);
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, "0");
+  const d = String(date.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
+}
+
+export function eventDayKey(iso: string): string {
+  return dayKey(new Date(iso));
 }
 
 export function computeTimeRange(events: CalendarEventItem[]): {
@@ -73,21 +87,41 @@ export function computeTimeRange(events: CalendarEventItem[]): {
   };
 }
 
+const calendarTimeFormatter = new Intl.DateTimeFormat("es-CL", {
+  hour: "numeric",
+  minute: "2-digit",
+});
+
+export function formatCalendarTime(input: string | Date): string {
+  const date = typeof input === "string" ? new Date(input) : input;
+  return calendarTimeFormatter.format(date);
+}
+
 export function formatHourLabel(minutes: number): string {
   const h = Math.floor(minutes / 60);
   const m = minutes % 60;
-  const period = h >= 12 ? "p. m." : "a. m.";
-  const hour12 = h % 12 || 12;
-  return m === 0 ? `${hour12}:00 ${period}` : `${hour12}:${String(m).padStart(2, "0")} ${period}`;
+  const date = new Date();
+  date.setHours(h, m, 0, 0);
+  return formatCalendarTime(date);
 }
 
 export function formatEventTime(iso: string): string {
-  return new Date(iso).toLocaleTimeString("es-CL", { hour: "numeric", minute: "2-digit" });
+  return formatCalendarTime(iso);
+}
+
+export function practitionerInitials(name: string): string {
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return "?";
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+  return `${parts[0][0]}${parts[parts.length - 1][0]}`.toUpperCase();
+}
+
+export function minutesToTop(minutes: number, dayStartMinutes: number): number {
+  return ((minutes - dayStartMinutes) / MINUTES_PER_ROW) * ROW_HEIGHT;
 }
 
 export function eventTop(startAt: string, dayStartMinutes: number): number {
-  const start = parseIsoMinutes(startAt);
-  return ((start - dayStartMinutes) / MINUTES_PER_ROW) * ROW_HEIGHT;
+  return minutesToTop(parseIsoMinutes(startAt), dayStartMinutes);
 }
 
 export function eventHeight(startAt: string, endAt: string): number {
@@ -172,6 +206,7 @@ function slotsToEvents(slots: AvailabilitySlotDto[]): CalendarEventItem[] {
         startAt: slot.startAt,
         endAt: slot.endAt,
         status: slot.status,
+        appointmentStatus: slot.appointmentStatus,
         label: slot.patientName ?? "Sin paciente",
         sublabel: formatDoctorSublabel(practitionerName, specialtyName),
         appointmentId: slot.appointmentId,
@@ -179,6 +214,7 @@ function slotsToEvents(slots: AvailabilitySlotDto[]): CalendarEventItem[] {
         practitionerName,
         patientName: slot.patientName,
         specialtyName,
+        requestReason: slot.requestReason,
       };
     }
 
@@ -221,6 +257,7 @@ function appointmentsToEvents(appointments: AppointmentDto[]): CalendarEventItem
       startAt: appt.startAt,
       endAt: appt.endAt,
       status: isBlocked ? "bloqueado" : "reservado",
+      appointmentStatus: appt.status,
       label: isBlocked ? practitionerName : (appt.patientName ?? practitionerName ?? "Cita"),
       sublabel: isBlocked
         ? (appt.notes ?? undefined)
@@ -231,6 +268,7 @@ function appointmentsToEvents(appointments: AppointmentDto[]): CalendarEventItem
       practitionerName,
       patientName: appt.patientName,
       specialtyName: appt.specialtyName,
+      requestReason: appt.requestReason ?? undefined,
     };
   });
 }
@@ -250,12 +288,22 @@ export function mergeCalendarEvents(
   return appointmentsToEvents(orphanAppts);
 }
 
+const TOOLTIP_STATUS_LABELS: Partial<Record<AppointmentStatus, string>> = {
+  reservado: "Por confirmar",
+  reagendado: "Reagendada",
+  atendido: "Atendido",
+  no_asistio: "No asistió",
+  cancelacion_pendiente: "Cancelación pendiente de aprobación",
+};
+
 export function buildEventTooltip(event: CalendarEventItem): string {
   const time = formatEventTime(event.startAt);
   if (event.status === "reservado") {
     const parts = [time, event.patientName ?? event.label];
     if (event.practitionerName) parts.push(`Dr. ${event.practitionerName}`);
     if (event.specialtyName) parts.push(event.specialtyName);
+    const statusLabel = event.appointmentStatus && TOOLTIP_STATUS_LABELS[event.appointmentStatus];
+    if (statusLabel) parts.push(statusLabel);
     return parts.join(" · ");
   }
   if (event.status === "bloqueado") {
