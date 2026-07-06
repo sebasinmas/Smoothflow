@@ -1059,7 +1059,7 @@ El sistema permitirá al dueño de la clínica configurar médicos, especialidad
 horarios base.
 
 El sistema permitirá al dueño de la clínica gestionar los usuarios del sistema (creación,
-edición y desactivación de cuentas).
+edición, desactivación y desvinculación de cuentas de usuarios secundarios).
 
 El sistema generará reportes de ocupación de agenda, accesibles por el dueño de la
 clínica.
@@ -1150,6 +1150,15 @@ superior.
 ●  El acceso a las funcionalidades del sistema deberá controlarse mediante autenticación y autorización
 
 basada en roles (paciente, secretaria, médico, dueño).
+
+●  La autenticación deberá ser stateful (sesiones server-side), de modo que el backend pueda revocar
+
+de forma inmediata el acceso de un usuario desvinculado o desactivado por el dueño de la clínica.
+
+●  Ante cierre de sesión, revocación administrativa o desconexión WebSocket, el cliente deberá purgar
+
+de inmediato los datos clínico-administrativos de la interfaz y del estado local, sin mantener
+información sensible visible ni accesible sin una sesión válida.
 
 ●  Todo acceso a información clínico-administrativa deberá quedar registrado en un log de auditoría
 
@@ -1638,8 +1647,8 @@ Descripción
 
 Dueño de la Clínica (principal)
 
-Permite al dueño de la clínica crear, editar y desactivar las cuentas de usuario del
-personal interno (secretarías y médicos).
+Permite al dueño de la clínica crear, editar, desactivar y desvincular las cuentas de
+usuario del personal interno (secretarías y médicos).
 
 Precondiciones
 
@@ -1648,8 +1657,10 @@ El dueño ha iniciado sesión en el panel de administración.
 Flujo básico
 
 1. El dueño accede al módulo de gestión de usuarios.
-2. El dueño crea, edita o desactiva una cuenta, asignando el rol correspondiente.
+2. El dueño crea, edita, desactiva o desvincula una cuenta, asignando el rol correspondiente.
 3. El sistema valida y almacena el cambio, actualizando los permisos de acceso.
+4. Si el usuario fue desvinculado o desactivado, el sistema invalida sus sesiones activas y cierra
+sus conexiones WebSocket; el cliente purga los datos sensibles de la interfaz.
 
 Flujos alternativos /
 excepciones
@@ -1657,9 +1668,12 @@ excepciones
 2a. Se intenta desactivar la única cuenta con rol "Dueño": el sistema rechaza la operación
 para evitar la pérdida de acceso administrativo.
 
+2b. Se intenta desvincular al dueño de la clínica: el sistema rechaza la operación.
+
 Postcondiciones
 
-Los permisos de acceso del usuario quedan actualizados en el sistema.
+Los permisos de acceso del usuario quedan actualizados en el sistema. Si fue desvinculado o
+desactivado, el usuario no mantiene sesión activa ni acceso a datos clínico-administrativos.
 
 Frecuencia de uso
 

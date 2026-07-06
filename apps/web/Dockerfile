@@ -5,9 +5,11 @@ WORKDIR /app
 FROM base AS build
 COPY pnpm-workspace.yaml package.json pnpm-lock.yaml .npmrc ./
 COPY apps/web/package.json apps/web/package.json
+COPY packages/shared/package.json packages/shared/package.json
 RUN echo "node-linker=hoisted" >> .npmrc && \
     pnpm install --frozen-lockfile --config.minimum-release-age=0
 COPY apps/web apps/web
+COPY packages/shared packages/shared
 COPY tsconfig.base.json .
 RUN cd apps/web && ../../node_modules/.bin/vite build
 
