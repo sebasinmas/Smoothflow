@@ -37,7 +37,7 @@ export function PatientShell({ title, children }: PatientShellProps) {
                   key={item.to}
                   to={item.to}
                   className={({ isActive }) =>
-                    `flex items-center gap-1.5 rounded-lg px-3 py-2 transition-colors duration-200 ${
+                    `flex cursor-pointer items-center gap-1.5 rounded-lg px-3 py-2 transition-colors duration-200 ${
                       isActive
                         ? "bg-brand/10 font-medium text-brand"
                         : "text-text-muted hover:bg-surface-muted hover:text-brand"
@@ -52,7 +52,7 @@ export function PatientShell({ title, children }: PatientShellProps) {
             <button
               type="button"
               onClick={handleLogout}
-              className="flex items-center gap-1.5 rounded-lg px-3 py-2 text-text-muted transition-colors duration-200 hover:bg-red-50 hover:text-red-600"
+              className="flex cursor-pointer items-center gap-1.5 rounded-lg px-3 py-2 text-text-muted transition-colors duration-200 hover:bg-red-50 hover:text-red-600"
             >
               <LogOut className="size-4" aria-hidden="true" />
               Salir

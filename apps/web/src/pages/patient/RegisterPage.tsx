@@ -54,7 +54,7 @@ export default function PatientRegisterPage() {
           </Button>
         </form>
         <p className="mt-4 text-center text-sm">
-          <Link to="/paciente/login" className="text-brand underline">
+          <Link to="/paciente/login" className="cursor-pointer text-brand underline">
             Ya tengo cuenta
           </Link>
         </p>

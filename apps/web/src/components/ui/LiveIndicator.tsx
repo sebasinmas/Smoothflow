@@ -35,7 +35,7 @@ export function LiveIndicator() {
   const indicator = (
     <button
       type="button"
-      className={`flex items-center gap-2 ${
+      className={`flex cursor-default items-center gap-2 ${
         config.showLabel
           ? "rounded-full border border-border bg-surface-muted/60 px-3 py-1.5"
           : "rounded-full p-1"

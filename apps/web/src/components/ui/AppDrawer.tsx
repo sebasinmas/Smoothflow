@@ -2,7 +2,7 @@ import type { ReactNode } from "react";
 import { X } from "lucide-react";
 import { Dialog, DialogTrigger, Heading, Modal, ModalOverlay } from "react-aria-components";
 
-interface SecretaryDrawerProps {
+interface AppDrawerProps {
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
   title: string;
@@ -11,14 +11,14 @@ interface SecretaryDrawerProps {
   footer?: ReactNode;
 }
 
-export function SecretaryDrawer({
+export function AppDrawer({
   isOpen,
   onOpenChange,
   title,
   description,
   children,
   footer,
-}: SecretaryDrawerProps) {
+}: AppDrawerProps) {
   return (
     <DialogTrigger isOpen={isOpen} onOpenChange={onOpenChange}>
       <ModalOverlay
@@ -41,7 +41,7 @@ export function SecretaryDrawer({
                   <button
                     type="button"
                     onClick={close}
-                    className="inline-flex size-9 shrink-0 items-center justify-center rounded-lg border border-border text-text-muted transition-colors hover:border-brand/30 hover:bg-surface-muted hover:text-text"
+                    className="inline-flex size-9 shrink-0 cursor-pointer items-center justify-center rounded-lg border border-border text-text-muted transition-colors hover:border-brand/30 hover:bg-surface-muted hover:text-text"
                     aria-label="Cerrar"
                   >
                     <X className="size-[18px]" aria-hidden="true" />

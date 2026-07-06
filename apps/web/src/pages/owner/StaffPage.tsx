@@ -1,39 +1,26 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
+import { toast } from "sonner";
 import type { UserDto } from "@smoothflow/shared";
 import { AppShell } from "@/components/layout/AppShell";
+import { CreateStaffDrawer } from "@/components/owner/CreateStaffDrawer";
 import { StaffCard } from "@/components/ui/StaffCard";
 import { Button } from "@/components/ui/Button";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { EmptyState } from "@/components/ui/EmptyState";
-import { Input } from "@/components/ui/Input";
 import { LoadingState } from "@/components/ui/LoadingState";
-import { Select } from "@/components/ui/Select";
-import { api } from "@/lib/api";
+import { ApiError, api } from "@/lib/api";
 import { formatPersonName } from "@/lib/utils";
 import { OWNER_NAV, OWNER_BOTTOM_NAV } from "@/lib/navigation";
 
 export default function OwnerStaffPage() {
   const queryClient = useQueryClient();
-  const [showForm, setShowForm] = useState(false);
+  const [drawerOpen, setDrawerOpen] = useState(false);
   const [unlinkTarget, setUnlinkTarget] = useState<UserDto | null>(null);
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [givenName, setGivenName] = useState("");
-  const [familyName, setFamilyName] = useState("");
-  const [role, setRole] = useState<"secretaria" | "medico" | "dueno">("secretaria");
 
   const { data, isLoading } = useQuery({
     queryKey: ["staff"],
     queryFn: () => api.get<{ items: UserDto[] }>("/owner/staff"),
-  });
-
-  const createMutation = useMutation({
-    mutationFn: (body: unknown) => api.post("/owner/staff", body),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["staff"] });
-      setShowForm(false);
-    },
   });
 
   const unlinkMutation = useMutation({
@@ -41,16 +28,21 @@ export default function OwnerStaffPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["staff"] });
       setUnlinkTarget(null);
+      toast.success("Empleado desvinculado");
+    },
+    onError: (err) => {
+      const message = err instanceof ApiError ? err.message : "No se pudo desvincular al empleado";
+      toast.error(message);
     },
   });
 
   const headerExtra = useMemo(
     () => (
-      <Button onClick={() => setShowForm(!showForm)}>
-        {showForm ? "Cancelar" : "Añadir empleado"}
+      <Button onClick={() => setDrawerOpen(true)}>
+        Añadir empleado
       </Button>
     ),
-    [showForm],
+    [],
   );
 
   return (
@@ -62,34 +54,6 @@ export default function OwnerStaffPage() {
       headerExtra={headerExtra}
     >
       <p className="mb-6 text-text-muted">Gestiona el personal de la clínica y su actividad.</p>
-
-      {showForm && (
-        <form
-          className="mb-8 grid max-w-lg gap-4 rounded-xl border border-border bg-white p-6 shadow-card"
-          onSubmit={(e) => {
-            e.preventDefault();
-            createMutation.mutate({ email, password, givenName, familyName, role });
-          }}
-        >
-          <Input label="Nombre" placeholder="Ingrese su nombre" value={givenName} onChange={(e) => setGivenName(e.target.value)} required />
-          <Input label="Apellido" placeholder="Ingrese su apellido" value={familyName} onChange={(e) => setFamilyName(e.target.value)} required />
-          <Input label="Email" type="email" placeholder="Ingrese su email" value={email} onChange={(e) => setEmail(e.target.value)} required />
-          <Input label="Contraseña" type="password" placeholder="Ingrese su contraseña" value={password} onChange={(e) => setPassword(e.target.value)} required />
-          <Select
-            label="Rol"
-            value={role}
-            onChange={(e) => setRole(e.target.value as typeof role)}
-            options={[
-              { value: "secretaria", label: "Secretaria" },
-              { value: "medico", label: "Médico" },
-              { value: "dueno", label: "Dueño" },
-            ]}
-          />
-          <Button type="submit" loading={createMutation.isPending}>
-            Crear empleado
-          </Button>
-        </form>
-      )}
 
       {isLoading ? (
         <LoadingState message="Cargando personal…" />
@@ -110,6 +74,8 @@ export default function OwnerStaffPage() {
           ))}
         </div>
       )}
+
+      <CreateStaffDrawer isOpen={drawerOpen} onOpenChange={setDrawerOpen} />
 
       <ConfirmDialog
         isOpen={unlinkTarget !== null}

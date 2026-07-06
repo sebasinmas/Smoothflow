@@ -31,6 +31,17 @@
     @apply bg-surface text-text antialiased;
   }
 
+  button:not(:disabled),
+  select:not(:disabled),
+  a[href] {
+    cursor: pointer;
+  }
+
+  button:disabled,
+  select:disabled {
+    cursor: not-allowed;
+  }
+
   .sr-only {
     position: absolute;
     width: 1px;

@@ -41,7 +41,7 @@ export function SecretaryModal({
                   <button
                     type="button"
                     onClick={close}
-                    className="inline-flex size-9 shrink-0 items-center justify-center rounded-lg border border-border text-text-muted transition-colors hover:border-brand/30 hover:bg-surface-muted hover:text-text"
+                    className="inline-flex size-9 shrink-0 cursor-pointer items-center justify-center rounded-lg border border-border text-text-muted transition-colors hover:border-brand/30 hover:bg-surface-muted hover:text-text"
                     aria-label="Cerrar"
                   >
                     <X className="size-[18px]" aria-hidden="true" />

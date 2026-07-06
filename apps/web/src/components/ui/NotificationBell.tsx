@@ -68,7 +68,7 @@ export function NotificationBell() {
         ref={buttonRef}
         type="button"
         onClick={handleToggle}
-        className="relative inline-flex size-9 items-center justify-center rounded-lg border border-border text-text-muted transition-all duration-200 hover:border-brand/30 hover:bg-surface-muted hover:text-brand active:scale-95"
+        className="relative inline-flex size-9 cursor-pointer items-center justify-center rounded-lg border border-border text-text-muted transition-all duration-200 hover:border-brand/30 hover:bg-surface-muted hover:text-brand active:scale-95"
         aria-label={`Notificaciones${unreadCount > 0 ? `, ${unreadCount} sin leer` : ""}`}
         aria-expanded={open}
         aria-haspopup="true"
@@ -115,7 +115,7 @@ export function NotificationBell() {
                       type="button"
                       role="menuitem"
                       onClick={() => markRead(n.id)}
-                      className={`w-full px-4 py-3 text-left text-sm transition-colors hover:bg-surface-muted ${
+                      className={`w-full cursor-pointer px-4 py-3 text-left text-sm transition-colors hover:bg-surface-muted ${
                         n.read ? "text-text-muted" : "bg-brand/5 font-medium text-text"
                       }`}
                     >

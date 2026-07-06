@@ -77,7 +77,7 @@ export default function SecretaryPanelPage() {
             action={
               <Link
                 to="/secretaria/calendario"
-                className="text-sm font-medium text-brand underline"
+                className="cursor-pointer text-sm font-medium text-brand underline"
               >
                 Ir al calendario
               </Link>
@@ -93,7 +93,7 @@ export default function SecretaryPanelPage() {
                     setSelectedEvent(appointmentToEvent(a));
                     setActionsOpen(true);
                   }}
-                  className="w-full rounded border border-border bg-white px-4 py-3 text-left transition-colors duration-200 hover:border-brand/40 hover:bg-brand/5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
+                  className="w-full cursor-pointer rounded border border-border bg-white px-4 py-3 text-left transition-colors duration-200 hover:border-brand/40 hover:bg-brand/5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
                   aria-label={`Ver detalle de cita: ${formatDateTime(a.startAt)}, ${a.patientName ?? "Sin paciente"}`}
                 >
                   <span className="font-medium">{formatDateTime(a.startAt)}</span>

@@ -23,7 +23,7 @@ export function AppointmentSlot({ status, label, time, onClick, selected }: Appo
       onClick={onClick}
       aria-label={`${time}, ${label}, ${statusLabel}`}
       aria-pressed={selected}
-      className={`w-full rounded border px-2 py-2 text-left text-xs transition-all duration-200 hover:scale-[1.02] hover:shadow-sm active:scale-[0.98] ${styles[status]} ${selected ? "ring-2 ring-brand" : ""}`}
+      className={`w-full cursor-pointer rounded border px-2 py-2 text-left text-xs transition-all duration-200 hover:scale-[1.02] hover:shadow-sm active:scale-[0.98] ${styles[status]} ${selected ? "ring-2 ring-brand" : ""}`}
     >
       <span className="block font-semibold">{time}</span>
       <span className="block truncate">{label}</span>

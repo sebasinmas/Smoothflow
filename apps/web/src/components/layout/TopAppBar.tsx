@@ -27,7 +27,7 @@ export function TopAppBar({ title, children, showNotifications }: TopAppBarProps
         <button
           type="button"
           onClick={toggle}
-          className="inline-flex size-9 shrink-0 items-center justify-center rounded-lg border border-border text-text-muted transition-all duration-200 hover:border-brand/30 hover:bg-surface-muted hover:text-brand active:scale-95"
+          className="inline-flex size-9 shrink-0 cursor-pointer items-center justify-center rounded-lg border border-border text-text-muted transition-all duration-200 hover:border-brand/30 hover:bg-surface-muted hover:text-brand active:scale-95"
           aria-label={sidebarExpanded ? "Contraer menú" : "Expandir menú"}
           aria-expanded={sidebarExpanded}
         >
