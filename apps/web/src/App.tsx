@@ -30,7 +30,13 @@ export default function App() {
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
         <BrowserRouter>
-          <Toaster position="bottom-right" richColors closeButton />
+          <Toaster
+            position="top-center"
+            offset={16}
+            richColors
+            closeButton
+            toastOptions={{ className: "shadow-lg" }}
+          />
           <Routes>
             <Route element={<GuestOnly />}>
               <Route path="/login" element={<LoginPage />} />

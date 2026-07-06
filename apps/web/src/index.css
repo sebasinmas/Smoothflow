@@ -236,4 +236,24 @@
   .z-modal {
     z-index: var(--z-index-modal);
   }
+
+  [data-entering] .drawer-panel,
+  [data-entering].drawer-panel {
+    animation: slide-in-from-right 0.3s ease-out both;
+  }
+
+  [data-exiting] .drawer-panel,
+  [data-exiting].drawer-panel {
+    animation: slide-out-to-right 0.25s ease-in both;
+  }
+
+  [data-entering] .drawer-overlay,
+  [data-entering].drawer-overlay {
+    animation: fade-in 0.3s ease-out both;
+  }
+
+  [data-exiting] .drawer-overlay,
+  [data-exiting].drawer-overlay {
+    animation: fade-out 0.2s ease-in both;
+  }
 }
