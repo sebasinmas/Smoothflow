@@ -13,6 +13,7 @@ import DoctorCalendarPage from "@/pages/doctor/CalendarPage";
 import DoctorHistoryPage from "@/pages/doctor/HistoryPage";
 import OwnerStaffPage from "@/pages/owner/StaffPage";
 import OwnerConfigPage from "@/pages/owner/ConfigPage";
+import OwnerSchedulesPage from "@/pages/owner/SchedulesPage";
 import OwnerReportsPage from "@/pages/owner/ReportsPage";
 import PatientLoginPage from "@/pages/patient/LoginPage";
 import PatientRegisterPage from "@/pages/patient/RegisterPage";
@@ -90,6 +91,7 @@ export default function App() {
             <Route element={<RequireAuth roles={["dueno"]} />}>
               <Route path="/owner" element={<Navigate to="/owner/staff" replace />} />
               <Route path="/owner/staff" element={<OwnerStaffPage />} />
+              <Route path="/owner/horarios" element={<OwnerSchedulesPage />} />
               <Route path="/owner/configuracion" element={<OwnerConfigPage />} />
               <Route path="/owner/reportes" element={<OwnerReportsPage />} />
             </Route>

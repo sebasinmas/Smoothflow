@@ -3,6 +3,7 @@ import {
   BarChart3,
   Calendar,
   CalendarCheck,
+  CalendarClock,
   CalendarPlus,
   History,
   LayoutDashboard,
@@ -24,6 +25,7 @@ const NAV_ICONS: Record<string, LucideIcon> = {
   "/doctor/calendario": Calendar,
   "/doctor/historial": History,
   "/owner/staff": UserCog,
+  "/owner/horarios": CalendarClock,
   "/owner/configuracion": Settings,
   "/owner/reportes": BarChart3,
   "/paciente/reservar": CalendarPlus,
@@ -48,6 +50,7 @@ export const DOCTOR_NAV: NavItem[] = [
 
 export const OWNER_NAV: NavItem[] = [
   { to: "/owner/staff", label: "Personal" },
+  { to: "/owner/horarios", label: "Horarios" },
   { to: "/owner/reportes", label: "Reportes" },
 ];
 

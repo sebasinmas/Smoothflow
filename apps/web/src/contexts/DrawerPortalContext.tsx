@@ -39,7 +39,7 @@ export function DrawerPortalOutlet() {
   return (
     <div
       ref={ctx.registerPortal}
-      className="pointer-events-none absolute inset-0 z-modal [&>*]:pointer-events-auto"
+      className="pointer-events-none absolute inset-0 z-modal overflow-hidden [&>*]:pointer-events-auto"
       aria-hidden="true"
     />
   );

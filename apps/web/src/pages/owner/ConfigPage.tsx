@@ -2,10 +2,9 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { Pencil, Trash2 } from "lucide-react";
 import { toast } from "sonner";
-import type { PractitionerDto, ScheduleTemplateDto, SpecialtyDto } from "@smoothflow/shared";
+import type { SpecialtyDto } from "@smoothflow/shared";
 import { AppShell } from "@/components/layout/AppShell";
 import { EditSpecialtyDrawer } from "@/components/owner/EditSpecialtyDrawer";
-import { PractitionerScheduleGrid } from "@/components/owner/PractitionerScheduleGrid";
 import { Button } from "@/components/ui/Button";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { Input } from "@/components/ui/Input";
@@ -22,16 +21,6 @@ export default function OwnerConfigPage() {
   const { data: specialties } = useQuery({
     queryKey: ["specialties"],
     queryFn: () => api.get<{ items: SpecialtyDto[] }>("/owner/specialties"),
-  });
-
-  const { data: practitioners } = useQuery({
-    queryKey: ["practitioners"],
-    queryFn: () => api.get<{ items: PractitionerDto[] }>("/owner/practitioners"),
-  });
-
-  const { data: schedules } = useQuery({
-    queryKey: ["schedules"],
-    queryFn: () => api.get<{ items: ScheduleTemplateDto[] }>("/owner/schedules"),
   });
 
   const createSpecialty = useMutation({
@@ -67,74 +56,64 @@ export default function OwnerConfigPage() {
 
   return (
     <AppShell userRole="dueno" navItems={OWNER_NAV} bottomNavItems={OWNER_BOTTOM_NAV} title="Configuración de la clínica">
-      <div className="grid gap-8">
-        <section className="rounded-lg border border-border bg-white p-6 lg:max-w-xl">
-          <h2 className="mb-4 text-lg font-semibold">Especialidades</h2>
-          <form
-            className="mb-4 flex gap-2"
-            onSubmit={(e) => {
-              e.preventDefault();
-              createSpecialty.mutate(specialtyName);
-            }}
-          >
-            <Input
-              label="Nueva especialidad"
-              value={specialtyName}
-              onChange={(e) => setSpecialtyName(e.target.value)}
-              className="flex-1"
-            />
-            <div className="flex items-end">
-              <Button type="submit" loading={createSpecialty.isPending}>
-                Agregar
-              </Button>
-            </div>
-          </form>
-          <ul className="space-y-1 text-sm">
-            {specialties?.items.map((s) => (
-              <li
-                key={s.id}
-                className="flex items-center justify-between gap-2 rounded bg-surface-muted px-3 py-2"
-              >
-                <div className="min-w-0">
-                  <span className="font-medium">{s.name}</span>
-                  {s.description && (
-                    <p className="truncate text-xs text-text-muted">{s.description}</p>
-                  )}
-                </div>
-                <div className="flex shrink-0 items-center gap-1">
-                  <button
-                    type="button"
-                    onClick={() => openEdit(s)}
-                    className="inline-flex size-8 cursor-pointer items-center justify-center rounded-lg text-text-muted transition-colors hover:bg-white hover:text-brand"
-                    aria-label={`Editar ${s.name}`}
-                  >
-                    <Pencil className="size-4" aria-hidden="true" />
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setDeleteTarget(s)}
-                    className="inline-flex size-8 cursor-pointer items-center justify-center rounded-lg text-text-muted transition-colors hover:bg-white hover:text-red-600"
-                    aria-label={`Eliminar ${s.name}`}
-                  >
-                    <Trash2 className="size-4" aria-hidden="true" />
-                  </button>
-                </div>
-              </li>
-            ))}
-            {specialties?.items.length === 0 && (
-              <li className="px-3 py-2 text-text-muted">Aún no hay especialidades registradas.</li>
-            )}
-          </ul>
-        </section>
-
-        <section className="rounded-lg border border-border bg-white p-6">
-          <h2 className="mb-4 text-lg font-semibold">Horarios base</h2>
-          <PractitionerScheduleGrid
-            practitioners={practitioners?.items ?? []}
-            schedules={schedules?.items ?? []}
+      <section className="rounded-lg border border-border bg-white p-4 md:p-5 lg:max-w-xl">
+        <h2 className="mb-4 text-lg font-semibold">Especialidades</h2>
+        <form
+          className="mb-4 flex gap-2"
+          onSubmit={(e) => {
+            e.preventDefault();
+            createSpecialty.mutate(specialtyName);
+          }}
+        >
+          <Input
+            label="Nueva especialidad"
+            value={specialtyName}
+            onChange={(e) => setSpecialtyName(e.target.value)}
+            className="flex-1"
           />
-        </section>
-      </div>
+          <div className="flex items-end">
+            <Button type="submit" loading={createSpecialty.isPending}>
+              Agregar
+            </Button>
+          </div>
+        </form>
+        <ul className="space-y-1 text-sm">
+          {specialties?.items.map((s) => (
+            <li
+              key={s.id}
+              className="flex items-center justify-between gap-2 rounded bg-surface-muted px-3 py-2"
+            >
+              <div className="min-w-0">
+                <span className="font-medium">{s.name}</span>
+                {s.description && (
+                  <p className="truncate text-xs text-text-muted">{s.description}</p>
+                )}
+              </div>
+              <div className="flex shrink-0 items-center gap-1">
+                <button
+                  type="button"
+                  onClick={() => openEdit(s)}
+                  className="inline-flex size-8 cursor-pointer items-center justify-center rounded-lg text-text-muted transition-colors hover:bg-white hover:text-brand"
+                  aria-label={`Editar ${s.name}`}
+                >
+                  <Pencil className="size-4" aria-hidden="true" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setDeleteTarget(s)}
+                  className="inline-flex size-8 cursor-pointer items-center justify-center rounded-lg text-text-muted transition-colors hover:bg-white hover:text-red-600"
+                  aria-label={`Eliminar ${s.name}`}
+                >
+                  <Trash2 className="size-4" aria-hidden="true" />
+                </button>
+              </div>
+            </li>
+          ))}
+          {specialties?.items.length === 0 && (
+            <li className="px-3 py-2 text-text-muted">Aún no hay especialidades registradas.</li>
+          )}
+        </ul>
+      </section>
 
       <EditSpecialtyDrawer
         specialty={editTarget}

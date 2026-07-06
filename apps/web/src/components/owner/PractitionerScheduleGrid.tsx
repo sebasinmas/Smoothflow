@@ -22,6 +22,7 @@ const DAY_START_MINUTES = 7 * 60;
 const DAY_END_MINUTES = 20 * 60;
 const TIME_COL_WIDTH = "3.5rem";
 const MIN_BLOCK_HEIGHT = 36;
+const GRID_TEMPLATE_COLUMNS = `${TIME_COL_WIDTH} repeat(5, minmax(8rem, 1fr))`;
 
 function timeToMinutes(time: string): number {
   const [h, m] = time.split(":").map(Number);
@@ -114,123 +115,147 @@ export function PractitionerScheduleGrid({
   }
 
   return (
-    <div className="space-y-4">
-      <Select
-        label="Médico"
-        value={practitionerId}
-        onChange={(e) => setPractitionerId(e.target.value)}
-        options={practitionerOptions}
-      />
+    <div className="flex min-h-0 flex-1 flex-col gap-3">
+      <div className="flex shrink-0 flex-wrap items-end justify-between gap-3">
+        <Select
+          label="Médico"
+          value={practitionerId}
+          onChange={(e) => setPractitionerId(e.target.value)}
+          options={practitionerOptions}
+          className="max-w-xs"
+        />
 
-      <div className="flex flex-wrap items-center gap-4 text-xs text-text-muted">
-        <span>Haga clic en un bloque para editarlo o en una celda vacía para agregar uno.</span>
-        <div className="flex items-center gap-3">
-          <span className="flex items-center gap-1.5">
-            <span className="inline-block size-3 rounded border border-brand/30 bg-slot-reserved" />
-            Bloque de atención
-          </span>
-          <span className="flex items-center gap-1.5">
-            <span className="inline-block size-3 rounded border border-dashed border-border bg-surface" />
-            Celda disponible
-          </span>
+        <div className="flex flex-wrap items-center gap-3 text-xs text-text-muted">
+          <span>Haga clic en un bloque para editarlo o en una celda vacía para agregar uno.</span>
+          <div className="flex items-center gap-3">
+            <span className="flex items-center gap-1.5">
+              <span className="inline-block size-3 rounded border border-brand/30 bg-slot-reserved" />
+              Bloque de atención
+            </span>
+            <span className="flex items-center gap-1.5">
+              <span className="inline-block size-3 rounded border border-dashed border-border bg-surface" />
+              Celda disponible
+            </span>
+          </div>
         </div>
       </div>
 
-      <div className="overflow-x-auto rounded-lg border border-border bg-white shadow-card">
-        <div className="flex min-w-[36rem]">
-          <div
-            className="sticky left-0 z-sticky-in-content shrink-0 border-r border-border bg-white"
-            style={{ width: TIME_COL_WIDTH }}
-          >
-            <div className="h-10 border-b border-border" />
-            <div className="relative" style={{ height: gridHeight }}>
-              {hourLabels.map((minutes) => (
+      <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden rounded-2xl border border-border bg-white shadow-card">
+        <div
+          className="min-h-0 flex-1 overflow-auto"
+          style={{ scrollbarGutter: "stable" }}
+        >
+          <div className="min-w-[36rem]">
+            <div
+              className="sticky top-0 z-sticky-in-content grid border-b border-border bg-white/95 backdrop-blur-sm"
+              style={{ gridTemplateColumns: GRID_TEMPLATE_COLUMNS }}
+            >
+              <div className="sticky left-0 z-[1] border-r border-border bg-surface-muted/40" />
+              {WEEKDAYS.map(({ dayOfWeek, label }) => (
                 <div
-                  key={minutes}
-                  className="absolute right-2 -translate-y-1/2 text-[10px] text-text-muted"
-                  style={{ top: minutesToTop(minutes, DAY_START_MINUTES) }}
+                  key={dayOfWeek}
+                  className="flex h-10 items-center justify-center border-r border-border text-xs font-semibold text-text last:border-r-0"
                 >
-                  {formatHourLabel(minutes)}
+                  {label}
                 </div>
               ))}
             </div>
-          </div>
 
-          <div className="grid flex-1 grid-cols-5">
-            {WEEKDAYS.map(({ dayOfWeek, label }) => {
-              const dayBlocks = practitionerSchedules.filter((s) => s.dayOfWeek === dayOfWeek);
-              const isHovered = hoveredDay === dayOfWeek;
-              return (
-                <div key={dayOfWeek} className="border-r border-border last:border-r-0">
-                  <div className="flex h-10 items-center justify-center border-b border-border text-xs font-semibold text-text">
-                    {label}
-                  </div>
-                  <div
-                    className="group/column relative cursor-pointer bg-surface/30 transition-colors hover:bg-surface-muted/50"
-                    style={{ height: gridHeight }}
-                    onClick={(e) => handleColumnClick(dayOfWeek, e)}
-                    onMouseEnter={() => setHoveredDay(dayOfWeek)}
-                    onMouseLeave={() => setHoveredDay(null)}
-                    role="button"
-                    tabIndex={0}
-                    aria-label={`Agregar horario el ${label}`}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter" || e.key === " ") {
-                        e.preventDefault();
-                        openCreate(dayOfWeek, 9 * 60);
-                      }
-                    }}
+            <div
+              className="relative grid"
+              style={{ gridTemplateColumns: GRID_TEMPLATE_COLUMNS, minHeight: gridHeight }}
+            >
+              <div
+                className="sticky left-0 z-[1] border-r border-border bg-white"
+                style={{ height: gridHeight }}
+              >
+                {hourLabels.map((minutes) => (
+                  <span
+                    key={minutes}
+                    className="absolute right-2 -translate-y-1/2 text-[10px] text-text-muted"
+                    style={{ top: minutesToTop(minutes, DAY_START_MINUTES) }}
                   >
-                    {hourLabels.map((minutes) => (
-                      <div
-                        key={minutes}
-                        className="pointer-events-none absolute inset-x-0 border-t border-border/40"
-                        style={{ top: minutesToTop(minutes, DAY_START_MINUTES) }}
-                      />
-                    ))}
+                    {formatHourLabel(minutes)}
+                  </span>
+                ))}
+              </div>
 
-                    {isHovered && dayBlocks.length === 0 && (
-                      <div className="pointer-events-none absolute inset-2 flex items-center justify-center rounded-lg border border-dashed border-brand/30 bg-brand/5">
-                        <span className="flex items-center gap-1 text-xs font-medium text-brand">
-                          <Plus className="size-3.5" aria-hidden="true" />
-                          Agregar bloque
-                        </span>
-                      </div>
-                    )}
+              {WEEKDAYS.map(({ dayOfWeek, label }) => {
+                const dayBlocks = practitionerSchedules.filter((s) => s.dayOfWeek === dayOfWeek);
+                const isHovered = hoveredDay === dayOfWeek;
 
-                    {dayBlocks.map((block) => (
-                      <button
-                        key={block.id}
-                        type="button"
-                        data-schedule-block
-                        className="absolute inset-x-1.5 z-[1] flex min-h-[36px] cursor-pointer flex-col justify-center rounded-md border border-brand/25 border-l-4 border-l-slot-reserved-border bg-slot-reserved px-2 py-1.5 text-left text-xs leading-snug text-brand shadow-sm transition-all hover:z-[2] hover:shadow-md hover:ring-2 hover:ring-brand/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
-                        style={{
-                          top: minutesToTop(timeToMinutes(block.startTime), DAY_START_MINUTES),
-                          height: blockHeight(block.startTime, block.endTime),
-                        }}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          openEdit(block);
-                        }}
-                      >
-                        <span className="font-semibold">
-                          {block.startTime} – {block.endTime}
-                        </span>
-                        <span className="text-[11px] opacity-80">
-                          Citas de {block.slotDurationMinutes} min
-                        </span>
-                      </button>
-                    ))}
+                return (
+                  <div
+                    key={dayOfWeek}
+                    className="relative min-w-0 border-r border-border last:border-r-0"
+                    style={{ height: gridHeight }}
+                  >
+                    <div
+                      className="group/column relative h-full cursor-pointer bg-surface/30 transition-colors hover:bg-surface-muted/50"
+                      onClick={(e) => handleColumnClick(dayOfWeek, e)}
+                      onMouseEnter={() => setHoveredDay(dayOfWeek)}
+                      onMouseLeave={() => setHoveredDay(null)}
+                      role="button"
+                      tabIndex={0}
+                      aria-label={`Agregar horario el ${label}`}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" || e.key === " ") {
+                          e.preventDefault();
+                          openCreate(dayOfWeek, 9 * 60);
+                        }
+                      }}
+                    >
+                      {hourLabels.map((minutes) => (
+                        <div
+                          key={minutes}
+                          className="pointer-events-none absolute inset-x-0 border-t border-border/40"
+                          style={{ top: minutesToTop(minutes, DAY_START_MINUTES) }}
+                        />
+                      ))}
+
+                      {isHovered && dayBlocks.length === 0 && (
+                        <div className="pointer-events-none absolute inset-2 flex items-center justify-center rounded-lg border border-dashed border-brand/30 bg-brand/5">
+                          <span className="flex items-center gap-1 text-xs font-medium text-brand">
+                            <Plus className="size-3.5" aria-hidden="true" />
+                            Agregar bloque
+                          </span>
+                        </div>
+                      )}
+
+                      {dayBlocks.map((block) => (
+                        <button
+                          key={block.id}
+                          type="button"
+                          data-schedule-block
+                          className="absolute inset-x-1 z-[1] flex min-h-[36px] cursor-pointer flex-col justify-center rounded-md border border-brand/25 border-l-4 border-l-slot-reserved-border bg-slot-reserved px-2 py-1.5 text-left text-xs leading-snug text-brand shadow-sm transition-all hover:z-[2] hover:shadow-md hover:ring-2 hover:ring-brand/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
+                          style={{
+                            top: minutesToTop(timeToMinutes(block.startTime), DAY_START_MINUTES),
+                            height: blockHeight(block.startTime, block.endTime),
+                          }}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            openEdit(block);
+                          }}
+                        >
+                          <span className="font-semibold">
+                            {block.startTime} – {block.endTime}
+                          </span>
+                          <span className="text-[11px] opacity-80">
+                            Citas de {block.slotDurationMinutes} min
+                          </span>
+                        </button>
+                      ))}
+                    </div>
                   </div>
-                </div>
-              );
-            })}
+                );
+              })}
+            </div>
           </div>
         </div>
       </div>
 
       {practitionerSchedules.length === 0 && (
-        <p className="text-sm text-text-muted">
+        <p className="shrink-0 text-sm text-text-muted">
           Este médico aún no tiene horarios. Haga clic en la grilla para agregar el primero.
         </p>
       )}
