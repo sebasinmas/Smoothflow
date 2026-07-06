@@ -47,12 +47,14 @@ export default function LoginPage() {
               autoComplete="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
+              placeholder="Ingrese su email"
               required
             />
             <Input
               label="Contraseña"
               type="password"
               autoComplete="current-password"
+              placeholder="Ingrese su contraseña"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
