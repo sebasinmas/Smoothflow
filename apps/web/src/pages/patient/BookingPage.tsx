@@ -167,7 +167,9 @@ export default function PatientBookingPage() {
           )}
           {bookMutation.isError && (
             <p className="mt-3 text-sm text-red-600" role="alert">
-              No se pudo confirmar la reserva. Intente con otro horario.
+              {bookMutation.error instanceof Error
+                ? bookMutation.error.message
+                : "No se pudo confirmar la reserva. Intente con otro horario."}
             </p>
           )}
           <div className="mt-4 flex gap-2">

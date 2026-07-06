@@ -7,10 +7,12 @@ import { Button } from "@/components/ui/Button";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { api } from "@/lib/api";
 import { formatDateTime } from "@/lib/utils";
+import { RescheduleDialog } from "./components/RescheduleDialog";
 
 export default function PatientAppointmentsPage() {
   const queryClient = useQueryClient();
   const [cancelTarget, setCancelTarget] = useState<AppointmentDto | null>(null);
+  const [rescheduleTarget, setRescheduleTarget] = useState<AppointmentDto | null>(null);
 
   const { data, isLoading } = useQuery({
     queryKey: ["my-appointments"],
@@ -33,20 +35,35 @@ export default function PatientAppointmentsPage() {
         <p className="text-text-muted" role="status">Cargando sus citas…</p>
       ) : (
         <ul className="space-y-4">
-          {active.map((a) => (
+          {active.map((a) => {
+            const isWithin24Hours = (new Date(a.startAt).getTime() - Date.now()) / (1000 * 60 * 60) < 24;
+            return (
             <li key={a.id} className="rounded-xl border border-border bg-white p-4 shadow-card">
               <p className="font-semibold">{formatDateTime(a.startAt)}</p>
               <p className="text-sm text-text-muted">
                 {a.practitionerName} — {a.specialtyName}
               </p>
               <p className="mt-1 text-xs capitalize text-text-muted">Estado: {a.status}</p>
-              <div className="mt-3 flex gap-2">
-                <Button variant="danger" onClick={() => setCancelTarget(a)}>
-                  Cancelar
-                </Button>
+              {a.pendingReschedule && (
+                <p className="mt-1 text-sm font-semibold text-amber-600">
+                  ⏳ Solicitud de reagendamiento en revisión (para el {formatDateTime(a.pendingReschedule.startAt)})
+                </p>
+              )}
+              <div className="mt-3 flex flex-col gap-2">
+                <div className="flex gap-2">
+                  <Button variant="secondary" onClick={() => setRescheduleTarget(a)} disabled={isWithin24Hours || !!a.pendingReschedule}>
+                    Reagendar
+                  </Button>
+                  <Button variant="danger" onClick={() => setCancelTarget(a)} disabled={isWithin24Hours}>
+                    Cancelar
+                  </Button>
+                </div>
+                {isWithin24Hours && (
+                  <p className="text-xs text-red-500">Para modificaciones a menos de 24 horas, contacte a la clínica.</p>
+                )}
               </div>
             </li>
-          ))}
+          )})}
           {active.length === 0 && (
             <li className="rounded-xl border border-border bg-white p-8 text-center shadow-card">
               <p className="text-text-muted">No tiene citas activas.</p>
@@ -80,6 +97,12 @@ export default function PatientAppointmentsPage() {
         onConfirm={() => {
           if (cancelTarget) cancelMutation.mutate(cancelTarget.id);
         }}
+      />
+
+      <RescheduleDialog
+        isOpen={rescheduleTarget !== null}
+        onOpenChange={(open) => !open && setRescheduleTarget(null)}
+        appointment={rescheduleTarget}
       />
     </PatientShell>
   );
