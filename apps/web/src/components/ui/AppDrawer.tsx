@@ -32,10 +32,10 @@ export function AppDrawer({
   const drawer = (
     <DialogTrigger isOpen={isOpen} onOpenChange={onOpenChange}>
       <ModalOverlay
-        className={`${overlayPosition} inset-0 z-modal flex justify-end bg-black/40 backdrop-blur-sm transition-opacity duration-300 entering:animate-in entering:fade-in exiting:animate-out exiting:fade-out entering:opacity-100 exiting:opacity-0`}
+        className={`drawer-overlay ${overlayPosition} inset-0 z-modal flex justify-end bg-black/40 backdrop-blur-sm transition-opacity duration-300 entering:animate-in entering:fade-in exiting:animate-out exiting:fade-out entering:opacity-100 exiting:opacity-0`}
         isDismissable
       >
-        <Modal className="flex h-full w-full max-w-md translate-x-0 flex-col border-l border-border bg-white shadow-2xl outline-none transition-transform duration-300 ease-out entering:animate-in entering:slide-in-from-right exiting:animate-out exiting:slide-out-to-right">
+        <Modal className="drawer-panel flex h-full w-full max-w-md translate-x-0 flex-col border-l border-border bg-white shadow-2xl outline-none transition-transform duration-300 ease-out entering:animate-in entering:slide-in-from-right exiting:animate-out exiting:slide-out-to-right">
           <Dialog className="flex h-full min-h-0 flex-col outline-none">
             {({ close }) => (
               <>

@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import type { SpecialtyDto } from "@smoothflow/shared";
 import { toast } from "sonner";
 import { FormDialogFooter } from "@/components/secretary/FormDialogFooter";
@@ -15,11 +15,7 @@ interface CreateStaffDrawerProps {
 
 type StaffRole = "secretaria" | "medico" | "dueno";
 
-function CreateStaffDrawerActive({
-  onOpenChange,
-}: {
-  onOpenChange: (open: boolean) => void;
-}) {
+export function CreateStaffDrawer({ isOpen, onOpenChange }: CreateStaffDrawerProps) {
   const queryClient = useQueryClient();
   const [givenName, setGivenName] = useState("");
   const [familyName, setFamilyName] = useState("");
@@ -29,9 +25,24 @@ function CreateStaffDrawerActive({
   const [specialtyId, setSpecialtyId] = useState("");
   const [formError, setFormError] = useState("");
 
+  const resetForm = useCallback(() => {
+    setGivenName("");
+    setFamilyName("");
+    setEmail("");
+    setPassword("");
+    setRole("secretaria");
+    setSpecialtyId("");
+    setFormError("");
+  }, []);
+
+  useEffect(() => {
+    if (isOpen) resetForm();
+  }, [isOpen, resetForm]);
+
   const { data: specialties } = useQuery({
     queryKey: ["specialties"],
     queryFn: () => api.get<{ items: SpecialtyDto[] }>("/owner/specialties"),
+    enabled: isOpen,
   });
 
   const createMutation = useMutation({
@@ -77,91 +88,89 @@ function CreateStaffDrawerActive({
 
   return (
     <AppDrawer
-      isOpen
+      isOpen={isOpen}
       onOpenChange={onOpenChange}
       title="Nuevo empleado"
       description="El empleado podrá iniciar sesión con el email y contraseña que defina aquí."
       footer={
-        <FormDialogFooter
-          onCancel={() => onOpenChange(false)}
-          submitLabel="Crear empleado"
-          submitType="submit"
-          form="create-staff-form"
-          loading={createMutation.isPending}
-          submitDisabled={submitDisabled}
-        />
+        isOpen ? (
+          <FormDialogFooter
+            onCancel={() => onOpenChange(false)}
+            submitLabel="Crear empleado"
+            submitType="submit"
+            form="create-staff-form"
+            loading={createMutation.isPending}
+            submitDisabled={submitDisabled}
+          />
+        ) : undefined
       }
     >
-      <form id="create-staff-form" className="grid gap-4" onSubmit={handleSubmit}>
-        <Input
-          label="Nombre"
-          value={givenName}
-          onChange={(e) => setGivenName(e.target.value)}
-          placeholder="Ej. María"
-          required
-        />
-        <Input
-          label="Apellido"
-          value={familyName}
-          onChange={(e) => setFamilyName(e.target.value)}
-          placeholder="Ej. González"
-          required
-        />
-        <Input
-          label="Email"
-          type="email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          placeholder="correo@ejemplo.cl"
-          required
-        />
-        <Input
-          label="Contraseña"
-          type="password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          placeholder="Mínimo 8 caracteres"
-          minLength={8}
-          required
-        />
-        <Select
-          label="Rol"
-          value={role}
-          onChange={(e) => {
-            const nextRole = e.target.value as StaffRole;
-            setRole(nextRole);
-            if (nextRole !== "medico") setSpecialtyId("");
-          }}
-          options={[
-            { value: "secretaria", label: "Secretaria" },
-            { value: "medico", label: "Médico" },
-            { value: "dueno", label: "Dueño" },
-          ]}
-        />
-        {role === "medico" && (
-          <Select
-            label="Especialidad"
-            value={specialtyId}
-            onChange={(e) => setSpecialtyId(e.target.value)}
-            options={[
-              { value: "", label: "Seleccione una especialidad" },
-              ...(specialties?.items.map((s) => ({ value: s.id, label: s.name })) ?? []),
-            ]}
+      {isOpen ? (
+        <form id="create-staff-form" className="grid gap-4" onSubmit={handleSubmit}>
+          <Input
+            label="Nombre"
+            value={givenName}
+            onChange={(e) => setGivenName(e.target.value)}
+            placeholder="Ej. María"
             required
           />
-        )}
-        {formError && (
-          <p className="text-sm text-red-600" role="alert">
-            {formError}
-          </p>
-        )}
-      </form>
+          <Input
+            label="Apellido"
+            value={familyName}
+            onChange={(e) => setFamilyName(e.target.value)}
+            placeholder="Ej. González"
+            required
+          />
+          <Input
+            label="Email"
+            type="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            placeholder="correo@ejemplo.cl"
+            required
+          />
+          <Input
+            label="Contraseña"
+            type="password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            placeholder="Mínimo 8 caracteres"
+            minLength={8}
+            required
+          />
+          <Select
+            label="Rol"
+            value={role}
+            onChange={(e) => {
+              const nextRole = e.target.value as StaffRole;
+              setRole(nextRole);
+              if (nextRole !== "medico") setSpecialtyId("");
+            }}
+            options={[
+              { value: "secretaria", label: "Secretaria" },
+              { value: "medico", label: "Médico" },
+              { value: "dueno", label: "Dueño" },
+            ]}
+          />
+          {role === "medico" && (
+            <Select
+              label="Especialidad"
+              value={specialtyId}
+              onChange={(e) => setSpecialtyId(e.target.value)}
+              options={[
+                { value: "", label: "Seleccione una especialidad" },
+                ...(specialties?.items.map((s) => ({ value: s.id, label: s.name })) ?? []),
+              ]}
+              required
+            />
+          )}
+          {formError && (
+            <p className="text-sm text-red-600" role="alert">
+              {formError}
+            </p>
+          )}
+        </form>
+      ) : null}
     </AppDrawer>
   );
-}
-
-export function CreateStaffDrawer({ isOpen, onOpenChange }: CreateStaffDrawerProps) {
-  if (!isOpen) return null;
-
-  return <CreateStaffDrawerActive key="open" onOpenChange={onOpenChange} />;
 }
