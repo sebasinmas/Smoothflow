@@ -8,6 +8,7 @@ import LoginPage from "@/pages/LoginPage";
 import SecretaryPanelPage from "@/pages/secretary/PanelPage";
 import SecretaryCalendarPage from "@/pages/secretary/CalendarPage";
 import SecretaryPatientsPage from "@/pages/secretary/PatientsPage";
+import SecretaryRequestsPage from "@/pages/secretary/RequestsPage";
 import DoctorCalendarPage from "@/pages/doctor/CalendarPage";
 import DoctorHistoryPage from "@/pages/doctor/HistoryPage";
 import OwnerStaffPage from "@/pages/owner/StaffPage";
@@ -49,6 +50,7 @@ export default function App() {
                 <Route path="/secretaria/panel" element={<SecretaryPanelPage />} />
                 <Route path="/secretaria/calendario" element={<SecretaryCalendarPage />} />
                 <Route path="/secretaria/pacientes" element={<SecretaryPatientsPage />} />
+                <Route path="/secretaria/solicitudes" element={<SecretaryRequestsPage />} />
               </Route>
             </Route>
 

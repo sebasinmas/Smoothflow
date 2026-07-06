@@ -14,6 +14,7 @@ export const updateAppointmentSchema = z.object({
   endAt: z.string().datetime().optional(),
   status: z.enum(APPOINTMENT_STATUSES).optional(),
   notes: z.string().max(500).optional(),
+  pendingReschedule: z.object({ startAt: z.string().datetime(), endAt: z.string().datetime() }).nullable().optional(),
 });
 
 export const createBlockSchema = z.object({

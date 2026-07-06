@@ -67,6 +67,7 @@ export interface AppointmentDto {
   startAt: string;
   endAt: string;
   notes: string | null;
+  pendingReschedule?: { startAt: string; endAt: string } | null;
   createdByUserId: string | null;
   patientName?: string;
   practitionerName?: string;
