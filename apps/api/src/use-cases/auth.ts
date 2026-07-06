@@ -6,6 +6,7 @@ import { AppError, toSessionUser } from "../domain/errors.js";
 import { hashPassword, verifyPassword } from "../infrastructure/auth/password.js";
 import { encryptField } from "../infrastructure/crypto/encryption.js";
 import { writeAuditLog } from "../infrastructure/audit/audit-logger.js";
+import { findPatientForPortalLink } from "./patients.js";
 
 export async function loginUser(input: LoginInput, ip: string): Promise<SessionUser> {
   const [row] = await db.select().from(users).where(eq(users.email, input.email.toLowerCase())).limit(1);
@@ -31,11 +32,16 @@ export async function registerPatient(
   ip: string,
 ): Promise<SessionUser> {
   const email = input.email.toLowerCase();
-  const [existing] = await db.select().from(users).where(eq(users.email, email)).limit(1);
-  if (existing) throw new AppError("El email ya está registrado", 409);
+  const [existingUser] = await db.select().from(users).where(eq(users.email, email)).limit(1);
+  if (existingUser) throw new AppError("El email ya está registrado", 409, "EMAIL_EXISTS");
 
   const [clinic] = await db.select().from(clinics).limit(1);
   if (!clinic) throw new AppError("No hay clínicas configuradas", 503);
+
+  const existingPatient = await findPatientForPortalLink(clinic.id, email, input.identifier);
+  if (existingPatient?.userId) {
+    throw new AppError("Este paciente ya tiene cuenta de portal", 409, "PORTAL_ACCOUNT_EXISTS");
+  }
 
   const passwordHash = await hashPassword(input.password);
   const [user] = await db
@@ -50,23 +56,48 @@ export async function registerPatient(
     })
     .returning();
 
-  await db.insert(patients).values({
-    clinicId: clinic.id,
-    userId: user.id,
-    givenName: input.givenName,
-    familyName: input.familyName,
-    email,
-    phoneEncrypted: input.phone ? encryptField(input.phone) : null,
-    identifierEncrypted: input.identifier ? encryptField(input.identifier) : null,
-  });
+  if (existingPatient) {
+    await db
+      .update(patients)
+      .set({
+        userId: user.id,
+        email: existingPatient.email ?? email,
+        phoneEncrypted:
+          existingPatient.phoneEncrypted ??
+          (input.phone ? encryptField(input.phone) : null),
+        identifierEncrypted:
+          existingPatient.identifierEncrypted ??
+          (input.identifier ? encryptField(input.identifier) : null),
+      })
+      .where(eq(patients.id, existingPatient.id));
 
-  await writeAuditLog({
-    clinicId: clinic.id,
-    userId: user.id,
-    action: "REGISTER",
-    resource: "patient",
-    ipAddress: ip,
-  });
+    await writeAuditLog({
+      clinicId: clinic.id,
+      userId: user.id,
+      action: "LINK",
+      resource: "patient",
+      resourceId: existingPatient.id,
+      ipAddress: ip,
+    });
+  } else {
+    await db.insert(patients).values({
+      clinicId: clinic.id,
+      userId: user.id,
+      givenName: input.givenName,
+      familyName: input.familyName,
+      email,
+      phoneEncrypted: input.phone ? encryptField(input.phone) : null,
+      identifierEncrypted: input.identifier ? encryptField(input.identifier) : null,
+    });
+
+    await writeAuditLog({
+      clinicId: clinic.id,
+      userId: user.id,
+      action: "REGISTER",
+      resource: "patient",
+      ipAddress: ip,
+    });
+  }
 
   return toSessionUser(user);
 }

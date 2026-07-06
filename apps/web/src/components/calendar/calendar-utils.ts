@@ -12,6 +12,9 @@ export interface CalendarEventItem {
   status: SlotStatus;
   label: string;
   sublabel?: string;
+  appointmentId?: string;
+  patientId?: string;
+  practitionerId?: string;
 }
 
 export function minutesSinceMidnight(date: Date): number {

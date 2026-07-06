@@ -1,12 +1,20 @@
 import { useQuery } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
 import { ChevronLeft, ChevronRight, RefreshCw } from "lucide-react";
 import type { AppointmentDto, AvailabilitySlotDto } from "@smoothflow/shared";
 import { AppShell } from "@/components/layout/AppShell";
 import { CalendarToolbar, mergeCalendarEvents, SegmentedControl } from "@/components/calendar/CalendarToolbar";
 import { ScheduleCalendar } from "@/components/calendar/ScheduleCalendar";
+import type { CalendarEventItem } from "@/components/calendar/calendar-utils";
+import { AppointmentActionsDialog } from "@/components/secretary/AppointmentActionsDialog";
+import { BlockAgendaDialog } from "@/components/secretary/BlockAgendaDialog";
+import {
+  CreateReservationDialog,
+  type ReservationPreset,
+} from "@/components/secretary/CreateReservationDialog";
 import { Button } from "@/components/ui/Button";
+import { LiveIndicator } from "@/components/ui/LiveIndicator";
+import { LoadingState } from "@/components/ui/LoadingState";
 import { Select } from "@/components/ui/Select";
 import { api } from "@/lib/api";
 import { addDays, startOfWeek } from "@/lib/utils";
@@ -15,10 +23,14 @@ import { SECRETARIA_NAV } from "@/lib/navigation";
 
 export default function SecretaryCalendarPage() {
   const { lastEvent } = useRealtime();
-  const navigate = useNavigate();
   const [view, setView] = useState<"week" | "day">("week");
   const [weekStart, setWeekStart] = useState(() => startOfWeek());
   const [selectedPractitioner, setSelectedPractitioner] = useState("");
+  const [createOpen, setCreateOpen] = useState(false);
+  const [blockOpen, setBlockOpen] = useState(false);
+  const [reservationPreset, setReservationPreset] = useState<ReservationPreset | undefined>();
+  const [selectedEvent, setSelectedEvent] = useState<CalendarEventItem | null>(null);
+  const [actionsOpen, setActionsOpen] = useState(false);
 
   const step = view === "week" ? 7 : 1;
   const weekEnd = addDays(weekStart, step);
@@ -31,7 +43,12 @@ export default function SecretaryCalendarPage() {
       ),
   });
 
-  const { data: appointments, refetch } = useQuery({
+  const {
+    data: appointments,
+    refetch,
+    isLoading: loadingAppointments,
+    isError: appointmentsError,
+  } = useQuery({
     queryKey: ["appointments", weekStart.toISOString(), selectedPractitioner, lastEvent],
     queryFn: () => {
       const params = new URLSearchParams({
@@ -43,7 +60,11 @@ export default function SecretaryCalendarPage() {
     },
   });
 
-  const { data: availability } = useQuery({
+  const {
+    data: availability,
+    isLoading: loadingAvailability,
+    isError: availabilityError,
+  } = useQuery({
     queryKey: ["availability", weekStart.toISOString(), selectedPractitioner, lastEvent],
     queryFn: () => {
       const params = new URLSearchParams({
@@ -91,6 +112,27 @@ export default function SecretaryCalendarPage() {
     })) ?? []),
   ];
 
+  const openCreateDialog = (preset?: ReservationPreset) => {
+    setReservationPreset(preset);
+    setCreateOpen(true);
+  };
+
+  const handleEventClick = (event: CalendarEventItem) => {
+    if (event.status === "disponible") {
+      openCreateDialog({
+        practitionerId: event.practitionerId,
+        startAt: event.startAt,
+        endAt: event.endAt,
+      });
+      return;
+    }
+    setSelectedEvent(event);
+    setActionsOpen(true);
+  };
+
+  const isLoading = loadingAppointments || loadingAvailability;
+  const hasError = appointmentsError || availabilityError;
+
   return (
     <AppShell
       role="secretaria"
@@ -98,9 +140,10 @@ export default function SecretaryCalendarPage() {
       title="Calendario de agenda"
       showNotifications
       fillContent
+      headerExtra={<LiveIndicator />}
       primaryAction={{
         label: "Crear una reservación",
-        onClick: () => navigate("/secretaria/pacientes"),
+        onClick: () => openCreateDialog(),
       }}
     >
       <div className="flex min-h-0 flex-1 flex-col">
@@ -144,6 +187,9 @@ export default function SecretaryCalendarPage() {
               ]}
               onChange={(v) => setView(v as "week" | "day")}
             />
+            <Button variant="secondary" onClick={() => setBlockOpen(true)}>
+              Bloquear agenda
+            </Button>
             <Button
               variant="secondary"
               className="size-9 px-0"
@@ -155,8 +201,32 @@ export default function SecretaryCalendarPage() {
           </div>
         </CalendarToolbar>
 
-        <ScheduleCalendar days={days} events={events} />
+        {isLoading ? (
+          <LoadingState message="Cargando agenda…" />
+        ) : hasError ? (
+          <p className="text-sm text-red-600" role="alert">
+            No se pudo cargar la agenda. Intente actualizar la página.
+          </p>
+        ) : (
+          <ScheduleCalendar days={days} events={events} onEventClick={handleEventClick} />
+        )}
       </div>
+
+      <CreateReservationDialog
+        isOpen={createOpen}
+        onOpenChange={setCreateOpen}
+        preset={reservationPreset}
+      />
+      <BlockAgendaDialog
+        isOpen={blockOpen}
+        onOpenChange={setBlockOpen}
+        initialPractitionerId={selectedPractitioner || undefined}
+      />
+      <AppointmentActionsDialog
+        isOpen={actionsOpen}
+        onOpenChange={setActionsOpen}
+        event={selectedEvent}
+      />
     </AppShell>
   );
 }

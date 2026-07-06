@@ -1,17 +1,38 @@
 import { useQuery } from "@tanstack/react-query";
+import { useState } from "react";
 import { Link } from "react-router-dom";
 import { CalendarOff } from "lucide-react";
+import type { AppointmentDto } from "@smoothflow/shared";
 import { AppShell } from "@/components/layout/AppShell";
+import { AppointmentActionsDialog } from "@/components/secretary/AppointmentActionsDialog";
+import type { CalendarEventItem } from "@/components/calendar/calendar-utils";
 import { EmptyState } from "@/components/ui/EmptyState";
+import { LiveIndicator } from "@/components/ui/LiveIndicator";
 import { LoadingState } from "@/components/ui/LoadingState";
 import { api } from "@/lib/api";
-import type { AppointmentDto } from "@smoothflow/shared";
 import { formatDateTime } from "@/lib/utils";
 import { useRealtime } from "@/contexts/RealtimeContext";
 import { SECRETARIA_NAV } from "@/lib/navigation";
 
+function appointmentToEvent(appt: AppointmentDto): CalendarEventItem {
+  return {
+    id: appt.id,
+    startAt: appt.startAt,
+    endAt: appt.endAt,
+    status: appt.status === "bloqueado" ? "bloqueado" : "reservado",
+    label: appt.patientName ?? appt.practitionerName ?? "Cita",
+    sublabel: appt.specialtyName,
+    appointmentId: appt.id,
+    patientId: appt.patientId ?? undefined,
+    practitionerId: appt.practitionerId,
+  };
+}
+
 export default function SecretaryPanelPage() {
   const { lastEvent } = useRealtime();
+  const [selectedEvent, setSelectedEvent] = useState<CalendarEventItem | null>(null);
+  const [actionsOpen, setActionsOpen] = useState(false);
+
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   const tomorrow = new Date(today);
@@ -29,7 +50,13 @@ export default function SecretaryPanelPage() {
   const blocked = data?.items.filter((a) => a.status === "bloqueado").length ?? 0;
 
   return (
-    <AppShell role="secretaria" navItems={SECRETARIA_NAV} title="Panel de control" showNotifications>
+    <AppShell
+      role="secretaria"
+      navItems={SECRETARIA_NAV}
+      title="Panel de control"
+      showNotifications
+      headerExtra={<LiveIndicator />}
+    >
       <div className="grid gap-6 md:grid-cols-3">
         <div className="rounded-xl border border-border bg-white p-6 shadow-card">
           <p className="text-sm text-text-muted">Citas hoy</p>
@@ -67,15 +94,31 @@ export default function SecretaryPanelPage() {
         ) : (
           <ul className="space-y-2">
             {data?.items.map((a) => (
-              <li key={a.id} className="rounded border border-border bg-white px-4 py-3">
-                <span className="font-medium">{formatDateTime(a.startAt)}</span>
-                {" — "}
-                {a.patientName ?? "Sin paciente"} con {a.practitionerName}
+              <li key={a.id}>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSelectedEvent(appointmentToEvent(a));
+                    setActionsOpen(true);
+                  }}
+                  className="w-full rounded border border-border bg-white px-4 py-3 text-left transition-colors duration-200 hover:border-brand/40 hover:bg-brand/5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
+                  aria-label={`Ver detalle de cita: ${formatDateTime(a.startAt)}, ${a.patientName ?? "Sin paciente"}`}
+                >
+                  <span className="font-medium">{formatDateTime(a.startAt)}</span>
+                  {" — "}
+                  {a.patientName ?? "Sin paciente"} con {a.practitionerName}
+                </button>
               </li>
             ))}
           </ul>
         )}
       </section>
+
+      <AppointmentActionsDialog
+        isOpen={actionsOpen}
+        onOpenChange={setActionsOpen}
+        event={selectedEvent}
+      />
     </AppShell>
   );
 }

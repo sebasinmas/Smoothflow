@@ -8,6 +8,7 @@ import {
   useState,
   type ReactNode,
 } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import * as Y from "yjs";
 import { useAuth } from "@/contexts/AuthContext";
 
@@ -57,6 +58,7 @@ function eventLabel(type: string): string {
 
 export function RealtimeProvider({ children }: { children: ReactNode }) {
   const { user, purgeSensitiveData } = useAuth();
+  const queryClient = useQueryClient();
   const [status, setStatus] = useState<ConnectionStatus>("offline");
   const [lastEvent, setLastEvent] = useState<string | null>(null);
   const [notifications, setNotifications] = useState<RealtimeNotification[]>([]);
@@ -75,7 +77,9 @@ export function RealtimeProvider({ children }: { children: ReactNode }) {
     };
     setNotifications((prev) => [notification, ...prev].slice(0, MAX_NOTIFICATIONS));
     setLastEvent(message);
-  }, []);
+    queryClient.invalidateQueries({ queryKey: ["appointments"] });
+    queryClient.invalidateQueries({ queryKey: ["availability"] });
+  }, [queryClient]);
 
   const markRead = useCallback((id: string) => {
     setNotifications((prev) =>

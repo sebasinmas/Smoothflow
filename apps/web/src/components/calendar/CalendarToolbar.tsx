@@ -4,7 +4,7 @@ import type { CalendarEventItem } from "@/components/calendar/calendar-utils";
 
 export function slotsToEvents(slots: AvailabilitySlotDto[]): CalendarEventItem[] {
   return slots.map((slot) => ({
-    id: `${slot.startAt}-${slot.practitionerId}`,
+    id: slot.appointmentId ?? `${slot.startAt}-${slot.practitionerId}`,
     startAt: slot.startAt,
     endAt: slot.endAt,
     status: slot.status,
@@ -15,6 +15,8 @@ export function slotsToEvents(slots: AvailabilitySlotDto[]): CalendarEventItem[]
         : slot.status === "disponible"
           ? "Disponible"
           : undefined,
+    appointmentId: slot.appointmentId,
+    practitionerId: slot.practitionerId,
   }));
 }
 
@@ -26,6 +28,9 @@ export function appointmentsToEvents(appointments: AppointmentDto[]): CalendarEv
     status: appt.status === "bloqueado" ? "bloqueado" : "reservado",
     label: appt.patientName ?? appt.practitionerName ?? "Cita",
     sublabel: appt.specialtyName,
+    appointmentId: appt.id,
+    patientId: appt.patientId ?? undefined,
+    practitionerId: appt.practitionerId,
   }));
 }
 

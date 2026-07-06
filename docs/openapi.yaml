@@ -47,6 +47,18 @@ paths:
         "200":
           description: Datos de sesión
 
+  /auth/patient/register:
+    post:
+      summary: Autoregistro de paciente (portal)
+      description: >
+        Crea cuenta de portal. Si ya existe una ficha administrativa con el mismo email o RUT
+        (creada por secretaría), vincula la cuenta a esa ficha sin duplicar el registro.
+      responses:
+        "201":
+          description: Cuenta creada o vinculada a ficha existente
+        "409":
+          description: Email ya registrado o paciente ya tiene cuenta de portal
+
   /appointments:
     get:
       summary: Listar citas
@@ -57,6 +69,15 @@ paths:
     patch:
       summary: Actualizar o cancelar cita
 
+  /appointments/blocks:
+    post:
+      summary: Bloquear rango de agenda (secretaria/dueño)
+      responses:
+        "201":
+          description: Bloqueo registrado
+        "409":
+          description: Existen citas confirmadas en el rango (BLOCK_CONFLICT)
+
   /availability:
     get:
       summary: Consultar disponibilidad
@@ -64,8 +85,16 @@ paths:
   /patients:
     get:
       summary: Listar pacientes (secretaria/dueño)
+      responses:
+        "200":
+          description: Lista de fichas con hasPortalAccess
     post:
-      summary: Crear paciente
+      summary: Crear ficha de paciente
+      responses:
+        "201":
+          description: Ficha creada
+        "409":
+          description: Email o RUT ya registrado en la clínica
 
   /owner/staff:
     get:
@@ -116,6 +145,21 @@ paths:
       summary: Bundle FHIR Appointment
 
 components:
+  schemas:
+    Patient:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        clinicId: { type: string, format: uuid }
+        givenName: { type: string }
+        familyName: { type: string }
+        email: { type: string, format: email, nullable: true }
+        phone: { type: string, nullable: true }
+        identifier: { type: string, nullable: true }
+        hasPortalAccess:
+          type: boolean
+          description: true si el paciente tiene cuenta de portal vinculada
+        createdAt: { type: string, format: date-time }
   securitySchemes:
     sessionCookie:
       type: apiKey

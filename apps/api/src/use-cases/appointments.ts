@@ -266,6 +266,34 @@ export async function updateAppointment(
   return dto;
 }
 
+async function assertNoConfirmedAppointmentsInBlockRange(
+  clinicId: string,
+  practitionerId: string,
+  startAt: Date,
+  endAt: Date,
+): Promise<void> {
+  const rows = await db
+    .select()
+    .from(appointments)
+    .where(
+      and(
+        eq(appointments.clinicId, clinicId),
+        eq(appointments.practitionerId, practitionerId),
+        inArray(appointments.status, ["confirmado", "reservado", "reagendado"]),
+        lte(appointments.startAt, endAt),
+        gte(appointments.endAt, startAt),
+      ),
+    );
+
+  if (rows.length > 0) {
+    throw new AppError(
+      "Existen citas confirmadas en el rango seleccionado. Gestiónelas antes de bloquear.",
+      409,
+      "BLOCK_CONFLICT",
+    );
+  }
+}
+
 export async function createBlock(
   user: SessionUser,
   input: CreateBlockInput,
@@ -274,6 +302,13 @@ export async function createBlock(
   if (!user.clinicId) throw new AppError("Clínica no asignada", 400);
   const startAt = new Date(input.startAt);
   const endAt = new Date(input.endAt);
+
+  await assertNoConfirmedAppointmentsInBlockRange(
+    user.clinicId,
+    input.practitionerId,
+    startAt,
+    endAt,
+  );
 
   const [created] = await db
     .insert(appointments)

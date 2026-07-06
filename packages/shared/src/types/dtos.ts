@@ -27,6 +27,7 @@ export interface PatientDto {
   email: string | null;
   phone: string | null;
   identifier: string | null;
+  hasPortalAccess: boolean;
   createdAt: string;
 }
 
