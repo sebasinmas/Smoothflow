@@ -3,11 +3,13 @@ import { useMemo, useState } from "react";
 import type { AvailabilitySlotDto, PatientDto } from "@smoothflow/shared";
 import { AppointmentSlot } from "@/components/ui/AppointmentSlot";
 import { Input } from "@/components/ui/Input";
+import { FieldHint } from "@/components/ui/FieldHint";
 import { Select } from "@/components/ui/Select";
 import { FormDialogFooter } from "@/components/secretary/FormDialogFooter";
 import { AppDrawer } from "@/components/ui/AppDrawer";
 import { ApiError, api } from "@/lib/api";
 import { formatDateTime, formatPersonName } from "@/lib/utils";
+import { TOOLTIPS } from "@/lib/tooltips";
 
 export interface ReservationPreset {
   practitionerId?: string;
@@ -195,11 +197,21 @@ function CreateReservationDialogActive({
             )}
           </div>
         )}
-        <Input
-          label="Notas (opcional)"
-          value={notes}
-          onChange={(e) => setNotes(e.target.value)}
-        />
+        <div className="flex flex-col gap-1">
+          <div className="flex items-center gap-1.5">
+            <label htmlFor="reservation-notes" className="text-sm font-medium text-text">
+              Notas (opcional)
+            </label>
+            <FieldHint content={TOOLTIPS.secretary.reservationNotes} />
+          </div>
+          <Input
+            id="reservation-notes"
+            label="Notas (opcional)"
+            value={notes}
+            onChange={(e) => setNotes(e.target.value)}
+            className="[&_label]:sr-only"
+          />
+        </div>
         {error && (
           <p className="text-sm text-red-600" role="alert">
             {error}

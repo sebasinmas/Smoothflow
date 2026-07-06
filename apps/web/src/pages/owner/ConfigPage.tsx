@@ -9,9 +9,12 @@ import { EditSpecialtyDrawer } from "@/components/owner/EditSpecialtyDrawer";
 import { Button } from "@/components/ui/Button";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { Input } from "@/components/ui/Input";
+import { AppTooltip } from "@/components/ui/Tooltip";
+import { FieldHint } from "@/components/ui/FieldHint";
 import { ApiError, api } from "@/lib/api";
 import { formatDateTime, formatPersonName } from "@/lib/utils";
 import { OWNER_NAV, OWNER_BOTTOM_NAV } from "@/lib/navigation";
+import { TOOLTIPS } from "@/lib/tooltips";
 
 function isRevokedStaff(staff: UserDto): boolean {
   return !staff.active && staff.revokedAt != null;
@@ -116,12 +119,21 @@ export default function OwnerConfigPage() {
             createSpecialty.mutate(specialtyName);
           }}
         >
-          <Input
-            label="Nueva especialidad"
-            value={specialtyName}
-            onChange={(e) => setSpecialtyName(e.target.value)}
-            className="flex-1"
-          />
+          <div className="flex flex-1 flex-col gap-1">
+            <div className="flex items-center gap-1.5">
+              <label htmlFor="new-specialty" className="text-sm font-medium text-text">
+                Nueva especialidad
+              </label>
+              <FieldHint content={TOOLTIPS.owner.newSpecialty} />
+            </div>
+            <Input
+              id="new-specialty"
+              label="Nueva especialidad"
+              value={specialtyName}
+              onChange={(e) => setSpecialtyName(e.target.value)}
+              className="flex-1 [&_label]:sr-only"
+            />
+          </div>
           <div className="flex items-end">
             <Button type="submit" loading={createSpecialty.isPending}>
               Agregar
@@ -141,22 +153,26 @@ export default function OwnerConfigPage() {
                 )}
               </div>
               <div className="flex shrink-0 items-center gap-1">
-                <button
-                  type="button"
-                  onClick={() => openEdit(s)}
-                  className="inline-flex size-8 cursor-pointer items-center justify-center rounded-lg text-text-muted transition-colors hover:bg-white hover:text-brand"
-                  aria-label={`Editar ${s.name}`}
-                >
-                  <Pencil className="size-4" aria-hidden="true" />
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setDeleteTarget(s)}
-                  className="inline-flex size-8 cursor-pointer items-center justify-center rounded-lg text-text-muted transition-colors hover:bg-white hover:text-red-600"
-                  aria-label={`Eliminar ${s.name}`}
-                >
-                  <Trash2 className="size-4" aria-hidden="true" />
-                </button>
+                <AppTooltip content={TOOLTIPS.owner.editSpecialty}>
+                  <button
+                    type="button"
+                    onClick={() => openEdit(s)}
+                    className="inline-flex size-8 cursor-pointer items-center justify-center rounded-lg text-text-muted transition-colors hover:bg-white hover:text-brand"
+                    aria-label={`Editar ${s.name}`}
+                  >
+                    <Pencil className="size-4" aria-hidden="true" />
+                  </button>
+                </AppTooltip>
+                <AppTooltip content={TOOLTIPS.owner.deleteSpecialty}>
+                  <button
+                    type="button"
+                    onClick={() => setDeleteTarget(s)}
+                    className="inline-flex size-8 cursor-pointer items-center justify-center rounded-lg text-text-muted transition-colors hover:bg-white hover:text-red-600"
+                    aria-label={`Eliminar ${s.name}`}
+                  >
+                    <Trash2 className="size-4" aria-hidden="true" />
+                  </button>
+                </AppTooltip>
               </div>
             </li>
           ))}
@@ -187,22 +203,26 @@ export default function OwnerConfigPage() {
                 </p>
               </div>
               <div className="flex shrink-0 items-center gap-1">
-                <button
-                  type="button"
-                  onClick={() => setRelinkTarget(staff)}
-                  className="inline-flex size-8 cursor-pointer items-center justify-center rounded-lg text-text-muted transition-colors hover:bg-white hover:text-brand"
-                  aria-label={`Revincular a ${formatPersonName(staff.givenName, staff.familyName)}`}
-                >
-                  <Link2 className="size-4" aria-hidden="true" />
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setHardDeleteTarget(staff)}
-                  className="inline-flex size-8 cursor-pointer items-center justify-center rounded-lg text-text-muted transition-colors hover:bg-white hover:text-red-600"
-                  aria-label={`Eliminar permanentemente a ${formatPersonName(staff.givenName, staff.familyName)}`}
-                >
-                  <Trash2 className="size-4" aria-hidden="true" />
-                </button>
+                <AppTooltip content={TOOLTIPS.owner.relinkStaff}>
+                  <button
+                    type="button"
+                    onClick={() => setRelinkTarget(staff)}
+                    className="inline-flex size-8 cursor-pointer items-center justify-center rounded-lg text-text-muted transition-colors hover:bg-white hover:text-brand"
+                    aria-label={`Revincular a ${formatPersonName(staff.givenName, staff.familyName)}`}
+                  >
+                    <Link2 className="size-4" aria-hidden="true" />
+                  </button>
+                </AppTooltip>
+                <AppTooltip content={TOOLTIPS.owner.hardDeleteStaff}>
+                  <button
+                    type="button"
+                    onClick={() => setHardDeleteTarget(staff)}
+                    className="inline-flex size-8 cursor-pointer items-center justify-center rounded-lg text-text-muted transition-colors hover:bg-white hover:text-red-600"
+                    aria-label={`Eliminar permanentemente a ${formatPersonName(staff.givenName, staff.familyName)}`}
+                  >
+                    <Trash2 className="size-4" aria-hidden="true" />
+                  </button>
+                </AppTooltip>
               </div>
             </li>
           ))}

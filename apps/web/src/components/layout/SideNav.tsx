@@ -5,7 +5,9 @@ import { ROLE_LABELS } from "@smoothflow/shared";
 import { useAuth } from "@/contexts/AuthContext";
 import { useSidebar } from "@/contexts/SidebarContext";
 import { Button } from "@/components/ui/Button";
+import { AppTooltip } from "@/components/ui/Tooltip";
 import { getNavIcon } from "@/lib/navigation";
+import { TOOLTIPS } from "@/lib/tooltips";
 
 export interface NavItem {
   to: string;
@@ -31,30 +33,32 @@ function NavLinkItem({
   const Icon = getNavIcon(item.to);
   return (
     <li>
-      <NavLink
-        to={item.to}
-        onClick={onNavigate}
-        title={!isExpanded ? item.label : undefined}
-        className={({ isActive }) =>
-          `group flex cursor-pointer items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition-all duration-200 ${
-            isActive
-              ? "bg-brand/10 font-medium text-brand shadow-sm"
-              : "text-text hover:bg-surface-muted hover:translate-x-0.5"
-          } ${isExpanded ? "" : "justify-center px-2"}`
-        }
-      >
-        <Icon
-          className="size-[18px] shrink-0 transition-transform duration-200 group-hover:scale-110"
-          aria-hidden="true"
-        />
-        <span
-          className={`truncate transition-all duration-300 ${
-            isExpanded ? "w-auto opacity-100" : "w-0 overflow-hidden opacity-0"
-          }`}
+      <AppTooltip content={item.label} isDisabled={isExpanded}>
+        <NavLink
+          to={item.to}
+          onClick={onNavigate}
+          aria-label={item.label}
+          className={({ isActive }) =>
+            `group flex cursor-pointer items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition-all duration-200 ${
+              isActive
+                ? "bg-brand/10 font-medium text-brand shadow-sm"
+                : "text-text hover:bg-surface-muted hover:translate-x-0.5"
+            } ${isExpanded ? "" : "justify-center px-2"}`
+          }
         >
-          {item.label}
-        </span>
-      </NavLink>
+          <Icon
+            className="size-[18px] shrink-0 transition-transform duration-200 group-hover:scale-110"
+            aria-hidden="true"
+          />
+          <span
+            className={`truncate transition-all duration-300 ${
+              isExpanded ? "w-auto opacity-100" : "w-0 overflow-hidden opacity-0"
+            }`}
+          >
+            {item.label}
+          </span>
+        </NavLink>
+      </AppTooltip>
     </li>
   );
 }
@@ -93,12 +97,14 @@ export function SideNav({ userRole, items, bottomNavItems, primaryAction }: Side
             isExpanded ? "" : "justify-center px-0"
           }`}
         >
-          <div
-            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-brand text-sm font-bold text-white shadow-sm"
-            aria-hidden="true"
-          >
-            SF
-          </div>
+          <AppTooltip content={TOOLTIPS.layout.logo(ROLE_LABELS[userRole])} isDisabled={isExpanded}>
+            <div
+              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-brand text-sm font-bold text-white shadow-sm"
+              aria-hidden="true"
+            >
+              SF
+            </div>
+          </AppTooltip>
           <div
             className={`min-w-0 overflow-hidden transition-all duration-300 ${
               isExpanded ? "w-auto opacity-100" : "w-0 opacity-0"
@@ -113,21 +119,22 @@ export function SideNav({ userRole, items, bottomNavItems, primaryAction }: Side
 
         <div className="flex min-h-0 flex-1 flex-col overflow-y-auto px-3 py-4">
           {primaryAction && (
-            <Button
-              className={`mb-4 transition-all duration-300 ${isExpanded ? "w-full" : "w-full px-0"}`}
-              onClick={primaryAction.onClick}
-              title={primaryAction.label}
-              aria-label={primaryAction.label}
-            >
-              <Plus className="size-[18px] shrink-0" aria-hidden="true" />
-              <span
-                className={`truncate transition-all duration-300 ${
-                  isExpanded ? "w-auto opacity-100" : "w-0 overflow-hidden opacity-0"
-                }`}
+            <AppTooltip content={primaryAction.label} isDisabled={isExpanded}>
+              <Button
+                className={`mb-4 transition-all duration-300 ${isExpanded ? "w-full" : "w-full px-0"}`}
+                onClick={primaryAction.onClick}
+                aria-label={primaryAction.label}
               >
-                {primaryAction.label}
-              </span>
-            </Button>
+                <Plus className="size-[18px] shrink-0" aria-hidden="true" />
+                <span
+                  className={`truncate transition-all duration-300 ${
+                    isExpanded ? "w-auto opacity-100" : "w-0 overflow-hidden opacity-0"
+                  }`}
+                >
+                  {primaryAction.label}
+                </span>
+              </Button>
+            </AppTooltip>
           )}
 
           <ul className="flex flex-1 flex-col gap-1">
@@ -155,26 +162,28 @@ export function SideNav({ userRole, items, bottomNavItems, primaryAction }: Side
               ))}
             </ul>
           )}
-          <button
-            type="button"
-            onClick={handleLogout}
-            title={!isExpanded ? "Cerrar sesión" : undefined}
-            className={`group flex w-full cursor-pointer items-center gap-3 rounded-lg px-3 py-2.5 text-sm text-text transition-all duration-200 hover:bg-red-50 hover:text-red-600 ${
-              isExpanded ? "" : "justify-center px-2"
-            }`}
-          >
-            <LogOut
-              className="size-[18px] shrink-0 transition-transform duration-200 group-hover:scale-110"
-              aria-hidden="true"
-            />
-            <span
-              className={`truncate transition-all duration-300 ${
-                isExpanded ? "w-auto opacity-100" : "w-0 overflow-hidden opacity-0"
+          <AppTooltip content={TOOLTIPS.layout.logout} isDisabled={isExpanded}>
+            <button
+              type="button"
+              onClick={handleLogout}
+              aria-label={TOOLTIPS.layout.logout}
+              className={`group flex w-full cursor-pointer items-center gap-3 rounded-lg px-3 py-2.5 text-sm text-text transition-all duration-200 hover:bg-red-50 hover:text-red-600 ${
+                isExpanded ? "" : "justify-center px-2"
               }`}
             >
-              Cerrar sesión
-            </span>
-          </button>
+              <LogOut
+                className="size-[18px] shrink-0 transition-transform duration-200 group-hover:scale-110"
+                aria-hidden="true"
+              />
+              <span
+                className={`truncate transition-all duration-300 ${
+                  isExpanded ? "w-auto opacity-100" : "w-0 overflow-hidden opacity-0"
+                }`}
+              >
+                Cerrar sesión
+              </span>
+            </button>
+          </AppTooltip>
         </div>
       </nav>
     </>

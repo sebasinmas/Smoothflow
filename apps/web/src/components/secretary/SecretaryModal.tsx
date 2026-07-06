@@ -1,6 +1,8 @@
 import type { ReactNode } from "react";
 import { X } from "lucide-react";
 import { Dialog, DialogTrigger, Heading, Modal, ModalOverlay } from "react-aria-components";
+import { AppTooltip } from "@/components/ui/Tooltip";
+import { TOOLTIPS } from "@/lib/tooltips";
 
 interface SecretaryModalProps {
   isOpen: boolean;
@@ -38,14 +40,16 @@ export function SecretaryModal({
                       <p className="mt-1 text-sm text-text-muted">{description}</p>
                     )}
                   </div>
-                  <button
-                    type="button"
-                    onClick={close}
-                    className="inline-flex size-9 shrink-0 cursor-pointer items-center justify-center rounded-lg border border-border text-text-muted transition-colors hover:border-brand/30 hover:bg-surface-muted hover:text-text"
-                    aria-label="Cerrar"
-                  >
-                    <X className="size-[18px]" aria-hidden="true" />
-                  </button>
+                  <AppTooltip content={TOOLTIPS.layout.closeDrawer}>
+                    <button
+                      type="button"
+                      onClick={close}
+                      className="inline-flex size-9 shrink-0 cursor-pointer items-center justify-center rounded-lg border border-border text-text-muted transition-colors hover:border-brand/30 hover:bg-surface-muted hover:text-text"
+                      aria-label={TOOLTIPS.layout.closeDrawer}
+                    >
+                      <X className="size-[18px]" aria-hidden="true" />
+                    </button>
+                  </AppTooltip>
                 </header>
 
                 <div className="flex-1 overflow-y-auto px-6 py-5">{children}</div>

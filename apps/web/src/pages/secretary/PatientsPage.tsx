@@ -5,21 +5,29 @@ import { SecretaryShell } from "@/components/layout/SecretaryShell";
 import { CreatePatientDrawer } from "@/components/secretary/CreatePatientDrawer";
 import { CreateReservationDialog } from "@/components/secretary/CreateReservationDialog";
 import { Button } from "@/components/ui/Button";
+import { AppTooltip } from "@/components/ui/Tooltip";
 import { LoadingState } from "@/components/ui/LoadingState";
 import { api } from "@/lib/api";
 import { formatDateTime, formatPersonName } from "@/lib/utils";
+import { TOOLTIPS } from "@/lib/tooltips";
 
 function PortalAccessBadge({ hasPortalAccess }: { hasPortalAccess: boolean }) {
+  const tooltip = hasPortalAccess
+    ? TOOLTIPS.secretary.portalAccess
+    : TOOLTIPS.secretary.noPortalAccess;
+
   return (
-    <span
-      className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${
-        hasPortalAccess
-          ? "bg-slot-reserved text-brand"
-          : "bg-surface-muted text-text-muted"
-      }`}
-    >
-      {hasPortalAccess ? "Con acceso portal" : "Sin acceso portal"}
-    </span>
+    <AppTooltip content={tooltip}>
+      <span
+        className={`inline-flex cursor-help rounded-full px-2 py-0.5 text-xs font-medium ${
+          hasPortalAccess
+            ? "bg-slot-reserved text-brand"
+            : "bg-surface-muted text-text-muted"
+        }`}
+      >
+        {hasPortalAccess ? "Con acceso portal" : "Sin acceso portal"}
+      </span>
+    </AppTooltip>
   );
 }
 
@@ -56,7 +64,9 @@ export default function SecretaryPatientsPage() {
                   Paciente
                 </th>
                 <th className="px-4 py-3 font-semibold" scope="col">
-                  Portal
+                  <AppTooltip content={TOOLTIPS.secretary.portalColumn}>
+                    <span className="cursor-help">Portal</span>
+                  </AppTooltip>
                 </th>
                 <th className="px-4 py-3 font-semibold" scope="col">
                   Email
@@ -65,7 +75,9 @@ export default function SecretaryPatientsPage() {
                   Teléfono
                 </th>
                 <th className="px-4 py-3 font-semibold" scope="col">
-                  Registrado
+                  <AppTooltip content={TOOLTIPS.secretary.registeredColumn}>
+                    <span className="cursor-help">Registrado</span>
+                  </AppTooltip>
                 </th>
                 <th className="px-4 py-3 font-semibold" scope="col">
                   Acciones

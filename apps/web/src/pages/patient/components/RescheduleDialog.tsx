@@ -4,8 +4,10 @@ import { Dialog, DialogTrigger, Modal, ModalOverlay, Heading } from "react-aria-
 import type { AppointmentDto, AvailabilitySlotDto } from "@smoothflow/shared";
 import { AppointmentSlot } from "@/components/ui/AppointmentSlot";
 import { Button } from "@/components/ui/Button";
+import { AppTooltip } from "@/components/ui/Tooltip";
 import { api } from "@/lib/api";
 import { formatDateTime } from "@/lib/utils";
+import { TOOLTIPS } from "@/lib/tooltips";
 
 interface RescheduleDialogProps {
   isOpen: boolean;
@@ -103,13 +105,15 @@ export function RescheduleDialog({ isOpen, onOpenChange, appointment }: Reschedu
                   <Button variant="secondary" onClick={close} disabled={rescheduleMutation.isPending}>
                     Cancelar
                   </Button>
-                  <Button
-                    loading={rescheduleMutation.isPending}
-                    disabled={!selectedSlot}
-                    onClick={() => rescheduleMutation.mutate()}
-                  >
-                    Enviar solicitud de nuevo horario
-                  </Button>
+                  <AppTooltip content={TOOLTIPS.patient.rescheduleRequest}>
+                    <Button
+                      loading={rescheduleMutation.isPending}
+                      disabled={!selectedSlot}
+                      onClick={() => rescheduleMutation.mutate()}
+                    >
+                      Enviar solicitud de nuevo horario
+                    </Button>
+                  </AppTooltip>
                 </div>
               </div>
             )}

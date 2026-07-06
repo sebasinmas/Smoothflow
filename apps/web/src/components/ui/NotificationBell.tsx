@@ -1,12 +1,20 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { Bell } from "lucide-react";
+import { AppTooltip } from "@/components/ui/Tooltip";
 import { useRealtime } from "@/contexts/RealtimeContext";
+import { TOOLTIPS } from "@/lib/tooltips";
 
 const statusColors = {
   connected: "bg-success",
   reconnecting: "bg-yellow-500",
   offline: "bg-gray-400",
+};
+
+const statusTooltips = {
+  connected: TOOLTIPS.layout.realtimeConnected,
+  reconnecting: TOOLTIPS.layout.realtimeReconnecting,
+  offline: TOOLTIPS.layout.realtimeOffline,
 };
 
 interface PanelPosition {
@@ -62,28 +70,37 @@ export function NotificationBell() {
     setOpen((v) => !v);
   };
 
+  const bellTooltip = [
+    unreadCount > 0
+      ? TOOLTIPS.layout.unreadNotifications(unreadCount)
+      : TOOLTIPS.layout.notifications,
+    statusTooltips[status],
+  ].join(" — ");
+
   return (
     <div className="relative">
-      <button
-        ref={buttonRef}
-        type="button"
-        onClick={handleToggle}
-        className="relative inline-flex size-9 cursor-pointer items-center justify-center rounded-lg border border-border text-text-muted transition-all duration-200 hover:border-brand/30 hover:bg-surface-muted hover:text-brand active:scale-95"
-        aria-label={`Notificaciones${unreadCount > 0 ? `, ${unreadCount} sin leer` : ""}`}
-        aria-expanded={open}
-        aria-haspopup="true"
-      >
-        <Bell className="size-[18px]" aria-hidden="true" />
-        <span
-          className={`absolute bottom-1.5 right-1.5 size-2 rounded-full border border-white ${statusColors[status]}`}
-          aria-hidden="true"
-        />
-        {unreadCount > 0 && (
-          <span className="absolute -right-1 -top-1 flex size-4 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white">
-            {unreadCount > 9 ? "9+" : unreadCount}
-          </span>
-        )}
-      </button>
+      <AppTooltip content={bellTooltip}>
+        <button
+          ref={buttonRef}
+          type="button"
+          onClick={handleToggle}
+          className="relative inline-flex size-9 cursor-pointer items-center justify-center rounded-lg border border-border text-text-muted transition-all duration-200 hover:border-brand/30 hover:bg-surface-muted hover:text-brand active:scale-95"
+          aria-label={`Notificaciones${unreadCount > 0 ? `, ${unreadCount} sin leer` : ""}`}
+          aria-expanded={open}
+          aria-haspopup="true"
+        >
+          <Bell className="size-[18px]" aria-hidden="true" />
+          <span
+            className={`absolute bottom-1.5 right-1.5 size-2 rounded-full border border-white ${statusColors[status]}`}
+            aria-hidden="true"
+          />
+          {unreadCount > 0 && (
+            <span className="absolute -right-1 -top-1 flex size-4 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white">
+              {unreadCount > 9 ? "9+" : unreadCount}
+            </span>
+          )}
+        </button>
+      </AppTooltip>
 
       {open &&
         createPortal(

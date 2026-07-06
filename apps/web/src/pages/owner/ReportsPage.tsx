@@ -2,11 +2,13 @@ import { useQuery } from "@tanstack/react-query";
 import { BarChart3 } from "lucide-react";
 import type { OccupancyReportDto } from "@smoothflow/shared";
 import { AppShell } from "@/components/layout/AppShell";
+import { AppTooltip } from "@/components/ui/Tooltip";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { LoadingState } from "@/components/ui/LoadingState";
 import { api } from "@/lib/api";
 import { startOfWeek } from "@/lib/utils";
 import { OWNER_NAV, OWNER_BOTTOM_NAV } from "@/lib/navigation";
+import { TOOLTIPS } from "@/lib/tooltips";
 
 export default function OwnerReportsPage() {
   const weekStart = startOfWeek().toISOString().slice(0, 10);
@@ -43,11 +45,18 @@ export default function OwnerReportsPage() {
       >
         {data?.report.days.map((day) => (
           <div key={day.date} className="flex flex-1 flex-col items-center gap-2">
-            <div
-              className="w-full rounded-t bg-brand transition-all"
-              style={{ height: `${(day.occupancyRate / maxRate) * 100}%`, minHeight: day.occupancyRate > 0 ? "8px" : "0" }}
-              title={`${day.occupancyRate}%`}
-            />
+            <AppTooltip
+              content={TOOLTIPS.owner.occupationBar(
+                day.occupancyRate,
+                day.bookedSlots,
+                day.totalSlots,
+              )}
+            >
+              <div
+                className="w-full cursor-help rounded-t bg-brand transition-all"
+                style={{ height: `${(day.occupancyRate / maxRate) * 100}%`, minHeight: day.occupancyRate > 0 ? "8px" : "0" }}
+              />
+            </AppTooltip>
             <span className="text-xs text-text-muted">
               {new Date(day.date).toLocaleDateString("es-CL", { weekday: "short" })}
             </span>
@@ -62,7 +71,11 @@ export default function OwnerReportsPage() {
             <th className="py-2" scope="col">Día</th>
             <th className="py-2" scope="col">Reservados</th>
             <th className="py-2" scope="col">Total</th>
-            <th className="py-2" scope="col">Ocupación</th>
+            <th className="py-2" scope="col">
+              <AppTooltip content={TOOLTIPS.owner.occupationColumn}>
+                <span className="cursor-help">Ocupación</span>
+              </AppTooltip>
+            </th>
           </tr>
         </thead>
         <tbody>

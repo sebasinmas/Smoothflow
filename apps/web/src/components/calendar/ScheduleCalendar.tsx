@@ -22,6 +22,7 @@ import {
   minutesToTop,
   practitionerInitials,
 } from "@/components/calendar/calendar-utils";
+import { TOOLTIPS } from "@/lib/tooltips";
 
 const TIME_COL_WIDTH = "4.5rem";
 const EVENT_GAP_PX = 2;
@@ -56,10 +57,10 @@ const legendStyles: Record<SlotStatus, string> = {
   bloqueado: "bg-slot-blocked border border-slot-blocked-border/60",
 };
 
-const extraLegendItems: Array<{ label: string; className: string }> = [
-  { label: "Atendido", className: "bg-emerald-100 border border-emerald-600/60" },
-  { label: "No asistió", className: "bg-amber-100 border border-amber-500/60" },
-  { label: "Cancelación pendiente", className: "bg-orange-50 border border-dashed border-orange-500/70" },
+const extraLegendItems: Array<{ label: string; className: string; tooltip: string }> = [
+  { label: "Atendido", className: "bg-emerald-100 border border-emerald-600/60", tooltip: TOOLTIPS.calendar.appointmentStatus.atendido },
+  { label: "No asistió", className: "bg-amber-100 border border-amber-500/60", tooltip: TOOLTIPS.calendar.appointmentStatus.no_asistio },
+  { label: "Cancelación pendiente", className: "bg-orange-50 border border-dashed border-orange-500/70", tooltip: TOOLTIPS.calendar.appointmentStatus.cancelacion_pendiente },
 ];
 
 interface ScheduleCalendarProps {
@@ -122,7 +123,7 @@ function CalendarEventBlock({
       {showPractitionerBadge && event.practitionerName && (
         <span
           className="absolute right-1 top-1 rounded bg-white/80 px-1 py-0.5 text-[8px] font-bold leading-none text-text-muted shadow-sm"
-          aria-hidden="true"
+          aria-label={TOOLTIPS.calendar.practitionerBadge(event.practitionerName)}
         >
           {practitionerInitials(event.practitionerName)}
         </span>
@@ -241,21 +242,23 @@ export function ScheduleCalendar({
               isToday ? "bg-brand/5" : ""
             }`;
             if (clickable) {
+              const dateLabel = day.toLocaleDateString("es-CL", {
+                weekday: "long",
+                day: "numeric",
+                month: "long",
+              });
               return (
-                <button
-                  key={dayKey(day)}
-                  type="button"
-                  aria-current={isToday ? "date" : undefined}
-                  aria-label={`Ver día ${day.toLocaleDateString("es-CL", {
-                    weekday: "long",
-                    day: "numeric",
-                    month: "long",
-                  })}`}
-                  onClick={() => onDayClick?.(day)}
-                  className={`${baseClass} cursor-pointer transition-colors hover:bg-brand/10 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-brand`}
-                >
-                  {content}
-                </button>
+                <AppTooltip key={dayKey(day)} content={TOOLTIPS.calendar.dayHeader(dateLabel)}>
+                  <button
+                    type="button"
+                    aria-current={isToday ? "date" : undefined}
+                    aria-label={`Ver día ${dateLabel}`}
+                    onClick={() => onDayClick?.(day)}
+                    className={`${baseClass} cursor-pointer transition-colors hover:bg-brand/10 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-brand`}
+                  >
+                    {content}
+                  </button>
+                </AppTooltip>
               );
             }
             return (
@@ -344,11 +347,13 @@ export function ScheduleCalendar({
       </div>
 
       {isRefreshing && (
-        <div
-          className="pointer-events-none absolute inset-0 z-[3] flex items-center justify-center bg-white/20"
-          role="status"
-          aria-label="Actualizando agenda"
-        />
+        <AppTooltip content={TOOLTIPS.calendar.refreshing}>
+          <div
+            className="pointer-events-auto absolute inset-0 z-[3] flex items-center justify-center bg-white/20"
+            role="status"
+            aria-label={TOOLTIPS.calendar.refreshing}
+          />
+        </AppTooltip>
       )}
 
       <div className="flex shrink-0 flex-wrap items-center gap-x-5 gap-y-2 border-t border-border bg-surface-muted/30 px-4 py-2.5">
@@ -357,16 +362,25 @@ export function ScheduleCalendar({
         </span>
         {(Object.keys(SLOT_STATUS_LABELS) as SlotStatus[]).map((status) => (
           <span key={status} className="flex items-center gap-2 text-xs text-text">
-            <span
-              className={`size-3 rounded-[4px] ${legendStyles[status]}`}
-              aria-hidden="true"
-            />
+            <AppTooltip content={TOOLTIPS.calendar.slotStatus[status]}>
+              <span
+                className={`size-3 rounded-[4px] ${legendStyles[status]}`}
+                aria-label={TOOLTIPS.calendar.slotStatus[status]}
+                role="img"
+              />
+            </AppTooltip>
             {SLOT_STATUS_LABELS[status]}
           </span>
         ))}
         {extraLegendItems.map((item) => (
           <span key={item.label} className="flex items-center gap-2 text-xs text-text">
-            <span className={`size-3 rounded-[4px] ${item.className}`} aria-hidden="true" />
+            <AppTooltip content={item.tooltip}>
+              <span
+                className={`size-3 rounded-[4px] ${item.className}`}
+                aria-label={item.tooltip}
+                role="img"
+              />
+            </AppTooltip>
             {item.label}
           </span>
         ))}

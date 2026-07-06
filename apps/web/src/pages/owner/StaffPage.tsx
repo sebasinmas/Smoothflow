@@ -13,6 +13,7 @@ import { SegmentedControl } from "@/components/ui/SegmentedControl";
 import { ApiError, api } from "@/lib/api";
 import { formatPersonName } from "@/lib/utils";
 import { OWNER_NAV, OWNER_BOTTOM_NAV } from "@/lib/navigation";
+import { TOOLTIPS } from "@/lib/tooltips";
 
 type StaffFilter = "medicos" | "secretarias" | "inactivos";
 
@@ -118,6 +119,7 @@ export default function OwnerStaffPage() {
             value={filter}
             options={filterOptions}
             onChange={(value) => setFilter(value as StaffFilter)}
+            optionHints={{ inactivos: TOOLTIPS.owner.inactiveFilter }}
           />
 
           {filteredItems.length === 0 ? (

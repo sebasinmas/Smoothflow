@@ -3,10 +3,12 @@ import { useMemo, useState } from "react";
 import type { AvailabilitySlotDto, PractitionerDto, SpecialtyDto } from "@smoothflow/shared";
 import { PatientShell } from "@/components/layout/PatientShell";
 import { AppointmentSlot } from "@/components/ui/AppointmentSlot";
+import { AppTooltip } from "@/components/ui/Tooltip";
 import { Button } from "@/components/ui/Button";
 import { Select } from "@/components/ui/Select";
 import { api } from "@/lib/api";
 import { formatDateTime } from "@/lib/utils";
+import { TOOLTIPS } from "@/lib/tooltips";
 
 type Step = "specialty" | "doctor" | "slot" | "confirm";
 
@@ -75,17 +77,19 @@ export default function PatientBookingPage() {
 
   return (
     <PatientShell title="Smooth Flow — Pacientes">
-      <ol className="mb-8 flex flex-wrap gap-2 text-sm" aria-label="Pasos de reserva">
-        {(["specialty", "doctor", "slot", "confirm"] as Step[]).map((s, i) => (
-          <li
-            key={s}
-            className={`rounded px-3 py-1 ${step === s ? "bg-brand text-white" : "bg-surface-muted text-text-muted"}`}
-            aria-current={step === s ? "step" : undefined}
-          >
-            {i + 1}. {s === "specialty" ? "Especialidad" : s === "doctor" ? "Médico" : s === "slot" ? "Horario" : "Listo"}
-          </li>
-        ))}
-      </ol>
+      <AppTooltip content={TOOLTIPS.calendar.bookingSteps}>
+        <ol className="mb-8 flex flex-wrap gap-2 text-sm" aria-label="Pasos de reserva">
+          {(["specialty", "doctor", "slot", "confirm"] as Step[]).map((s, i) => (
+            <li
+              key={s}
+              className={`cursor-help rounded px-3 py-1 ${step === s ? "bg-brand text-white" : "bg-surface-muted text-text-muted"}`}
+              aria-current={step === s ? "step" : undefined}
+            >
+              {i + 1}. {s === "specialty" ? "Especialidad" : s === "doctor" ? "Médico" : s === "slot" ? "Horario" : "Listo"}
+            </li>
+          ))}
+        </ol>
+      </AppTooltip>
 
       {step === "specialty" && (
         <section>
@@ -119,18 +123,19 @@ export default function PatientBookingPage() {
           ) : (
             <div className="grid gap-3">
               {filteredPractitioners.map((p) => (
-                  <button
-                    key={p.id}
-                    type="button"
-                    onClick={() => {
-                      setPractitionerId(p.id);
-                      setStep("slot");
-                    }}
-                    className="cursor-pointer rounded-lg border border-border bg-white p-4 text-left transition-colors duration-200 hover:border-brand"
-                  >
-                    <span className="font-semibold">{p.givenName} {p.familyName}</span>
-                    <span className="block text-sm text-text-muted">{p.specialtyName}</span>
-                  </button>
+                  <AppTooltip key={p.id} content={TOOLTIPS.calendar.selectPractitioner}>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setPractitionerId(p.id);
+                        setStep("slot");
+                      }}
+                      className="w-full cursor-pointer rounded-lg border border-border bg-white p-4 text-left transition-colors duration-200 hover:border-brand"
+                    >
+                      <span className="font-semibold">{p.givenName} {p.familyName}</span>
+                      <span className="block text-sm text-text-muted">{p.specialtyName}</span>
+                    </button>
+                  </AppTooltip>
                 ))}
               {filteredPractitioners.length === 0 && (
                 <p className="text-text-muted">No hay médicos disponibles para esta especialidad.</p>
@@ -161,7 +166,11 @@ export default function PatientBookingPage() {
                 />
               ))}
               {availableSlots.length === 0 && (
-                <p className="text-text-muted">No hay horarios disponibles en las próximas 2 semanas.</p>
+                <AppTooltip content={TOOLTIPS.calendar.bookingWindow}>
+                  <p className="cursor-help text-text-muted">
+                    No hay horarios disponibles en las próximas 2 semanas.
+                  </p>
+                </AppTooltip>
               )}
             </div>
           )}

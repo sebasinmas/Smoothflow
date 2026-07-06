@@ -3,9 +3,11 @@ import { useState } from "react";
 import { FormDialogFooter } from "@/components/secretary/FormDialogFooter";
 import { SecretaryModal } from "@/components/secretary/SecretaryModal";
 import { Input } from "@/components/ui/Input";
+import { FieldHint } from "@/components/ui/FieldHint";
 import { Select } from "@/components/ui/Select";
 import { ApiError, api } from "@/lib/api";
 import { formatPersonName } from "@/lib/utils";
+import { TOOLTIPS } from "@/lib/tooltips";
 
 interface BlockAgendaDialogProps {
   isOpen: boolean;
@@ -126,11 +128,21 @@ function BlockAgendaDialogActive({
             onChange={(e) => setEndTime(e.target.value)}
           />
         </div>
-        <Input
-          label="Motivo (opcional)"
-          value={reason}
-          onChange={(e) => setReason(e.target.value)}
-        />
+        <div className="flex flex-col gap-1">
+          <div className="flex items-center gap-1.5">
+            <label htmlFor="block-reason" className="text-sm font-medium text-text">
+              Motivo (opcional)
+            </label>
+            <FieldHint content={TOOLTIPS.secretary.blockReason} />
+          </div>
+          <Input
+            id="block-reason"
+            label="Motivo (opcional)"
+            value={reason}
+            onChange={(e) => setReason(e.target.value)}
+            className="[&_label]:sr-only"
+          />
+        </div>
         {error && (
           <p className="text-sm text-red-600" role="alert">
             {error}
