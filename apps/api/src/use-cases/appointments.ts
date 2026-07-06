@@ -35,6 +35,7 @@ function toAppointmentDto(
     startAt: row.startAt.toISOString(),
     endAt: row.endAt.toISOString(),
     notes: row.notes,
+    pendingReschedule: row.pendingReschedule,
     createdByUserId: row.createdByUserId,
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
@@ -208,13 +209,32 @@ export async function updateAppointment(
     throw new AppError("Acceso denegado", 403);
   }
 
-  const startAt = input.startAt ? new Date(input.startAt) : existing.startAt;
-  const endAt = input.endAt ? new Date(input.endAt) : existing.endAt;
-  if (input.startAt || input.endAt) {
+  if (user.role === "paciente") {
+    const hoursUntilAppointment = (existing.startAt.getTime() - Date.now()) / (1000 * 60 * 60);
+    if (hoursUntilAppointment < 24) {
+      throw new AppError("No puedes modificar o cancelar una cita con menos de 24 horas de anticipación. Por favor, contacta a la clínica.", 403);
+    }
+  }
+
+  let startAt = input.startAt ? new Date(input.startAt) : existing.startAt;
+  let endAt = input.endAt ? new Date(input.endAt) : existing.endAt;
+  let newStatus = input.status ?? existing.status;
+  let pendingReschedule = input.pendingReschedule !== undefined ? input.pendingReschedule : existing.pendingReschedule;
+
+  if (user.role === "paciente" && input.startAt && input.endAt && input.status === "reagendado") {
+    // El paciente solicita reagendar: interceptamos la fecha y no modificamos la cita original
+    pendingReschedule = { startAt: input.startAt, endAt: input.endAt };
+    startAt = existing.startAt;
+    endAt = existing.endAt;
+    newStatus = existing.status;
+  }
+
+  if (pendingReschedule) {
+    await assertNoConflict(existing.clinicId, existing.practitionerId, new Date(pendingReschedule.startAt), new Date(pendingReschedule.endAt), id);
+  } else if (startAt !== existing.startAt || endAt !== existing.endAt) {
     await assertNoConflict(existing.clinicId, existing.practitionerId, startAt, endAt, id);
   }
 
-  const newStatus = input.status ?? existing.status;
   const [updated] = await db
     .update(appointments)
     .set({
@@ -222,6 +242,7 @@ export async function updateAppointment(
       endAt,
       status: newStatus,
       notes: input.notes ?? existing.notes,
+      pendingReschedule,
       updatedAt: new Date(),
     })
     .where(eq(appointments.id, id))

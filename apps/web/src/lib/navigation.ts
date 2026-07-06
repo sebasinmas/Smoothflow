@@ -9,6 +9,7 @@ import {
   Settings,
   UserCog,
   Users,
+  ClipboardList,
   type LucideProps,
 } from "lucide-react";
 import type { NavItem } from "@/components/layout/SideNav";
@@ -19,6 +20,7 @@ const NAV_ICONS: Record<string, LucideIcon> = {
   "/secretaria/panel": LayoutDashboard,
   "/secretaria/calendario": Calendar,
   "/secretaria/pacientes": Users,
+  "/secretaria/solicitudes": ClipboardList,
   "/doctor/calendario": Calendar,
   "/doctor/historial": History,
   "/owner/staff": UserCog,
@@ -36,6 +38,7 @@ export const SECRETARIA_NAV: NavItem[] = [
   { to: "/secretaria/panel", label: "Panel de control" },
   { to: "/secretaria/calendario", label: "Calendario" },
   { to: "/secretaria/pacientes", label: "Pacientes" },
+  { to: "/secretaria/solicitudes", label: "Solicitudes" },
 ];
 
 export const DOCTOR_NAV: NavItem[] = [
