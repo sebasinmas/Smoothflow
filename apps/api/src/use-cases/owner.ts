@@ -21,15 +21,17 @@ import {
   practitioners,
   scheduleTemplates,
   appointments,
+  appointmentEvents,
+  auditLogs,
 } from "../infrastructure/db/schema.js";
 import { AppError } from "../domain/errors.js";
-import { canUnlinkStaff } from "../domain/staff-rules.js";
+import { canUnlinkStaff, canRelinkStaff, canDeleteStaff, isRevokedStaff } from "../domain/staff-rules.js";
 import { buildScheduleTemplateRows } from "../domain/scheduling/default-schedule.js";
 import {
   findOverlappingSchedule,
   isValidScheduleRange,
 } from "../domain/scheduling/schedule-overlap.js";
-import { hashPassword, unlinkUser } from "../infrastructure/auth/password.js";
+import { hashPassword, unlinkUser, revokeUserSessions } from "../infrastructure/auth/password.js";
 import { writeAuditLog } from "../infrastructure/audit/audit-logger.js";
 import { agendaSyncPort } from "../infrastructure/realtime/agenda-sync.port-impl.js";
 
@@ -176,6 +178,102 @@ export async function unlinkStaff(user: SessionUser, staffId: string, ip: string
     resourceId: staffId,
     ipAddress: ip,
   });
+}
+
+function toUserDto(row: typeof users.$inferSelect): UserDto {
+  return {
+    id: row.id,
+    clinicId: row.clinicId,
+    email: row.email,
+    role: row.role,
+    givenName: row.givenName,
+    familyName: row.familyName,
+    active: row.active,
+    revokedAt: row.revokedAt?.toISOString() ?? null,
+    createdAt: row.createdAt.toISOString(),
+  };
+}
+
+export async function relinkStaff(
+  user: SessionUser,
+  staffId: string,
+  ip: string,
+): Promise<UserDto> {
+  const clinicId = requireClinic(user);
+  const [existing] = await db.select().from(users).where(eq(users.id, staffId)).limit(1);
+  if (!existing || existing.clinicId !== clinicId) throw new AppError("Usuario no encontrado", 404);
+  if (!canRelinkStaff(existing.role)) throw new AppError("No se puede revincular al dueño", 400);
+  if (!isRevokedStaff(existing)) {
+    throw new AppError("Solo se puede revincular personal previamente desvinculado", 400);
+  }
+
+  const [updated] = await db
+    .update(users)
+    .set({ active: true, revokedAt: null, updatedAt: new Date() })
+    .where(eq(users.id, staffId))
+    .returning();
+
+  await writeAuditLog({
+    clinicId,
+    userId: user.id,
+    action: "RELINK",
+    resource: "staff",
+    resourceId: staffId,
+    ipAddress: ip,
+  });
+
+  return toUserDto(updated);
+}
+
+export async function deleteStaffPermanently(
+  user: SessionUser,
+  staffId: string,
+  ip: string,
+): Promise<void> {
+  const clinicId = requireClinic(user);
+  const [existing] = await db.select().from(users).where(eq(users.id, staffId)).limit(1);
+  if (!existing || existing.clinicId !== clinicId) throw new AppError("Usuario no encontrado", 404);
+  if (!canDeleteStaff(existing.role)) throw new AppError("No se puede eliminar al dueño", 400);
+  if (!isRevokedStaff(existing)) {
+    throw new AppError("Solo se puede eliminar personal previamente desvinculado", 400);
+  }
+
+  await writeAuditLog({
+    clinicId,
+    userId: user.id,
+    action: "DELETE",
+    resource: "staff",
+    resourceId: staffId,
+    ipAddress: ip,
+    metadata: {
+      givenName: existing.givenName,
+      familyName: existing.familyName,
+      email: existing.email,
+      role: existing.role,
+    },
+  });
+
+  await db.update(practitioners).set({ userId: null }).where(eq(practitioners.userId, staffId));
+  await db
+    .update(appointments)
+    .set({ createdByUserId: null })
+    .where(eq(appointments.createdByUserId, staffId));
+  await db
+    .update(appointments)
+    .set({ requestedByUserId: null })
+    .where(eq(appointments.requestedByUserId, staffId));
+  await db
+    .update(appointments)
+    .set({ reviewedByUserId: null })
+    .where(eq(appointments.reviewedByUserId, staffId));
+  await db
+    .update(appointmentEvents)
+    .set({ userId: null })
+    .where(eq(appointmentEvents.userId, staffId));
+  await db.update(auditLogs).set({ userId: null }).where(eq(auditLogs.userId, staffId));
+
+  await revokeUserSessions(staffId);
+  await db.delete(users).where(eq(users.id, staffId));
 }
 
 export async function listSpecialties(clinicId: string): Promise<SpecialtyDto[]> {

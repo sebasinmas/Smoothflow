@@ -13,6 +13,8 @@ import {
   createStaff,
   updateStaff,
   unlinkStaff,
+  relinkStaff,
+  deleteStaffPermanently,
   listSpecialties,
   createSpecialty,
   updateSpecialty,
@@ -66,6 +68,26 @@ router.post("/staff/:id/unlink", ownerOnly, async (req, res, next) => {
   try {
     const user = (req as AuthenticatedRequest).user;
     await unlinkStaff(user, String(req.params.id), getClientIp(req));
+    res.json({ ok: true });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.post("/staff/:id/relink", ownerOnly, async (req, res, next) => {
+  try {
+    const user = (req as AuthenticatedRequest).user;
+    const staff = await relinkStaff(user, String(req.params.id), getClientIp(req));
+    res.json({ staff });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.delete("/staff/:id", ownerOnly, async (req, res, next) => {
+  try {
+    const user = (req as AuthenticatedRequest).user;
+    await deleteStaffPermanently(user, String(req.params.id), getClientIp(req));
     res.json({ ok: true });
   } catch (err) {
     next(err);
