@@ -1,5 +1,9 @@
 # Smooth Flow - Agent Instructions
 
+## Docs para dudas
+* docs\SRS_SmoothFlow.md
+* docs\openapi.yaml
+
 ## Contexto del Proyecto
 * Eres un desarrollador experto trabajando en "Smooth Flow", un sistema para la optimización de agendamiento clínico en tiempo real.
 * El sistema está orientado a clínicas independientes de tamaño pequeño o mediano.
