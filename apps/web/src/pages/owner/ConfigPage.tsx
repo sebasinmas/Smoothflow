@@ -59,7 +59,7 @@ export default function OwnerConfigPage() {
     })) ?? [];
 
   return (
-    <AppShell role="dueno" navItems={OWNER_NAV} bottomNavItems={OWNER_BOTTOM_NAV} title="Configuración de la clínica">
+    <AppShell userRole="dueno" navItems={OWNER_NAV} bottomNavItems={OWNER_BOTTOM_NAV} title="Configuración de la clínica">
       <div className="grid gap-8 lg:grid-cols-2">
         <section className="rounded-lg border border-border bg-white p-6">
           <h2 className="mb-4 text-lg font-semibold">Especialidades</h2>

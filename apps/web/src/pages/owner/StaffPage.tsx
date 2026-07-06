@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import type { UserDto } from "@smoothflow/shared";
 import { AppShell } from "@/components/layout/AppShell";
 import { StaffCard } from "@/components/ui/StaffCard";
@@ -44,17 +44,22 @@ export default function OwnerStaffPage() {
     },
   });
 
+  const headerExtra = useMemo(
+    () => (
+      <Button onClick={() => setShowForm(!showForm)}>
+        {showForm ? "Cancelar" : "Añadir empleado"}
+      </Button>
+    ),
+    [showForm],
+  );
+
   return (
     <AppShell
-      role="dueno"
+      userRole="dueno"
       navItems={OWNER_NAV}
       bottomNavItems={OWNER_BOTTOM_NAV}
       title="Directorio de empleados"
-      headerExtra={
-        <Button onClick={() => setShowForm(!showForm)}>
-          {showForm ? "Cancelar" : "Añadir empleado"}
-        </Button>
-      }
+      headerExtra={headerExtra}
     >
       <p className="mb-6 text-text-muted">Gestiona el personal de la clínica y su actividad.</p>
 

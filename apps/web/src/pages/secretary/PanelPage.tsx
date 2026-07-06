@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { CalendarOff } from "lucide-react";
 import type { AppointmentDto } from "@smoothflow/shared";
@@ -49,13 +49,15 @@ export default function SecretaryPanelPage() {
   const confirmed = data?.items.filter((a) => a.status === "confirmado" || a.status === "reservado").length ?? 0;
   const blocked = data?.items.filter((a) => a.status === "bloqueado").length ?? 0;
 
+  const headerExtra = useMemo(() => <LiveIndicator />, []);
+
   return (
     <AppShell
-      role="secretaria"
+      userRole="secretaria"
       navItems={SECRETARIA_NAV}
       title="Panel de control"
       showNotifications
-      headerExtra={<LiveIndicator />}
+      headerExtra={headerExtra}
     >
       <div className="grid gap-6 md:grid-cols-3">
         <div className="rounded-xl border border-border bg-white p-6 shadow-card">

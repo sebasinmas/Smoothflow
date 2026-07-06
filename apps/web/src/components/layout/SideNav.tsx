@@ -13,7 +13,7 @@ export interface NavItem {
 }
 
 interface SideNavProps {
-  role: Role;
+  userRole: Role;
   items: NavItem[];
   bottomNavItems?: NavItem[];
   primaryAction?: { label: string; onClick: () => void };
@@ -59,7 +59,7 @@ function NavLinkItem({
   );
 }
 
-export function SideNav({ role, items, bottomNavItems, primaryAction }: SideNavProps) {
+export function SideNav({ userRole, items, bottomNavItems, primaryAction }: SideNavProps) {
   const { user, logout } = useAuth();
   const { collapsed, mobileOpen, isMobile, closeMobile } = useSidebar();
   const navigate = useNavigate();
@@ -106,7 +106,7 @@ export function SideNav({ role, items, bottomNavItems, primaryAction }: SideNavP
           >
             <p className="truncate text-lg font-bold text-brand">Smooth Flow</p>
             {user && (
-              <p className="truncate text-xs text-text-muted">{ROLE_LABELS[role]}</p>
+              <p className="truncate text-xs text-text-muted">{ROLE_LABELS[userRole]}</p>
             )}
           </div>
         </div>

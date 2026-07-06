@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import type { AvailabilitySlotDto, PractitionerDto, SpecialtyDto } from "@smoothflow/shared";
 import { PatientShell } from "@/components/layout/PatientShell";
 import { AppointmentSlot } from "@/components/ui/AppointmentSlot";
@@ -62,6 +62,17 @@ export default function PatientBookingPage() {
 
   const availableSlots = availability?.slots.filter((s) => s.status === "disponible") ?? [];
 
+  const filteredPractitioners = useMemo(() => {
+    if (!practitioners?.items) return [];
+    const matches: PractitionerDto[] = [];
+    for (const practitioner of practitioners.items) {
+      if (!specialtyId || practitioner.specialtyId === specialtyId) {
+        matches.push(practitioner);
+      }
+    }
+    return matches;
+  }, [practitioners?.items, specialtyId]);
+
   return (
     <PatientShell title="Smooth Flow — Pacientes">
       <ol className="mb-8 flex flex-wrap gap-2 text-sm" aria-label="Pasos de reserva">
@@ -107,9 +118,7 @@ export default function PatientBookingPage() {
             <p className="text-text-muted" role="status">Cargando médicos…</p>
           ) : (
             <div className="grid gap-3">
-              {practitioners?.items
-                .filter((p) => !specialtyId || p.specialtyId === specialtyId)
-                .map((p) => (
+              {filteredPractitioners.map((p) => (
                   <button
                     key={p.id}
                     type="button"
@@ -123,7 +132,7 @@ export default function PatientBookingPage() {
                     <span className="block text-sm text-text-muted">{p.specialtyName}</span>
                   </button>
                 ))}
-              {practitioners?.items.length === 0 && (
+              {filteredPractitioners.length === 0 && (
                 <p className="text-text-muted">No hay médicos disponibles para esta especialidad.</p>
               )}
             </div>

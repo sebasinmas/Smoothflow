@@ -3,7 +3,8 @@ import { useMemo, useState } from "react";
 import { ChevronLeft, ChevronRight, RefreshCw } from "lucide-react";
 import type { AppointmentDto, AvailabilitySlotDto } from "@smoothflow/shared";
 import { AppShell } from "@/components/layout/AppShell";
-import { CalendarToolbar, mergeCalendarEvents, SegmentedControl } from "@/components/calendar/CalendarToolbar";
+import { CalendarToolbar, SegmentedControl } from "@/components/calendar/CalendarToolbar";
+import { mergeCalendarEvents } from "@/components/calendar/calendar-utils";
 import { ScheduleCalendar } from "@/components/calendar/ScheduleCalendar";
 import type { CalendarEventItem } from "@/components/calendar/calendar-utils";
 import { AppointmentActionsDialog } from "@/components/secretary/AppointmentActionsDialog";
@@ -133,14 +134,16 @@ export default function SecretaryCalendarPage() {
   const isLoading = loadingAppointments || loadingAvailability;
   const hasError = appointmentsError || availabilityError;
 
+  const headerExtra = useMemo(() => <LiveIndicator />, []);
+
   return (
     <AppShell
-      role="secretaria"
+      userRole="secretaria"
       navItems={SECRETARIA_NAV}
       title="Calendario de agenda"
       showNotifications
       fillContent
-      headerExtra={<LiveIndicator />}
+      headerExtra={headerExtra}
       primaryAction={{
         label: "Crear una reservación",
         onClick: () => openCreateDialog(),

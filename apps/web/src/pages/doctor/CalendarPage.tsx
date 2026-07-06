@@ -3,7 +3,7 @@ import { useMemo } from "react";
 import type { AppointmentDto, AvailabilitySlotDto } from "@smoothflow/shared";
 import { CalendarOff } from "lucide-react";
 import { AppShell } from "@/components/layout/AppShell";
-import { mergeCalendarEvents } from "@/components/calendar/CalendarToolbar";
+import { mergeCalendarEvents } from "@/components/calendar/calendar-utils";
 import { ScheduleCalendar } from "@/components/calendar/ScheduleCalendar";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { LoadingState } from "@/components/ui/LoadingState";
@@ -51,7 +51,7 @@ export default function DoctorCalendarPage() {
 
   return (
     <AppShell
-      role="medico"
+      userRole="medico"
       navItems={DOCTOR_NAV}
       title="Agenda del día"
       showNotifications

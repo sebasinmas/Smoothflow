@@ -19,7 +19,7 @@ export default function DoctorHistoryPage() {
   });
 
   return (
-    <AppShell role="medico" navItems={DOCTOR_NAV} title="Historial de citas" showNotifications>
+    <AppShell userRole="medico" navItems={DOCTOR_NAV} title="Historial de citas" showNotifications>
       {isLoading ? (
         <LoadingState message="Cargando historial…" />
       ) : (

@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import type { AvailabilitySlotDto } from "@smoothflow/shared";
 import { AppointmentSlot } from "@/components/ui/AppointmentSlot";
 import { Button } from "@/components/ui/Button";
@@ -15,23 +15,20 @@ interface RescheduleDialogProps {
   onSuccess?: () => void;
 }
 
-export function RescheduleDialog({
-  isOpen,
-  onOpenChange,
+function RescheduleDialogActive({
   appointmentId,
   practitionerId,
+  onOpenChange,
   onSuccess,
-}: RescheduleDialogProps) {
+}: {
+  appointmentId: string;
+  practitionerId: string;
+  onOpenChange: (open: boolean) => void;
+  onSuccess?: () => void;
+}) {
   const queryClient = useQueryClient();
   const [selectedSlot, setSelectedSlot] = useState<AvailabilitySlotDto | null>(null);
   const [error, setError] = useState("");
-
-  useEffect(() => {
-    if (isOpen) {
-      setSelectedSlot(null);
-      setError("");
-    }
-  }, [isOpen, appointmentId]);
 
   const from = useMemo(() => {
     const d = new Date();
@@ -47,7 +44,7 @@ export function RescheduleDialog({
 
   const { data: availability, isLoading } = useQuery({
     queryKey: ["availability", practitionerId, "reschedule", appointmentId],
-    enabled: isOpen && !!practitionerId,
+    enabled: !!practitionerId,
     queryFn: () =>
       api.get<{ slots: AvailabilitySlotDto[] }>(
         `/availability?from=${from.toISOString()}&to=${to.toISOString()}&practitionerId=${practitionerId}`,
@@ -78,7 +75,7 @@ export function RescheduleDialog({
 
   return (
     <SecretaryModal
-      isOpen={isOpen}
+      isOpen
       onOpenChange={onOpenChange}
       title="Reagendar cita"
       footer={
@@ -128,5 +125,25 @@ export function RescheduleDialog({
         </p>
       )}
     </SecretaryModal>
+  );
+}
+
+export function RescheduleDialog({
+  isOpen,
+  onOpenChange,
+  appointmentId,
+  practitionerId,
+  onSuccess,
+}: RescheduleDialogProps) {
+  if (!isOpen) return null;
+
+  return (
+    <RescheduleDialogActive
+      key={appointmentId}
+      appointmentId={appointmentId}
+      practitionerId={practitionerId}
+      onOpenChange={onOpenChange}
+      onSuccess={onSuccess}
+    />
   );
 }

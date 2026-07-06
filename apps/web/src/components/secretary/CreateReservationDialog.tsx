@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import type { AvailabilitySlotDto, PatientDto } from "@smoothflow/shared";
 import { AppointmentSlot } from "@/components/ui/AppointmentSlot";
 import { Button } from "@/components/ui/Button";
@@ -22,43 +22,45 @@ interface CreateReservationDialogProps {
   preset?: ReservationPreset;
 }
 
-export function CreateReservationDialog({
-  isOpen,
-  onOpenChange,
+function presetKey(preset?: ReservationPreset): string {
+  if (!preset) return "empty";
+  return [preset.patientId, preset.practitionerId, preset.startAt, preset.endAt].join("|");
+}
+
+function initialSelectedSlot(preset?: ReservationPreset): AvailabilitySlotDto | null {
+  if (preset?.startAt && preset?.endAt && preset?.practitionerId) {
+    return {
+      startAt: preset.startAt,
+      endAt: preset.endAt,
+      practitionerId: preset.practitionerId,
+      practitionerName: "",
+      specialtyId: "",
+      specialtyName: "",
+      status: "disponible",
+    };
+  }
+  return null;
+}
+
+function CreateReservationDialogActive({
   preset,
-}: CreateReservationDialogProps) {
+  onOpenChange,
+}: {
+  preset?: ReservationPreset;
+  onOpenChange: (open: boolean) => void;
+}) {
   const queryClient = useQueryClient();
-  const [patientId, setPatientId] = useState("");
-  const [practitionerId, setPractitionerId] = useState("");
-  const [selectedSlot, setSelectedSlot] = useState<AvailabilitySlotDto | null>(null);
+  const [patientId, setPatientId] = useState(preset?.patientId ?? "");
+  const [practitionerId, setPractitionerId] = useState(preset?.practitionerId ?? "");
+  const [selectedSlot, setSelectedSlot] = useState<AvailabilitySlotDto | null>(
+    () => initialSelectedSlot(preset),
+  );
   const [notes, setNotes] = useState("");
   const [error, setError] = useState("");
-
-  useEffect(() => {
-    if (!isOpen) return;
-    setPatientId(preset?.patientId ?? "");
-    setPractitionerId(preset?.practitionerId ?? "");
-    setNotes("");
-    setError("");
-    if (preset?.startAt && preset?.endAt && preset?.practitionerId) {
-      setSelectedSlot({
-        startAt: preset.startAt,
-        endAt: preset.endAt,
-        practitionerId: preset.practitionerId,
-        practitionerName: "",
-        specialtyId: "",
-        specialtyName: "",
-        status: "disponible",
-      });
-    } else {
-      setSelectedSlot(null);
-    }
-  }, [isOpen, preset]);
 
   const { data: patients } = useQuery({
     queryKey: ["patients"],
     queryFn: () => api.get<{ items: PatientDto[] }>("/patients"),
-    enabled: isOpen,
   });
 
   const { data: practitioners } = useQuery({
@@ -67,7 +69,6 @@ export function CreateReservationDialog({
       api.get<{ items: Array<{ id: string; givenName: string; familyName: string }> }>(
         "/owner/practitioners",
       ),
-    enabled: isOpen,
   });
 
   const from = useMemo(() => {
@@ -84,7 +85,7 @@ export function CreateReservationDialog({
 
   const { data: availability, isLoading: loadingSlots } = useQuery({
     queryKey: ["availability", practitionerId, "reservation-dialog"],
-    enabled: isOpen && !!practitionerId,
+    enabled: !!practitionerId,
     queryFn: () =>
       api.get<{ slots: AvailabilitySlotDto[] }>(
         `/availability?from=${from.toISOString()}&to=${to.toISOString()}&practitionerId=${practitionerId}`,
@@ -133,7 +134,7 @@ export function CreateReservationDialog({
 
   return (
     <SecretaryModal
-      isOpen={isOpen}
+      isOpen
       onOpenChange={onOpenChange}
       title="Crear reservación"
       footer={
@@ -210,5 +211,21 @@ export function CreateReservationDialog({
         )}
       </div>
     </SecretaryModal>
+  );
+}
+
+export function CreateReservationDialog({
+  isOpen,
+  onOpenChange,
+  preset,
+}: CreateReservationDialogProps) {
+  if (!isOpen) return null;
+
+  return (
+    <CreateReservationDialogActive
+      key={presetKey(preset)}
+      preset={preset}
+      onOpenChange={onOpenChange}
+    />
   );
 }

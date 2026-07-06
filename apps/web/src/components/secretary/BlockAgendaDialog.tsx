@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Select } from "@/components/ui/Select";
@@ -17,14 +17,16 @@ function combineDateTime(date: string, time: string): string {
   return new Date(`${date}T${time}:00`).toISOString();
 }
 
-export function BlockAgendaDialog({
-  isOpen,
-  onOpenChange,
+function BlockAgendaDialogActive({
   initialPractitionerId,
-}: BlockAgendaDialogProps) {
+  onOpenChange,
+}: {
+  initialPractitionerId?: string;
+  onOpenChange: (open: boolean) => void;
+}) {
   const queryClient = useQueryClient();
   const today = new Date().toISOString().slice(0, 10);
-  const [practitionerId, setPractitionerId] = useState("");
+  const [practitionerId, setPractitionerId] = useState(initialPractitionerId ?? "");
   const [startDate, setStartDate] = useState(today);
   const [startTime, setStartTime] = useState("09:00");
   const [endDate, setEndDate] = useState(today);
@@ -32,24 +34,12 @@ export function BlockAgendaDialog({
   const [reason, setReason] = useState("");
   const [error, setError] = useState("");
 
-  useEffect(() => {
-    if (!isOpen) return;
-    setPractitionerId(initialPractitionerId ?? "");
-    setStartDate(today);
-    setEndDate(today);
-    setStartTime("09:00");
-    setEndTime("10:00");
-    setReason("");
-    setError("");
-  }, [isOpen, initialPractitionerId, today]);
-
   const { data: practitioners } = useQuery({
     queryKey: ["practitioners"],
     queryFn: () =>
       api.get<{ items: Array<{ id: string; givenName: string; familyName: string }> }>(
         "/owner/practitioners",
       ),
-    enabled: isOpen,
   });
 
   const blockMutation = useMutation({
@@ -86,7 +76,7 @@ export function BlockAgendaDialog({
 
   return (
     <SecretaryModal
-      isOpen={isOpen}
+      isOpen
       onOpenChange={onOpenChange}
       title="Bloquear agenda"
       footer={
@@ -153,5 +143,21 @@ export function BlockAgendaDialog({
         )}
       </div>
     </SecretaryModal>
+  );
+}
+
+export function BlockAgendaDialog({
+  isOpen,
+  onOpenChange,
+  initialPractitionerId,
+}: BlockAgendaDialogProps) {
+  if (!isOpen) return null;
+
+  return (
+    <BlockAgendaDialogActive
+      key={initialPractitionerId ?? "default"}
+      initialPractitionerId={initialPractitionerId}
+      onOpenChange={onOpenChange}
+    />
   );
 }

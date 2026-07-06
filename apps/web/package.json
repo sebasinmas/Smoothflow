@@ -12,15 +12,12 @@
   "dependencies": {
     "@smoothflow/shared": "workspace:*",
     "@tanstack/react-query": "^5.80.7",
-    "date-fns": "^4.1.0",
-    "date-fns-tz": "^3.2.0",
     "lucide-react": "^1.23.0",
     "react": "^19.1.0",
     "react-aria-components": "^1.10.0",
     "react-dom": "^19.1.0",
     "react-router-dom": "^7.6.2",
-    "yjs": "^13.6.27",
-    "zod": "^3.25.67"
+    "yjs": "^13.6.27"
   },
   "devDependencies": {
     "@tailwindcss/vite": "^4.1.10",

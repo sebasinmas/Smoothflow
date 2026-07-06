@@ -20,7 +20,7 @@ export default function OwnerReportsPage() {
   const maxRate = Math.max(...(data?.report.days.map((d) => d.occupancyRate) ?? [1]), 1);
 
   return (
-    <AppShell role="dueno" navItems={OWNER_NAV} bottomNavItems={OWNER_BOTTOM_NAV} title="Reportes de ocupación">
+    <AppShell userRole="dueno" navItems={OWNER_NAV} bottomNavItems={OWNER_BOTTOM_NAV} title="Reportes de ocupación">
       <p className="mb-6 text-text-muted">
         Ocupación semanal de la agenda — semana del {weekStart}
       </p>

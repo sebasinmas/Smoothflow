@@ -1,9 +1,9 @@
-import type { SlotStatus } from "@smoothflow/shared";
+import type { AppointmentDto, AvailabilitySlotDto, SlotStatus } from "@smoothflow/shared";
 
 export const ROW_HEIGHT = 48;
 export const MINUTES_PER_ROW = 30;
-export const DEFAULT_DAY_START = 8 * 60;
-export const DEFAULT_DAY_END = 18 * 60;
+const DEFAULT_DAY_START = 8 * 60;
+const DEFAULT_DAY_END = 18 * 60;
 
 export interface CalendarEventItem {
   id: string;
@@ -21,7 +21,7 @@ export function minutesSinceMidnight(date: Date): number {
   return date.getHours() * 60 + date.getMinutes();
 }
 
-export function parseIsoMinutes(iso: string): number {
+function parseIsoMinutes(iso: string): number {
   const d = new Date(iso);
   return d.getHours() * 60 + d.getMinutes();
 }
@@ -87,4 +87,51 @@ export function eventHeight(startAt: string, endAt: string): number {
   const end = parseIsoMinutes(endAt);
   const duration = Math.max(end - start, MINUTES_PER_ROW);
   return (duration / MINUTES_PER_ROW) * ROW_HEIGHT;
+}
+
+function slotsToEvents(slots: AvailabilitySlotDto[]): CalendarEventItem[] {
+  return slots.map((slot) => ({
+    id: slot.appointmentId ?? `${slot.startAt}-${slot.practitionerId}`,
+    startAt: slot.startAt,
+    endAt: slot.endAt,
+    status: slot.status,
+    label: slot.status === "disponible" ? slot.practitionerName : slot.practitionerName,
+    sublabel:
+      slot.status === "reservado"
+        ? slot.specialtyName
+        : slot.status === "disponible"
+          ? "Disponible"
+          : undefined,
+    appointmentId: slot.appointmentId,
+    practitionerId: slot.practitionerId,
+  }));
+}
+
+function appointmentsToEvents(appointments: AppointmentDto[]): CalendarEventItem[] {
+  return appointments.map((appt) => ({
+    id: appt.id,
+    startAt: appt.startAt,
+    endAt: appt.endAt,
+    status: appt.status === "bloqueado" ? "bloqueado" : "reservado",
+    label: appt.patientName ?? appt.practitionerName ?? "Cita",
+    sublabel: appt.specialtyName,
+    appointmentId: appt.id,
+    patientId: appt.patientId ?? undefined,
+    practitionerId: appt.practitionerId,
+  }));
+}
+
+export function mergeCalendarEvents(
+  slots: AvailabilitySlotDto[],
+  appointments: AppointmentDto[],
+): CalendarEventItem[] {
+  const slotEvents = slotsToEvents(slots);
+  if (slotEvents.length > 0) return slotEvents;
+
+  const bookedIds = new Set<string>();
+  for (const slot of slots) {
+    if (slot.appointmentId) bookedIds.add(slot.appointmentId);
+  }
+  const orphanAppts = appointments.filter((a) => !bookedIds.has(a.id));
+  return appointmentsToEvents(orphanAppts);
 }

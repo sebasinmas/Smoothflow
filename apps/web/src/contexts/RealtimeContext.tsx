@@ -1,7 +1,7 @@
 import {
   createContext,
+  use,
   useCallback,
-  useContext,
   useEffect,
   useMemo,
   useRef,
@@ -180,5 +180,5 @@ export function RealtimeProvider({ children }: { children: ReactNode }) {
 }
 
 export function useRealtime() {
-  return useContext(RealtimeContext);
+  return use(RealtimeContext);
 }

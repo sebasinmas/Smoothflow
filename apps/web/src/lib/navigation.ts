@@ -15,7 +15,7 @@ import type { NavItem } from "@/components/layout/SideNav";
 
 type LucideIcon = ComponentType<LucideProps>;
 
-export const NAV_ICONS: Record<string, LucideIcon> = {
+const NAV_ICONS: Record<string, LucideIcon> = {
   "/secretaria/panel": LayoutDashboard,
   "/secretaria/calendario": Calendar,
   "/secretaria/pacientes": Users,

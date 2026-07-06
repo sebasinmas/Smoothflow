@@ -1,8 +1,9 @@
-import { forwardRef, type ButtonHTMLAttributes } from "react";
+import type { ButtonHTMLAttributes, Ref } from "react";
 
 type Variant = "primary" | "secondary" | "ghost" | "danger";
 
 interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
+  ref?: Ref<HTMLButtonElement>;
   variant?: Variant;
   loading?: boolean;
 }
@@ -18,8 +19,16 @@ const variants: Record<Variant, string> = {
     "bg-red-600 text-white shadow-sm hover:bg-red-700 hover:shadow-md active:scale-[0.98]",
 };
 
-export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
-  ({ className = "", variant = "primary", loading, disabled, children, ...props }, ref) => (
+export function Button({
+  ref,
+  className = "",
+  variant = "primary",
+  loading,
+  disabled,
+  children,
+  ...props
+}: ButtonProps) {
+  return (
     <button
       ref={ref}
       disabled={disabled || loading}
@@ -28,7 +37,6 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
     >
       {loading ? "Cargando…" : children}
     </button>
-  ),
-);
-Button.displayName = "Button";
+  );
+}
 

@@ -1,14 +1,26 @@
 import {
   createContext,
+  use,
   useCallback,
-  useContext,
   useEffect,
   useMemo,
   useState,
+  useSyncExternalStore,
   type ReactNode,
 } from "react";
 
 const STORAGE_KEY = "smoothflow.sidebar-collapsed";
+const MOBILE_QUERY = "(max-width: 767px)";
+
+function subscribeToMobileQuery(onChange: () => void) {
+  const mq = window.matchMedia(MOBILE_QUERY);
+  mq.addEventListener("change", onChange);
+  return () => mq.removeEventListener("change", onChange);
+}
+
+function getMobileSnapshot() {
+  return window.matchMedia(MOBILE_QUERY).matches;
+}
 
 interface SidebarContextValue {
   collapsed: boolean;
@@ -25,15 +37,7 @@ export function SidebarProvider({ children }: { children: ReactNode }) {
     () => localStorage.getItem(STORAGE_KEY) === "true",
   );
   const [mobileOpen, setMobileOpen] = useState(false);
-  const [isMobile, setIsMobile] = useState(false);
-
-  useEffect(() => {
-    const mq = window.matchMedia("(max-width: 767px)");
-    const update = () => setIsMobile(mq.matches);
-    update();
-    mq.addEventListener("change", update);
-    return () => mq.removeEventListener("change", update);
-  }, []);
+  const isMobile = useSyncExternalStore(subscribeToMobileQuery, getMobileSnapshot, () => false);
 
   useEffect(() => {
     if (!isMobile) setMobileOpen(false);
@@ -62,7 +66,7 @@ export function SidebarProvider({ children }: { children: ReactNode }) {
 }
 
 export function useSidebar() {
-  const ctx = useContext(SidebarContext);
+  const ctx = use(SidebarContext);
   if (!ctx) throw new Error("useSidebar must be used within SidebarProvider");
   return ctx;
 }
