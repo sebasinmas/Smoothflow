@@ -14,10 +14,12 @@
 * **Sincronización en Tiempo Real:** Yjs (CRDT) con y-websocket como capa de transporte WebSocket para la sincronización colaborativa de la agenda.
 * **Base de Datos:** PostgreSQL con Drizzle ORM.
 * **Containerización:** Docker Compose para desarrollo local (api, web, postgres). Dockerfiles multi-stage para producción. CI/CD con GitHub Actions para build de imágenes y deploy a VPS.
+* **Autenticación:** Stateful (sesiones server-side) para permitir revocación inmediata de acceso. El dueño de la clínica puede desvincular usuarios secundarios (secretarias y médicos); al hacerlo, el backend invalida sus sesiones activas y cierra sus conexiones WebSocket.
 
 ## Reglas Críticas de Implementación (Non-Negotiable)
 * **Sincronización en Tiempo Real:** Toda actualización de agenda (reserva, reagendamiento, cancelación, bloqueo) debe propagarse inmediatamente a los clientes conectados (secretarías y médicos) mediante Yjs sobre WebSocket Secure (WSS) sobre TLS/SSL en el puerto 443.
 * **Contrapresión (Backpressure):** Implementar mecanismos de control de flujo para evitar la saturación de clientes receptores.
 * **Seguridad y Cifrado:** Por la Ley N.° 19.628 (Chile), todos los datos sensibles deben estar cifrados en tránsito (TLS 1.2+) y en reposo.
 * **Auditoría Estricta:** Por la Ley N.° 20.584 (Chile), todo acceso a información clínico-administrativa debe registrarse en un log inmutable con retención mínima de 12 meses.
+* **Desconexión WebSocket y Datos Sensibles:** Ante cierre de sesión, revocación administrativa (desvinculación) o pérdida de conexión WebSocket, el cliente debe purgar de inmediato datos clínico-administrativos de la UI y del estado local. No mantener información sensible visible ni en memoria sin una sesión válida; la reconexión exige reautenticación si la sesión fue invalidada.
 * **Codificación de Interfaz:** Respetar la codificación por color para los estados de la agenda: disponible, reservado, bloqueado/alerta[cite: 1].

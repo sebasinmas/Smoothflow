@@ -13,7 +13,7 @@ Sistema web para clínicas independientes de tamaño pequeño o mediano que auto
 | **Paciente** | Reserva, reagenda y cancela citas a través del portal web de autogestión. |
 | **Secretaria** | Gestiona la agenda desde un panel de control con vista diaria/semanal y notificaciones en tiempo real. |
 | **Médico de Turno** | Visualiza su agenda del día actualizada en tiempo real y consulta historial de citas. |
-| **Dueño de la Clínica** | Configura médicos, especialidades, horarios y gestiona usuarios del sistema. |
+| **Dueño de la Clínica** | Configura médicos, especialidades, horarios y gestiona usuarios del sistema (incluye desvincular usuarios secundarios). |
 
 ## Módulos Principales
 
@@ -120,6 +120,7 @@ El sistema opera dentro de los márgenes legales chilenos para el manejo de info
 - **Ley N.° 19.628** — Protección de la Vida Privada: datos sensibles cifrados en tránsito (TLS 1.2+) y en reposo.
 - **Ley N.° 20.584** — Derechos y Deberes de los Pacientes: log de auditoría inmutable con retención mínima de 12 meses.
 - **Ley N.° 21.541** — Salud Digital: equivalencia entre registros digitales y presenciales.
+- **Autenticación stateful** — Sesiones server-side para revocar acceso al instante; ante desvinculación o desconexión WebSocket, los datos sensibles se purgan del cliente.
 
 Consultar el [SRS completo](docs/SRS_SmoothFlow.md) para detalles de requisitos funcionales y no funcionales.
 
