@@ -2,9 +2,9 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 import type { AvailabilitySlotDto, PatientDto } from "@smoothflow/shared";
 import { AppointmentSlot } from "@/components/ui/AppointmentSlot";
-import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Select } from "@/components/ui/Select";
+import { FormDialogFooter } from "@/components/secretary/FormDialogFooter";
 import { SecretaryModal } from "@/components/secretary/SecretaryModal";
 import { ApiError, api } from "@/lib/api";
 import { formatDateTime, formatPersonName } from "@/lib/utils";
@@ -138,21 +138,16 @@ function CreateReservationDialogActive({
       onOpenChange={onOpenChange}
       title="Crear reservación"
       footer={
-        <>
-          <Button variant="secondary" onClick={() => onOpenChange(false)}>
-            Cancelar
-          </Button>
-          <Button
-            loading={createMutation.isPending}
-            disabled={!patientId || !selectedSlot}
-            onClick={() => {
-              setError("");
-              createMutation.mutate();
-            }}
-          >
-            Confirmar reserva
-          </Button>
-        </>
+        <FormDialogFooter
+          onCancel={() => onOpenChange(false)}
+          submitLabel="Confirmar reserva"
+          loading={createMutation.isPending}
+          submitDisabled={!patientId || !selectedSlot}
+          onSubmit={() => {
+            setError("");
+            createMutation.mutate();
+          }}
+        />
       }
     >
       <div className="grid gap-4">

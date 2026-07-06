@@ -1,18 +1,16 @@
 import { useQuery } from "@tanstack/react-query";
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { Link } from "react-router-dom";
 import { CalendarOff } from "lucide-react";
 import type { AppointmentDto } from "@smoothflow/shared";
-import { AppShell } from "@/components/layout/AppShell";
+import { SecretaryShell } from "@/components/layout/SecretaryShell";
 import { AppointmentActionsDialog } from "@/components/secretary/AppointmentActionsDialog";
 import type { CalendarEventItem } from "@/components/calendar/calendar-utils";
 import { EmptyState } from "@/components/ui/EmptyState";
-import { LiveIndicator } from "@/components/ui/LiveIndicator";
 import { LoadingState } from "@/components/ui/LoadingState";
 import { api } from "@/lib/api";
 import { formatDateTime } from "@/lib/utils";
 import { useRealtime } from "@/contexts/RealtimeContext";
-import { SECRETARIA_NAV } from "@/lib/navigation";
 
 function appointmentToEvent(appt: AppointmentDto): CalendarEventItem {
   return {
@@ -49,16 +47,8 @@ export default function SecretaryPanelPage() {
   const confirmed = data?.items.filter((a) => a.status === "confirmado" || a.status === "reservado").length ?? 0;
   const blocked = data?.items.filter((a) => a.status === "bloqueado").length ?? 0;
 
-  const headerExtra = useMemo(() => <LiveIndicator />, []);
-
   return (
-    <AppShell
-      userRole="secretaria"
-      navItems={SECRETARIA_NAV}
-      title="Panel de control"
-      showNotifications
-      headerExtra={headerExtra}
-    >
+    <SecretaryShell title="Panel de control">
       <div className="grid gap-6 md:grid-cols-3">
         <div className="rounded-xl border border-border bg-white p-6 shadow-card">
           <p className="text-sm text-text-muted">Citas hoy</p>
@@ -121,6 +111,6 @@ export default function SecretaryPanelPage() {
         onOpenChange={setActionsOpen}
         event={selectedEvent}
       />
-    </AppShell>
+    </SecretaryShell>
   );
 }

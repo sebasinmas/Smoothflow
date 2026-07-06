@@ -2,7 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 import type { AvailabilitySlotDto } from "@smoothflow/shared";
 import { AppointmentSlot } from "@/components/ui/AppointmentSlot";
-import { Button } from "@/components/ui/Button";
+import { FormDialogFooter } from "@/components/secretary/FormDialogFooter";
 import { SecretaryModal } from "@/components/secretary/SecretaryModal";
 import { ApiError, api } from "@/lib/api";
 import { formatDateTime } from "@/lib/utils";
@@ -79,21 +79,16 @@ function RescheduleDialogActive({
       onOpenChange={onOpenChange}
       title="Reagendar cita"
       footer={
-        <>
-          <Button variant="secondary" onClick={() => onOpenChange(false)}>
-            Cancelar
-          </Button>
-          <Button
-            loading={rescheduleMutation.isPending}
-            disabled={!selectedSlot}
-            onClick={() => {
-              setError("");
-              rescheduleMutation.mutate();
-            }}
-          >
-            Confirmar reagendamiento
-          </Button>
-        </>
+        <FormDialogFooter
+          onCancel={() => onOpenChange(false)}
+          submitLabel="Confirmar reagendamiento"
+          loading={rescheduleMutation.isPending}
+          submitDisabled={!selectedSlot}
+          onSubmit={() => {
+            setError("");
+            rescheduleMutation.mutate();
+          }}
+        />
       }
     >
       {isLoading ? (

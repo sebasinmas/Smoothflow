@@ -1,14 +1,13 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 import type { PatientDto } from "@smoothflow/shared";
-import { AppShell } from "@/components/layout/AppShell";
+import { SecretaryShell } from "@/components/layout/SecretaryShell";
+import { CreatePatientDrawer } from "@/components/secretary/CreatePatientDrawer";
 import { CreateReservationDialog } from "@/components/secretary/CreateReservationDialog";
 import { Button } from "@/components/ui/Button";
-import { Input } from "@/components/ui/Input";
 import { LoadingState } from "@/components/ui/LoadingState";
-import { api, ApiError } from "@/lib/api";
+import { api } from "@/lib/api";
 import { formatDateTime, formatPersonName } from "@/lib/utils";
-import { SECRETARIA_NAV } from "@/lib/navigation";
 
 function PortalAccessBadge({ hasPortalAccess }: { hasPortalAccess: boolean }) {
   return (
@@ -24,70 +23,8 @@ function PortalAccessBadge({ hasPortalAccess }: { hasPortalAccess: boolean }) {
   );
 }
 
-function NewPatientForm({
-  onCancel,
-  onCreated,
-}: {
-  onCancel: () => void;
-  onCreated: () => void;
-}) {
-  const queryClient = useQueryClient();
-  const [givenName, setGivenName] = useState("");
-  const [familyName, setFamilyName] = useState("");
-  const [email, setEmail] = useState("");
-  const [phone, setPhone] = useState("");
-  const [formError, setFormError] = useState("");
-
-  const createMutation = useMutation({
-    mutationFn: (body: { givenName: string; familyName: string; email?: string; phone?: string }) =>
-      api.post("/patients", body),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["patients"] });
-      onCreated();
-    },
-    onError: (err) => {
-      setFormError(err instanceof ApiError ? err.message : "No se pudo guardar el paciente");
-    },
-  });
-
-  return (
-    <form
-      className="mb-8 grid max-w-xl gap-4 rounded-lg border border-border bg-white p-6"
-      onSubmit={(e) => {
-        e.preventDefault();
-        setFormError("");
-        createMutation.mutate({
-          givenName,
-          familyName,
-          email: email || undefined,
-          phone: phone || undefined,
-        });
-      }}
-    >
-      <Input label="Nombre" value={givenName} onChange={(e) => setGivenName(e.target.value)} required />
-      <Input label="Apellido" value={familyName} onChange={(e) => setFamilyName(e.target.value)} required />
-      <Input label="Email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
-      <Input label="Teléfono" value={phone} onChange={(e) => setPhone(e.target.value)} />
-      {formError && (
-        <p className="text-sm text-red-600" role="alert">
-          {formError}
-        </p>
-      )}
-      <div className="flex gap-3">
-        <Button type="button" variant="secondary" onClick={onCancel}>
-          Cancelar
-        </Button>
-        <Button type="submit" loading={createMutation.isPending}>
-          Guardar paciente
-        </Button>
-      </div>
-    </form>
-  );
-}
-
 export default function SecretaryPatientsPage() {
-  const [showForm, setShowForm] = useState(false);
-  const [formSession, setFormSession] = useState(0);
+  const [createOpen, setCreateOpen] = useState(false);
   const [reservationPatientId, setReservationPatientId] = useState<string | undefined>();
   const [reservationOpen, setReservationOpen] = useState(false);
 
@@ -97,31 +34,16 @@ export default function SecretaryPatientsPage() {
   });
 
   return (
-    <AppShell userRole="secretaria" navItems={SECRETARIA_NAV} title="Gestión de pacientes" showNotifications>
-      <div className="mb-6 flex items-center justify-between gap-4">
-        <p className="text-text-muted">
+    <SecretaryShell title="Gestión de pacientes">
+      <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
+        <p className="max-w-2xl text-text-muted">
           Administre pacientes y cree citas en su representación. La ficha permite agendar citas; el
           paciente puede crear su cuenta en el portal cuando lo desee.
         </p>
-        <Button
-          onClick={() => {
-            if (!showForm) setFormSession((n) => n + 1);
-            setShowForm(!showForm);
-          }}
-        >
-          {showForm ? "Cancelar" : "Nuevo paciente"}
+        <Button size="lg" onClick={() => setCreateOpen(true)}>
+          Nuevo paciente
         </Button>
       </div>
-
-      {showForm && (
-        <NewPatientForm
-          key={formSession}
-          onCancel={() => setShowForm(false)}
-          onCreated={() => {
-            setShowForm(false);
-          }}
-        />
-      )}
 
       {isLoading ? (
         <LoadingState message="Cargando pacientes…" />
@@ -163,6 +85,7 @@ export default function SecretaryPatientsPage() {
                   <td className="px-4 py-3">
                     <Button
                       variant="secondary"
+                      size="sm"
                       onClick={() => {
                         setReservationPatientId(p.id);
                         setReservationOpen(true);
@@ -185,11 +108,12 @@ export default function SecretaryPatientsPage() {
         </div>
       )}
 
+      <CreatePatientDrawer isOpen={createOpen} onOpenChange={setCreateOpen} />
       <CreateReservationDialog
         isOpen={reservationOpen}
         onOpenChange={setReservationOpen}
         preset={{ patientId: reservationPatientId }}
       />
-    </AppShell>
+    </SecretaryShell>
   );
 }

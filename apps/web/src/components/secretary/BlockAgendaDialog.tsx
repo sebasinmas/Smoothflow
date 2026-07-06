@@ -1,9 +1,9 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
-import { Button } from "@/components/ui/Button";
+import { FormDialogFooter } from "@/components/secretary/FormDialogFooter";
+import { SecretaryModal } from "@/components/secretary/SecretaryModal";
 import { Input } from "@/components/ui/Input";
 import { Select } from "@/components/ui/Select";
-import { SecretaryModal } from "@/components/secretary/SecretaryModal";
 import { ApiError, api } from "@/lib/api";
 import { formatPersonName } from "@/lib/utils";
 
@@ -80,22 +80,17 @@ function BlockAgendaDialogActive({
       onOpenChange={onOpenChange}
       title="Bloquear agenda"
       footer={
-        <>
-          <Button variant="secondary" onClick={() => onOpenChange(false)}>
-            Cancelar
-          </Button>
-          <Button
-            variant="danger"
-            loading={blockMutation.isPending}
-            disabled={!practitionerId}
-            onClick={() => {
-              setError("");
-              blockMutation.mutate();
-            }}
-          >
-            Confirmar bloqueo
-          </Button>
-        </>
+        <FormDialogFooter
+          onCancel={() => onOpenChange(false)}
+          submitLabel="Confirmar bloqueo"
+          submitVariant="danger"
+          loading={blockMutation.isPending}
+          submitDisabled={!practitionerId}
+          onSubmit={() => {
+            setError("");
+            blockMutation.mutate();
+          }}
+        />
       }
     >
       <div className="grid gap-4">

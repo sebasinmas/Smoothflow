@@ -2,7 +2,7 @@ import type { ReactNode } from "react";
 import { X } from "lucide-react";
 import { Dialog, DialogTrigger, Heading, Modal, ModalOverlay } from "react-aria-components";
 
-interface SecretaryModalProps {
+interface SecretaryDrawerProps {
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
   title: string;
@@ -11,22 +11,22 @@ interface SecretaryModalProps {
   footer?: ReactNode;
 }
 
-export function SecretaryModal({
+export function SecretaryDrawer({
   isOpen,
   onOpenChange,
   title,
   description,
   children,
   footer,
-}: SecretaryModalProps) {
+}: SecretaryDrawerProps) {
   return (
     <DialogTrigger isOpen={isOpen} onOpenChange={onOpenChange}>
       <ModalOverlay
-        className="fixed inset-0 z-modal flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm entering:animate-in entering:fade-in exiting:animate-out exiting:fade-out"
+        className="fixed inset-0 z-modal flex justify-end bg-black/40 backdrop-blur-sm entering:animate-in entering:fade-in exiting:animate-out exiting:fade-out"
         isDismissable
       >
-        <Modal className="flex max-h-[90vh] w-full max-w-lg flex-col overflow-hidden rounded-xl border border-border bg-white shadow-xl entering:animate-in entering:fade-in entering:zoom-in-95 exiting:animate-out exiting:fade-out exiting:zoom-out-95">
-          <Dialog className="flex min-h-0 flex-col outline-none">
+        <Modal className="flex h-full w-full max-w-md flex-col border-l border-border bg-white shadow-2xl entering:animate-in entering:slide-in-from-right exiting:animate-out exiting:fade-out outline-none">
+          <Dialog className="flex h-full min-h-0 flex-col outline-none">
             {({ close }) => (
               <>
                 <header className="flex shrink-0 items-start justify-between gap-4 border-b border-border px-6 py-5">
@@ -51,7 +51,9 @@ export function SecretaryModal({
                 <div className="flex-1 overflow-y-auto px-6 py-5">{children}</div>
 
                 {footer && (
-                  <footer className="shrink-0 border-t border-border px-6 py-4">{footer}</footer>
+                  <footer className="shrink-0 border-t border-border bg-white px-6 py-4">
+                    {footer}
+                  </footer>
                 )}
               </>
             )}

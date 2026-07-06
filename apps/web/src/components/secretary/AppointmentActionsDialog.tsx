@@ -74,30 +74,32 @@ export function AppointmentActionsDialog({
         title={isBlocked ? "Bloqueo de agenda" : "Detalle de cita"}
         footer={
           isBlocked ? (
-            <>
-              <Button variant="secondary" onClick={() => onOpenChange(false)}>
+            <div className="flex flex-wrap gap-3">
+              <Button variant="secondary" size="lg" className="flex-1 sm:flex-none" onClick={() => onOpenChange(false)}>
                 Cerrar
               </Button>
-              <Button variant="danger" onClick={() => setShowUnblockConfirm(true)}>
+              <Button variant="danger" size="lg" className="flex-1 sm:flex-none" onClick={() => setShowUnblockConfirm(true)}>
                 Levantar bloqueo
               </Button>
-            </>
+            </div>
           ) : (
-            <>
-              <Button variant="secondary" onClick={() => onOpenChange(false)}>
+            <div className="flex flex-wrap gap-3">
+              <Button variant="secondary" size="lg" className="flex-1 sm:flex-none" onClick={() => onOpenChange(false)}>
                 Cerrar
               </Button>
               <Button
                 variant="secondary"
+                size="lg"
+                className="flex-1 sm:flex-none"
                 disabled={!appointmentId || !event.practitionerId}
                 onClick={() => setShowReschedule(true)}
               >
                 Reagendar
               </Button>
-              <Button variant="danger" disabled={!appointmentId} onClick={() => setShowCancelConfirm(true)}>
+              <Button variant="danger" size="lg" className="flex-1 sm:flex-none" disabled={!appointmentId} onClick={() => setShowCancelConfirm(true)}>
                 Cancelar cita
               </Button>
-            </>
+            </div>
           )
         }
       >

@@ -1,4 +1,4 @@
-import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
+import { BrowserRouter, Navigate, Outlet, Route, Routes } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "sonner";
 import { AuthProvider } from "@/contexts/AuthContext";
@@ -39,37 +39,17 @@ export default function App() {
 
             <Route element={<RequireAuth roles={["secretaria"]} />}>
               <Route
-                path="/secretaria"
                 element={
                   <RealtimeProvider>
-                    <Navigate to="/secretaria/calendario" replace />
+                    <Outlet />
                   </RealtimeProvider>
                 }
-              />
-              <Route
-                path="/secretaria/panel"
-                element={
-                  <RealtimeProvider>
-                    <SecretaryPanelPage />
-                  </RealtimeProvider>
-                }
-              />
-              <Route
-                path="/secretaria/calendario"
-                element={
-                  <RealtimeProvider>
-                    <SecretaryCalendarPage />
-                  </RealtimeProvider>
-                }
-              />
-              <Route
-                path="/secretaria/pacientes"
-                element={
-                  <RealtimeProvider>
-                    <SecretaryPatientsPage />
-                  </RealtimeProvider>
-                }
-              />
+              >
+                <Route path="/secretaria" element={<Navigate to="/secretaria/calendario" replace />} />
+                <Route path="/secretaria/panel" element={<SecretaryPanelPage />} />
+                <Route path="/secretaria/calendario" element={<SecretaryCalendarPage />} />
+                <Route path="/secretaria/pacientes" element={<SecretaryPatientsPage />} />
+              </Route>
             </Route>
 
             <Route element={<RequireAuth roles={["medico"]} />}>

@@ -3,7 +3,7 @@ import { useMemo, useState } from "react";
 import { ChevronLeft, ChevronRight, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 import type { AppointmentDto, AvailabilitySlotDto } from "@smoothflow/shared";
-import { AppShell } from "@/components/layout/AppShell";
+import { SecretaryShell } from "@/components/layout/SecretaryShell";
 import { CalendarToolbar, SegmentedControl } from "@/components/calendar/CalendarToolbar";
 import { mergeCalendarEvents } from "@/components/calendar/calendar-utils";
 import { ScheduleCalendar } from "@/components/calendar/ScheduleCalendar";
@@ -15,14 +15,12 @@ import {
   type ReservationPreset,
 } from "@/components/secretary/CreateReservationDialog";
 import { Button } from "@/components/ui/Button";
-import { LiveIndicator } from "@/components/ui/LiveIndicator";
 import { LoadingState } from "@/components/ui/LoadingState";
 import { Select } from "@/components/ui/Select";
 import { AppTooltip } from "@/components/ui/Tooltip";
 import { api } from "@/lib/api";
 import { addDays, startOfWeek } from "@/lib/utils";
 import { useRealtime } from "@/contexts/RealtimeContext";
-import { SECRETARIA_NAV } from "@/lib/navigation";
 
 export default function SecretaryCalendarPage() {
   const { lastEvent } = useRealtime();
@@ -155,16 +153,10 @@ export default function SecretaryCalendarPage() {
   const isLoading = loadingAppointments || loadingAvailability;
   const hasError = appointmentsError || availabilityError;
 
-  const headerExtra = useMemo(() => <LiveIndicator />, []);
-
   return (
-    <AppShell
-      userRole="secretaria"
-      navItems={SECRETARIA_NAV}
+    <SecretaryShell
       title="Calendario de agenda"
-      showNotifications
       fillContent
-      headerExtra={headerExtra}
       primaryAction={{
         label: "Crear una reservación",
         onClick: () => openCreateDialog(),
@@ -269,6 +261,6 @@ export default function SecretaryCalendarPage() {
         onOpenChange={setActionsOpen}
         event={selectedEvent}
       />
-    </AppShell>
+    </SecretaryShell>
   );
 }
