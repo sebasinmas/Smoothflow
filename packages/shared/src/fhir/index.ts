@@ -72,6 +72,9 @@ const APPOINTMENT_STATUS_FHIR: Record<AppointmentDto["status"], string> = {
   reagendado: "pending",
   cancelado: "cancelled",
   bloqueado: "cancelled",
+  atendido: "fulfilled",
+  no_asistio: "noshow",
+  cancelacion_pendiente: "booked",
 };
 
 export function toFhirAppointment(appointment: AppointmentDto): FhirAppointment {

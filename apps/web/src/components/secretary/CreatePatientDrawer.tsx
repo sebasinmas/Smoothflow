@@ -2,7 +2,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { toast } from "sonner";
 import { FormDialogFooter } from "@/components/secretary/FormDialogFooter";
-import { SecretaryDrawer } from "@/components/secretary/SecretaryDrawer";
+import { AppDrawer } from "@/components/ui/AppDrawer";
 import { Input } from "@/components/ui/Input";
 import { ApiError, api } from "@/lib/api";
 
@@ -48,7 +48,7 @@ function CreatePatientDrawerActive({
   };
 
   return (
-    <SecretaryDrawer
+    <AppDrawer
       isOpen
       onOpenChange={onOpenChange}
       title="Nuevo paciente"
@@ -98,7 +98,7 @@ function CreatePatientDrawerActive({
           </p>
         )}
       </form>
-    </SecretaryDrawer>
+    </AppDrawer>
   );
 }
 

@@ -1,10 +1,12 @@
 import { useQuery } from "@tanstack/react-query";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import type { AppointmentDto, AvailabilitySlotDto } from "@smoothflow/shared";
 import { CalendarOff } from "lucide-react";
 import { AppShell } from "@/components/layout/AppShell";
+import type { CalendarEventItem } from "@/components/calendar/calendar-utils";
 import { mergeCalendarEvents } from "@/components/calendar/calendar-utils";
 import { ScheduleCalendar } from "@/components/calendar/ScheduleCalendar";
+import { DoctorAppointmentSheet } from "@/components/doctor/DoctorAppointmentSheet";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { LoadingState } from "@/components/ui/LoadingState";
 import { api } from "@/lib/api";
@@ -13,6 +15,8 @@ import { DOCTOR_NAV } from "@/lib/navigation";
 
 export default function DoctorCalendarPage() {
   const { lastEvent } = useRealtime();
+  const [selectedEvent, setSelectedEvent] = useState<CalendarEventItem | null>(null);
+  const [sheetOpen, setSheetOpen] = useState(false);
   const today = useMemo(() => {
     const d = new Date();
     d.setHours(0, 0, 0, 0);
@@ -49,6 +53,12 @@ export default function DoctorCalendarPage() {
     [availability?.slots, appointments?.items],
   );
 
+  const handleEventClick = (event: CalendarEventItem) => {
+    if (event.status !== "reservado" || !event.appointmentId) return;
+    setSelectedEvent(event);
+    setSheetOpen(true);
+  };
+
   return (
     <AppShell
       userRole="medico"
@@ -63,9 +73,15 @@ export default function DoctorCalendarPage() {
         ) : events.length === 0 ? (
           <EmptyState icon={CalendarOff} message="No tiene citas programadas para hoy." />
         ) : (
-          <ScheduleCalendar days={[today]} events={events} />
+          <ScheduleCalendar days={[today]} events={events} onEventClick={handleEventClick} />
         )}
       </div>
+
+      <DoctorAppointmentSheet
+        isOpen={sheetOpen}
+        onOpenChange={setSheetOpen}
+        event={selectedEvent}
+      />
     </AppShell>
   );
 }

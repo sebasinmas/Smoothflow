@@ -1,11 +1,15 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
+import { Pencil, Trash2 } from "lucide-react";
+import { toast } from "sonner";
 import type { PractitionerDto, ScheduleTemplateDto, SpecialtyDto } from "@smoothflow/shared";
 import { AppShell } from "@/components/layout/AppShell";
+import { EditSpecialtyDrawer } from "@/components/owner/EditSpecialtyDrawer";
 import { Button } from "@/components/ui/Button";
+import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { Input } from "@/components/ui/Input";
 import { Select } from "@/components/ui/Select";
-import { api } from "@/lib/api";
+import { ApiError, api } from "@/lib/api";
 import { OWNER_NAV, OWNER_BOTTOM_NAV } from "@/lib/navigation";
 
 const DAYS = [
@@ -23,6 +27,9 @@ export default function OwnerConfigPage() {
   const [dayOfWeek, setDayOfWeek] = useState("1");
   const [startTime, setStartTime] = useState("09:00");
   const [endTime, setEndTime] = useState("17:00");
+  const [editTarget, setEditTarget] = useState<SpecialtyDto | null>(null);
+  const [editOpen, setEditOpen] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<SpecialtyDto | null>(null);
 
   const { data: specialties } = useQuery({
     queryKey: ["specialties"],
@@ -44,6 +51,24 @@ export default function OwnerConfigPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["specialties"] });
       setSpecialtyName("");
+      toast.success("Especialidad creada");
+    },
+    onError: (err) => {
+      const message = err instanceof ApiError ? err.message : "No se pudo crear la especialidad";
+      toast.error(message);
+    },
+  });
+
+  const deleteSpecialty = useMutation({
+    mutationFn: (id: string) => api.delete(`/owner/specialties/${id}`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["specialties"] });
+      setDeleteTarget(null);
+      toast.success("Especialidad eliminada");
+    },
+    onError: (err) => {
+      const message = err instanceof ApiError ? err.message : "No se pudo eliminar la especialidad";
+      toast.error(message);
     },
   });
 
@@ -57,6 +82,11 @@ export default function OwnerConfigPage() {
       value: p.id,
       label: `${p.givenName} ${p.familyName}`,
     })) ?? [];
+
+  const openEdit = (specialty: SpecialtyDto) => {
+    setEditTarget(specialty);
+    setEditOpen(true);
+  };
 
   return (
     <AppShell userRole="dueno" navItems={OWNER_NAV} bottomNavItems={OWNER_BOTTOM_NAV} title="Configuración de la clínica">
@@ -84,8 +114,34 @@ export default function OwnerConfigPage() {
           </form>
           <ul className="space-y-1 text-sm">
             {specialties?.items.map((s) => (
-              <li key={s.id} className="rounded bg-surface-muted px-3 py-2">
-                {s.name}
+              <li
+                key={s.id}
+                className="flex items-center justify-between gap-2 rounded bg-surface-muted px-3 py-2"
+              >
+                <div className="min-w-0">
+                  <span className="font-medium">{s.name}</span>
+                  {s.description && (
+                    <p className="truncate text-xs text-text-muted">{s.description}</p>
+                  )}
+                </div>
+                <div className="flex shrink-0 items-center gap-1">
+                  <button
+                    type="button"
+                    onClick={() => openEdit(s)}
+                    className="inline-flex size-8 cursor-pointer items-center justify-center rounded-lg text-text-muted transition-colors hover:bg-white hover:text-brand"
+                    aria-label={`Editar ${s.name}`}
+                  >
+                    <Pencil className="size-4" aria-hidden="true" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setDeleteTarget(s)}
+                    className="inline-flex size-8 cursor-pointer items-center justify-center rounded-lg text-text-muted transition-colors hover:bg-white hover:text-red-600"
+                    aria-label={`Eliminar ${s.name}`}
+                  >
+                    <Trash2 className="size-4" aria-hidden="true" />
+                  </button>
+                </div>
               </li>
             ))}
             {specialties?.items.length === 0 && (
@@ -145,6 +201,35 @@ export default function OwnerConfigPage() {
           </ul>
         </section>
       </div>
+
+      <EditSpecialtyDrawer
+        specialty={editTarget}
+        isOpen={editOpen}
+        onOpenChange={(open) => {
+          setEditOpen(open);
+          if (!open) setEditTarget(null);
+        }}
+      />
+
+      <ConfirmDialog
+        isOpen={deleteTarget !== null}
+        onOpenChange={(open) => !open && setDeleteTarget(null)}
+        title="Eliminar especialidad"
+        description={
+          deleteTarget ? (
+            <>
+              ¿Está seguro que desea eliminar la especialidad{" "}
+              <strong>{deleteTarget.name}</strong>? Esta acción no se puede deshacer.
+            </>
+          ) : null
+        }
+        confirmLabel="Eliminar"
+        cancelLabel="Cancelar"
+        loading={deleteSpecialty.isPending}
+        onConfirm={() => {
+          if (deleteTarget) deleteSpecialty.mutate(deleteTarget.id);
+        }}
+      />
     </AppShell>
   );
 }

@@ -70,7 +70,7 @@ export default function LoginPage() {
               required
             />
             <AuthErrorBanner message={message} visible={showMessage} />
-            <Button type="submit" className="w-full cursor-pointer" loading={loading}>
+            <Button type="submit" className="w-full" loading={loading}>
               Acceder al portal
             </Button>
           </form>
@@ -79,7 +79,7 @@ export default function LoginPage() {
           Entorno seguro para clínicas · © 2026 Smooth Flow
         </p>
         <p className="mt-2 text-center text-sm">
-          <a href="/paciente/login" className="text-brand underline">
+          <a href="/paciente/login" className="cursor-pointer text-brand underline">
             Portal de pacientes
           </a>
         </p>

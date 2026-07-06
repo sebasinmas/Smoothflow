@@ -64,7 +64,7 @@ export default function PatientLoginPage() {
         </form>
         <p className="mt-4 text-center text-sm">
           ¿No tiene cuenta?{" "}
-          <Link to="/paciente/registro" className="text-brand underline">
+          <Link to="/paciente/registro" className="cursor-pointer text-brand underline">
             Registrarse
           </Link>
         </p>

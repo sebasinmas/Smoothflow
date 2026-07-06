@@ -31,6 +31,11 @@ export const createSpecialtySchema = z.object({
   description: z.string().max(300).optional(),
 });
 
+export const updateSpecialtySchema = z.object({
+  name: z.string().min(1).max(100).optional(),
+  description: z.string().max(300).nullable().optional(),
+});
+
 export const createPractitionerSchema = z.object({
   userId: z.string().uuid().optional(),
   givenName: z.string().min(1),
@@ -51,5 +56,6 @@ export type CreatePatientInput = z.infer<typeof createPatientSchema>;
 export type CreateStaffInput = z.infer<typeof createStaffSchema>;
 export type UpdateStaffInput = z.infer<typeof updateStaffSchema>;
 export type CreateSpecialtyInput = z.infer<typeof createSpecialtySchema>;
+export type UpdateSpecialtyInput = z.infer<typeof updateSpecialtySchema>;
 export type CreatePractitionerInput = z.infer<typeof createPractitionerSchema>;
 export type CreateScheduleTemplateInput = z.infer<typeof createScheduleTemplateSchema>;

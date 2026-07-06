@@ -1,8 +1,10 @@
 import type { ReactNode } from "react";
+import { createPortal } from "react-dom";
 import { X } from "lucide-react";
 import { Dialog, DialogTrigger, Heading, Modal, ModalOverlay } from "react-aria-components";
+import { useDrawerPortal } from "@/contexts/DrawerPortalContext";
 
-interface SecretaryDrawerProps {
+interface AppDrawerProps {
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
   title: string;
@@ -11,21 +13,29 @@ interface SecretaryDrawerProps {
   footer?: ReactNode;
 }
 
-export function SecretaryDrawer({
+export function AppDrawer({
   isOpen,
   onOpenChange,
   title,
   description,
   children,
   footer,
-}: SecretaryDrawerProps) {
-  return (
+}: AppDrawerProps) {
+  const portalEl = useDrawerPortal();
+  const inContent = portalEl !== null;
+  const container = portalEl ?? (typeof document !== "undefined" ? document.body : null);
+
+  if (!container) return null;
+
+  const overlayPosition = inContent ? "absolute" : "fixed";
+
+  const drawer = (
     <DialogTrigger isOpen={isOpen} onOpenChange={onOpenChange}>
       <ModalOverlay
-        className="fixed inset-0 z-modal flex justify-end bg-black/40 backdrop-blur-sm entering:animate-in entering:fade-in exiting:animate-out exiting:fade-out"
+        className={`${overlayPosition} inset-0 z-modal flex justify-end bg-black/40 backdrop-blur-sm entering:animate-in entering:fade-in exiting:animate-out exiting:fade-out`}
         isDismissable
       >
-        <Modal className="flex h-full w-full max-w-md flex-col border-l border-border bg-white shadow-2xl entering:animate-in entering:slide-in-from-right exiting:animate-out exiting:fade-out outline-none">
+        <Modal className="flex h-full w-full max-w-md flex-col border-l border-border bg-white shadow-2xl entering:animate-in entering:slide-in-from-right exiting:animate-out exiting:slide-out-to-right outline-none">
           <Dialog className="flex h-full min-h-0 flex-col outline-none">
             {({ close }) => (
               <>
@@ -41,7 +51,7 @@ export function SecretaryDrawer({
                   <button
                     type="button"
                     onClick={close}
-                    className="inline-flex size-9 shrink-0 items-center justify-center rounded-lg border border-border text-text-muted transition-colors hover:border-brand/30 hover:bg-surface-muted hover:text-text"
+                    className="inline-flex size-9 shrink-0 cursor-pointer items-center justify-center rounded-lg border border-border text-text-muted transition-colors hover:border-brand/30 hover:bg-surface-muted hover:text-text"
                     aria-label="Cerrar"
                   >
                     <X className="size-[18px]" aria-hidden="true" />
@@ -62,4 +72,6 @@ export function SecretaryDrawer({
       </ModalOverlay>
     </DialogTrigger>
   );
+
+  return createPortal(drawer, container);
 }

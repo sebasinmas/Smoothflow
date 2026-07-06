@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import { SideNav, type NavItem } from "@/components/layout/SideNav";
 import { TopAppBar } from "@/components/layout/TopAppBar";
+import { DrawerPortalOutlet, DrawerPortalProvider } from "@/contexts/DrawerPortalContext";
 import { SidebarProvider } from "@/contexts/SidebarContext";
 import type { Role } from "@smoothflow/shared";
 
@@ -42,21 +43,26 @@ export function AppShell({
           bottomNavItems={bottomNavItems}
           primaryAction={primaryAction}
         />
-        <div className="flex min-h-0 min-w-0 flex-1 flex-col">
-          <TopAppBar title={title} showNotifications={showNotifications}>
-            {headerExtra}
-          </TopAppBar>
-          <main
-            id="main-content"
-            className={`flex-1 p-4 md:p-6 lg:p-8 animate-in fade-in duration-300 ${
-              fillContent
-                ? "flex min-h-0 flex-col overflow-hidden"
-                : "overflow-y-auto"
-            }`}
-          >
-            {children}
-          </main>
-        </div>
+        <DrawerPortalProvider>
+          <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+            <TopAppBar title={title} showNotifications={showNotifications}>
+              {headerExtra}
+            </TopAppBar>
+            <div className="relative flex min-h-0 flex-1 flex-col">
+              <main
+                id="main-content"
+                className={`flex-1 p-4 md:p-6 lg:p-8 animate-in fade-in duration-300 ${
+                  fillContent
+                    ? "flex min-h-0 flex-col overflow-hidden"
+                    : "overflow-y-auto"
+                }`}
+              >
+                {children}
+              </main>
+              <DrawerPortalOutlet />
+            </div>
+          </div>
+        </DrawerPortalProvider>
       </div>
     </SidebarProvider>
   );

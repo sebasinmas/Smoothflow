@@ -18,7 +18,7 @@ export function SegmentedControl({ value, options, onChange }: SegmentedControlP
           type="button"
           onClick={() => onChange(opt.value)}
           aria-pressed={value === opt.value}
-          className={`rounded-md px-3 py-1.5 text-sm font-medium transition-all duration-200 ${
+          className={`cursor-pointer rounded-md px-3 py-1.5 text-sm font-medium transition-all duration-200 ${
             value === opt.value
               ? "bg-white text-brand shadow-sm"
               : "text-text-muted hover:text-text"
@@ -37,7 +37,7 @@ interface CalendarToolbarProps {
 
 export function CalendarToolbar({ children }: CalendarToolbarProps) {
   return (
-    <div className="mb-4 flex shrink-0 flex-wrap items-center gap-x-4 gap-y-3 rounded-xl border border-border bg-white p-3 shadow-card">
+    <div className="mb-4 flex shrink-0 flex-col gap-3 rounded-xl border border-border bg-white p-3 shadow-card">
       {children}
     </div>
   );

@@ -5,7 +5,7 @@ import { AppointmentSlot } from "@/components/ui/AppointmentSlot";
 import { Input } from "@/components/ui/Input";
 import { Select } from "@/components/ui/Select";
 import { FormDialogFooter } from "@/components/secretary/FormDialogFooter";
-import { SecretaryModal } from "@/components/secretary/SecretaryModal";
+import { AppDrawer } from "@/components/ui/AppDrawer";
 import { ApiError, api } from "@/lib/api";
 import { formatDateTime, formatPersonName } from "@/lib/utils";
 
@@ -133,10 +133,11 @@ function CreateReservationDialogActive({
   ];
 
   return (
-    <SecretaryModal
+    <AppDrawer
       isOpen
       onOpenChange={onOpenChange}
       title="Crear reservación"
+      description="Seleccione paciente, médico y horario disponible."
       footer={
         <FormDialogFooter
           onCancel={() => onOpenChange(false)}
@@ -205,7 +206,7 @@ function CreateReservationDialogActive({
           </p>
         )}
       </div>
-    </SecretaryModal>
+    </AppDrawer>
   );
 }
 

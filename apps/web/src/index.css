@@ -31,6 +31,17 @@
     @apply bg-surface text-text antialiased;
   }
 
+  button:not(:disabled),
+  select:not(:disabled),
+  a[href] {
+    cursor: pointer;
+  }
+
+  button:disabled,
+  select:disabled {
+    cursor: not-allowed;
+  }
+
   .sr-only {
     position: absolute;
     width: 1px;
@@ -95,6 +106,21 @@
 
   .slide-in-from-right {
     animation: slide-in-from-right 0.3s ease-out;
+  }
+
+  @keyframes slide-out-to-right {
+    from {
+      opacity: 1;
+      transform: translateX(0);
+    }
+    to {
+      opacity: 0;
+      transform: translateX(100%);
+    }
+  }
+
+  .slide-out-to-right {
+    animation: slide-out-to-right 0.25s ease-in;
   }
 
   @keyframes login-input-error {

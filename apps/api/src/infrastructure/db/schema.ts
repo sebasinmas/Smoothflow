@@ -20,6 +20,9 @@ export const appointmentStatusEnum = pgEnum("appointment_status", [
   "reagendado",
   "cancelado",
   "bloqueado",
+  "atendido",
+  "no_asistio",
+  "cancelacion_pendiente",
 ]);
 
 export const clinics = pgTable("clinics", {
@@ -118,6 +121,11 @@ export const appointments = pgTable(
     notes: text("notes"),
     pendingReschedule: jsonb("pending_reschedule").$type<{ startAt: string; endAt: string }>(),
     createdByUserId: uuid("created_by_user_id").references(() => users.id),
+    requestedByUserId: uuid("requested_by_user_id").references(() => users.id),
+    requestReason: text("request_reason"),
+    reviewedByUserId: uuid("reviewed_by_user_id").references(() => users.id),
+    reviewNote: text("review_note"),
+    reviewedAt: timestamp("reviewed_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },

@@ -36,7 +36,7 @@ function NavLinkItem({
         onClick={onNavigate}
         title={!isExpanded ? item.label : undefined}
         className={({ isActive }) =>
-          `group flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition-all duration-200 ${
+          `group flex cursor-pointer items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition-all duration-200 ${
             isActive
               ? "bg-brand/10 font-medium text-brand shadow-sm"
               : "text-text hover:bg-surface-muted hover:translate-x-0.5"
@@ -77,7 +77,7 @@ export function SideNav({ userRole, items, bottomNavItems, primaryAction }: Side
         <button
           type="button"
           aria-label="Cerrar menú"
-          className="fixed inset-0 z-30 bg-black/40 backdrop-blur-[2px] transition-opacity duration-300 animate-in fade-in md:hidden"
+          className="fixed inset-0 z-30 cursor-pointer bg-black/40 backdrop-blur-[2px] transition-opacity duration-300 animate-in fade-in md:hidden"
           onClick={closeMobile}
         />
       )}
@@ -159,7 +159,7 @@ export function SideNav({ userRole, items, bottomNavItems, primaryAction }: Side
             type="button"
             onClick={handleLogout}
             title={!isExpanded ? "Cerrar sesión" : undefined}
-            className={`group flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm text-text transition-all duration-200 hover:bg-red-50 hover:text-red-600 ${
+            className={`group flex w-full cursor-pointer items-center gap-3 rounded-lg px-3 py-2.5 text-sm text-text transition-all duration-200 hover:bg-red-50 hover:text-red-600 ${
               isExpanded ? "" : "justify-center px-2"
             }`}
           >

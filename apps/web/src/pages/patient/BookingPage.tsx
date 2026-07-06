@@ -126,7 +126,7 @@ export default function PatientBookingPage() {
                       setPractitionerId(p.id);
                       setStep("slot");
                     }}
-                    className="rounded-lg border border-border bg-white p-4 text-left transition-colors duration-200 hover:border-brand"
+                    className="cursor-pointer rounded-lg border border-border bg-white p-4 text-left transition-colors duration-200 hover:border-brand"
                   >
                     <span className="font-semibold">{p.givenName} {p.familyName}</span>
                     <span className="block text-sm text-text-muted">{p.specialtyName}</span>

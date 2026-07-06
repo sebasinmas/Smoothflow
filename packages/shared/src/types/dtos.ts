@@ -72,6 +72,8 @@ export interface AppointmentDto {
   patientName?: string;
   practitionerName?: string;
   specialtyName?: string;
+  requestReason?: string | null;
+  reviewNote?: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -81,12 +83,14 @@ export interface AvailabilitySlotDto {
   endAt: string;
   status: "disponible" | "reservado" | "bloqueado";
   appointmentId?: string;
+  appointmentStatus?: AppointmentStatus;
   practitionerId: string;
   practitionerName: string;
   specialtyId: string;
   specialtyName: string;
   patientName?: string;
   blockReason?: string;
+  requestReason?: string;
 }
 
 export interface OccupancyReportDto {

@@ -1,4 +1,4 @@
-import { eq, and, gte, lte, ne, inArray } from "drizzle-orm";
+import { eq, and, gte, lte, ne, inArray, desc } from "drizzle-orm";
 import type {
   CreateAppointmentInput,
   UpdateAppointmentInput,
@@ -7,6 +7,9 @@ import type {
   SessionUser,
   AppointmentDto,
   AvailabilitySlotDto,
+  DoctorActionInput,
+  ReviewCancellationInput,
+  AppointmentStatus,
 } from "@smoothflow/shared";
 import { db } from "../infrastructure/db/client.js";
 import {
@@ -18,9 +21,14 @@ import {
   scheduleTemplates,
 } from "../infrastructure/db/schema.js";
 import { AppError } from "../domain/errors.js";
+import {
+  findBookingConflict,
+  hasAppointmentsBlockingRange,
+} from "../domain/scheduling/appointment-rules.js";
+import { generateSlotsFromTemplate } from "../domain/scheduling/slot-generator.js";
 import { writeAuditLog } from "../infrastructure/audit/audit-logger.js";
 import { sendAppointmentConfirmation } from "../infrastructure/email/email-service.js";
-import { broadcastAgendaUpdate } from "../adapters/ws/agenda-sync.js";
+import { agendaSyncPort } from "../infrastructure/realtime/agenda-sync.port-impl.js";
 
 function toAppointmentDto(
   row: typeof appointments.$inferSelect,
@@ -37,6 +45,8 @@ function toAppointmentDto(
     notes: row.notes,
     pendingReschedule: row.pendingReschedule,
     createdByUserId: row.createdByUserId,
+    requestReason: row.requestReason,
+    reviewNote: row.reviewNote,
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
     ...extras,
@@ -53,19 +63,20 @@ async function assertNoConflict(
   if (startAt.getTime() < Date.now()) {
     throw new AppError("No se puede agendar ni solicitar citas en el pasado.", 400);
   }
-
-  const conditions = [
-    eq(appointments.clinicId, clinicId),
-    eq(appointments.practitionerId, practitionerId),
-    ne(appointments.status, "cancelado"),
-    lte(appointments.startAt, endAt),
-    gte(appointments.endAt, startAt),
-  ];
   const rows = await db
     .select()
     .from(appointments)
-    .where(and(...conditions));
-  const conflict = rows.find((r) => r.id !== excludeId && r.status !== "disponible");
+    .where(
+      and(
+        eq(appointments.clinicId, clinicId),
+        eq(appointments.practitionerId, practitionerId),
+        ne(appointments.status, "cancelado"),
+        lte(appointments.startAt, endAt),
+        gte(appointments.endAt, startAt),
+      ),
+    );
+
+  const conflict = findBookingConflict(rows, startAt, endAt, excludeId);
   if (conflict) {
     throw new AppError("El horario ya está ocupado o bloqueado", 409, "DOUBLE_BOOKING");
   }
@@ -197,7 +208,7 @@ async function createAppointmentForClinic(
   }
 
   const dto = toAppointmentDto(created);
-  broadcastAgendaUpdate(clinicId, { type: "appointment:created", appointment: dto });
+  agendaSyncPort.broadcastUpdate(clinicId, { type: "appointment:created", appointment: dto });
   return dto;
 }
 
@@ -287,7 +298,155 @@ export async function updateAppointment(
   }
 
   const dto = toAppointmentDto(updated);
-  broadcastAgendaUpdate(existing.clinicId, { type: "appointment:updated", appointment: dto });
+  agendaSyncPort.broadcastUpdate(existing.clinicId, { type: "appointment:updated", appointment: dto });
+  return dto;
+}
+
+const DOCTOR_ACTIONABLE_STATUSES = new Set(["reservado", "confirmado", "reagendado"]);
+
+export async function applyDoctorAction(
+  user: SessionUser,
+  id: string,
+  input: DoctorActionInput,
+  ip: string,
+): Promise<AppointmentDto> {
+  const [practitioner] = await db
+    .select()
+    .from(practitioners)
+    .where(eq(practitioners.userId, user.id))
+    .limit(1);
+  if (!practitioner) throw new AppError("Médico no encontrado", 404);
+
+  const [existing] = await db.select().from(appointments).where(eq(appointments.id, id)).limit(1);
+  if (!existing) throw new AppError("Cita no encontrada", 404);
+  if (existing.practitionerId !== practitioner.id) {
+    throw new AppError("Solo puede gestionar sus propias citas", 403);
+  }
+  if (!DOCTOR_ACTIONABLE_STATUSES.has(existing.status)) {
+    throw new AppError("La cita no admite esta acción en su estado actual", 409, "INVALID_STATUS");
+  }
+
+  const newStatus =
+    input.action === "atendido"
+      ? ("atendido" as const)
+      : input.action === "no_asistio"
+        ? ("no_asistio" as const)
+        : ("cancelacion_pendiente" as const);
+
+  const [updated] = await db
+    .update(appointments)
+    .set({
+      status: newStatus,
+      requestedByUserId: input.action === "solicitar_cancelacion" ? user.id : existing.requestedByUserId,
+      requestReason:
+        input.action === "solicitar_cancelacion"
+          ? (input.reason?.trim() ?? null)
+          : existing.requestReason,
+      updatedAt: new Date(),
+    })
+    .where(eq(appointments.id, id))
+    .returning();
+
+  await db.insert(appointmentEvents).values({
+    appointmentId: id,
+    userId: user.id,
+    previousStatus: existing.status,
+    newStatus,
+    metadata: input.reason ? { reason: input.reason } : undefined,
+  });
+
+  await writeAuditLog({
+    clinicId: existing.clinicId,
+    userId: user.id,
+    action: "DOCTOR_ACTION",
+    resource: "appointment",
+    resourceId: id,
+    ipAddress: ip,
+    metadata: { action: input.action, status: newStatus },
+  });
+
+  const dto = toAppointmentDto(updated);
+  agendaSyncPort.broadcastUpdate(existing.clinicId, { type: "appointment:updated", appointment: dto });
+  return dto;
+}
+
+export async function reviewCancellationRequest(
+  user: SessionUser,
+  id: string,
+  input: ReviewCancellationInput,
+  ip: string,
+): Promise<AppointmentDto> {
+  const [existing] = await db.select().from(appointments).where(eq(appointments.id, id)).limit(1);
+  if (!existing) throw new AppError("Cita no encontrada", 404);
+  if (!user.clinicId || existing.clinicId !== user.clinicId) {
+    throw new AppError("Acceso denegado", 403);
+  }
+  if (existing.status !== "cancelacion_pendiente") {
+    throw new AppError("La cita no tiene una solicitud de cancelación pendiente", 409, "INVALID_STATUS");
+  }
+
+  // Al rechazar, restaurar el estado que tenía la cita antes de la solicitud.
+  let restoredStatus: AppointmentStatus = "confirmado";
+  if (input.decision === "rechazar") {
+    const [requestEvent] = await db
+      .select()
+      .from(appointmentEvents)
+      .where(
+        and(
+          eq(appointmentEvents.appointmentId, id),
+          eq(appointmentEvents.newStatus, "cancelacion_pendiente"),
+        ),
+      )
+      .orderBy(desc(appointmentEvents.createdAt))
+      .limit(1);
+    if (requestEvent?.previousStatus) restoredStatus = requestEvent.previousStatus;
+  }
+
+  const newStatus = input.decision === "aprobar" ? ("cancelado" as const) : restoredStatus;
+
+  const [updated] = await db
+    .update(appointments)
+    .set({
+      status: newStatus,
+      reviewedByUserId: user.id,
+      reviewNote: input.note.trim(),
+      reviewedAt: new Date(),
+      updatedAt: new Date(),
+    })
+    .where(eq(appointments.id, id))
+    .returning();
+
+  await db.insert(appointmentEvents).values({
+    appointmentId: id,
+    userId: user.id,
+    previousStatus: existing.status,
+    newStatus,
+    metadata: { decision: input.decision, note: input.note },
+  });
+
+  await writeAuditLog({
+    clinicId: existing.clinicId,
+    userId: user.id,
+    action: "REVIEW_CANCELLATION",
+    resource: "appointment",
+    resourceId: id,
+    ipAddress: ip,
+    metadata: { decision: input.decision },
+  });
+
+  if (input.decision === "aprobar" && existing.patientId) {
+    const [patient] = await db
+      .select()
+      .from(patients)
+      .where(eq(patients.id, existing.patientId))
+      .limit(1);
+    if (patient?.email) {
+      await sendAppointmentConfirmation(patient.email, "cancelación", updated.startAt.toISOString());
+    }
+  }
+
+  const dto = toAppointmentDto(updated);
+  agendaSyncPort.broadcastUpdate(existing.clinicId, { type: "appointment:updated", appointment: dto });
   return dto;
 }
 
@@ -310,7 +469,7 @@ async function assertNoConfirmedAppointmentsInBlockRange(
       ),
     );
 
-  if (rows.length > 0) {
+  if (hasAppointmentsBlockingRange(rows, startAt, endAt)) {
     throw new AppError(
       "Existen citas confirmadas en el rango seleccionado. Gestiónelas antes de bloquear.",
       409,
@@ -358,65 +517,13 @@ export async function createBlock(
   });
 
   const dto = toAppointmentDto(created);
-  broadcastAgendaUpdate(user.clinicId, { type: "appointment:blocked", appointment: dto });
+  agendaSyncPort.broadcastUpdate(user.clinicId, { type: "appointment:blocked", appointment: dto });
   return dto;
 }
 
 type BookedAppointment = typeof appointments.$inferSelect & {
   patientName?: string;
 };
-
-function generateSlotsFromTemplate(
-  template: typeof scheduleTemplates.$inferSelect,
-  from: Date,
-  to: Date,
-  practitioner: typeof practitioners.$inferSelect & { specialtyName: string },
-  booked: BookedAppointment[],
-): AvailabilitySlotDto[] {
-  const slots: AvailabilitySlotDto[] = [];
-  const cursor = new Date(from);
-  while (cursor <= to) {
-    if (cursor.getDay() === template.dayOfWeek) {
-      const [sh, sm] = template.startTime.split(":").map(Number);
-      const [eh, em] = template.endTime.split(":").map(Number);
-      let slotStart = new Date(cursor);
-      slotStart.setHours(sh, sm, 0, 0);
-      const dayEnd = new Date(cursor);
-      dayEnd.setHours(eh, em, 0, 0);
-      while (slotStart < dayEnd) {
-        const slotEnd = new Date(slotStart.getTime() + template.slotDurationMinutes * 60000);
-        if (slotEnd <= dayEnd && slotStart >= from && slotStart <= to) {
-          const overlap = booked.find(
-            (b) =>
-              b.status !== "cancelado" &&
-              b.startAt < slotEnd &&
-              b.endAt > slotStart,
-          );
-          let status: AvailabilitySlotDto["status"] = "disponible";
-          if (overlap) {
-            status = overlap.status === "bloqueado" ? "bloqueado" : "reservado";
-          }
-          slots.push({
-            startAt: slotStart.toISOString(),
-            endAt: slotEnd.toISOString(),
-            status,
-            appointmentId: overlap?.id,
-            practitionerId: practitioner.id,
-            practitionerName: `${practitioner.givenName} ${practitioner.familyName}`,
-            specialtyId: practitioner.specialtyId,
-            specialtyName: practitioner.specialtyName,
-            patientName: overlap?.patientName,
-            blockReason:
-              overlap?.status === "bloqueado" ? (overlap.notes ?? undefined) : undefined,
-          });
-        }
-        slotStart = slotEnd;
-      }
-    }
-    cursor.setDate(cursor.getDate() + 1);
-  }
-  return slots;
-}
 
 export async function getAvailability(
   clinicId: string,
