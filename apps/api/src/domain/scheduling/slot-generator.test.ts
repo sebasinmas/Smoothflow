@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { generateSlotsFromTemplate } from "./slot-generator.js";
 
+const TZ = "America/Santiago";
+
 const practitioner = {
   id: "prac-1",
   specialtyId: "spec-1",
@@ -16,31 +18,30 @@ const mondayTemplate = {
   slotDurationMinutes: 30,
 };
 
-function localMonday(year: number, month: number, day: number, hour = 0, minute = 0): Date {
-  const d = new Date(year, month - 1, day, hour, minute, 0, 0);
-  if (d.getDay() !== 1) {
-    throw new Error(`Expected Monday, got day ${d.getDay()} for ${year}-${month}-${day}`);
-  }
-  return d;
-}
+// 2026-07-06 es lunes y cae en invierno chileno (America/Santiago = UTC-4).
+// 2026-01-05 es lunes y cae en verano chileno (America/Santiago = UTC-3, DST).
+// Construimos los instantes con offset explicito para no depender de la zona
+// horaria de la maquina que corre los tests.
 
 describe("generateSlotsFromTemplate (RF-01, RF-02)", () => {
-  it("generates 30-minute slots for a Monday 09:00–17:00", () => {
-    const weekStart = localMonday(2026, 7, 6);
-    const weekEnd = localMonday(2026, 7, 6, 23, 59);
+  it("generates 30-minute slots for a Monday 09:00–17:00 in clinic tz", () => {
+    const from = new Date("2026-07-06T00:00:00-04:00");
+    const to = new Date("2026-07-06T23:59:00-04:00");
 
     const slots = generateSlotsFromTemplate(
       mondayTemplate,
-      weekStart,
-      weekEnd,
+      from,
+      to,
       practitioner,
       [],
+      TZ,
     );
 
     expect(slots.length).toBe(16);
     const first = new Date(slots[0]!.startAt);
-    expect(first.getHours()).toBe(9);
-    expect(first.getMinutes()).toBe(0);
+    // 09:00 en Santiago (UTC-4 en julio) equivale a 13:00 UTC.
+    expect(first.toISOString()).toBe("2026-07-06T13:00:00.000Z");
+    expect(first.getUTCHours()).toBe(13);
     expect(slots[0]).toMatchObject({
       status: "disponible",
       practitionerId: "prac-1",
@@ -49,30 +50,50 @@ describe("generateSlotsFromTemplate (RF-01, RF-02)", () => {
     expect(slots.every((s) => s.status === "disponible")).toBe(true);
   });
 
-  it("marks overlapping confirmado appointment as reservado", () => {
-    const weekStart = localMonday(2026, 7, 6);
-    const weekEnd = localMonday(2026, 7, 6, 23, 59);
+  it("uses the clinic timezone offset including DST (summer = UTC-3)", () => {
+    const from = new Date("2026-01-05T00:00:00-03:00");
+    const to = new Date("2026-01-05T23:59:00-03:00");
 
     const slots = generateSlotsFromTemplate(
       mondayTemplate,
-      weekStart,
-      weekEnd,
+      from,
+      to,
+      practitioner,
+      [],
+      TZ,
+    );
+
+    expect(slots.length).toBe(16);
+    const first = new Date(slots[0]!.startAt);
+    // 09:00 en Santiago (UTC-3 en enero por DST) equivale a 12:00 UTC.
+    expect(first.toISOString()).toBe("2026-01-05T12:00:00.000Z");
+    expect(first.getUTCHours()).toBe(12);
+  });
+
+  it("marks overlapping confirmado appointment as reservado", () => {
+    const from = new Date("2026-07-06T00:00:00-04:00");
+    const to = new Date("2026-07-06T23:59:00-04:00");
+
+    const slots = generateSlotsFromTemplate(
+      mondayTemplate,
+      from,
+      to,
       practitioner,
       [
         {
           id: "apt-1",
           status: "confirmado",
-          startAt: localMonday(2026, 7, 6, 10, 0),
-          endAt: localMonday(2026, 7, 6, 10, 30),
+          startAt: new Date("2026-07-06T10:00:00-04:00"),
+          endAt: new Date("2026-07-06T10:30:00-04:00"),
           patientName: "Juan Pérez",
         },
       ],
+      TZ,
     );
 
-    const tenAmSlot = slots.find((s) => {
-      const d = new Date(s.startAt);
-      return d.getHours() === 10 && d.getMinutes() === 0;
-    });
+    const tenAmSlot = slots.find(
+      (s) => new Date(s.startAt).toISOString() === "2026-07-06T14:00:00.000Z",
+    );
 
     expect(tenAmSlot).toBeDefined();
     expect(tenAmSlot?.status).toBe("reservado");
@@ -81,23 +102,24 @@ describe("generateSlotsFromTemplate (RF-01, RF-02)", () => {
   });
 
   it("marks bloqueado slot with blockReason from notes", () => {
-    const weekStart = localMonday(2026, 7, 6);
-    const weekEnd = localMonday(2026, 7, 6, 23, 59);
+    const from = new Date("2026-07-06T00:00:00-04:00");
+    const to = new Date("2026-07-06T23:59:00-04:00");
 
     const slots = generateSlotsFromTemplate(
       mondayTemplate,
-      weekStart,
-      weekEnd,
+      from,
+      to,
       practitioner,
       [
         {
           id: "block-1",
           status: "bloqueado",
-          startAt: localMonday(2026, 7, 6, 14, 0),
-          endAt: localMonday(2026, 7, 6, 15, 0),
+          startAt: new Date("2026-07-06T14:00:00-04:00"),
+          endAt: new Date("2026-07-06T15:00:00-04:00"),
           notes: "Reunión administrativa",
         },
       ],
+      TZ,
     );
 
     const blockedSlots = slots.filter((s) => s.status === "bloqueado");
@@ -107,10 +129,10 @@ describe("generateSlotsFromTemplate (RF-01, RF-02)", () => {
   });
 
   it("does not generate slots outside from/to range", () => {
-    const from = localMonday(2026, 7, 6, 10, 0);
-    const to = localMonday(2026, 7, 6, 11, 0);
+    const from = new Date("2026-07-06T10:00:00-04:00");
+    const to = new Date("2026-07-06T11:00:00-04:00");
 
-    const slots = generateSlotsFromTemplate(mondayTemplate, from, to, practitioner, []);
+    const slots = generateSlotsFromTemplate(mondayTemplate, from, to, practitioner, [], TZ);
 
     expect(slots.length).toBe(3);
     slots.forEach((s) => {
@@ -120,17 +142,11 @@ describe("generateSlotsFromTemplate (RF-01, RF-02)", () => {
   });
 
   it("does not generate slots on non-template weekdays", () => {
-    const saturday = new Date(2026, 6, 11, 0, 0, 0, 0);
-    const saturdayEnd = new Date(2026, 6, 11, 23, 59, 59, 999);
-    expect(saturday.getDay()).toBe(6);
+    // 2026-07-11 es sábado (dayOfWeek 6), la plantilla es para lunes.
+    const from = new Date("2026-07-11T00:00:00-04:00");
+    const to = new Date("2026-07-11T23:59:00-04:00");
 
-    const slots = generateSlotsFromTemplate(
-      mondayTemplate,
-      saturday,
-      saturdayEnd,
-      practitioner,
-      [],
-    );
+    const slots = generateSlotsFromTemplate(mondayTemplate, from, to, practitioner, [], TZ);
 
     expect(slots).toHaveLength(0);
   });

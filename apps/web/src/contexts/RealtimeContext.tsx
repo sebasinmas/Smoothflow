@@ -51,6 +51,8 @@ function eventLabel(type: string): string {
       return "Cita actualizada";
     case "appointment:blocked":
       return "Bloqueo de agenda";
+    case "schedule:updated":
+      return "Horarios actualizados";
     default:
       return "Actualización de agenda";
   }
