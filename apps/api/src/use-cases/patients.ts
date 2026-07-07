@@ -1,6 +1,8 @@
 import type { CreatePatientInput, SessionUser, PatientDto } from "@smoothflow/shared";
-import { ConflictError, ValidationError } from "../domain/errors.js";
+import { ConflictError } from "../domain/errors.js";
+import { requireClinic } from "../domain/access/require-clinic.js";
 import type { PatientEntity } from "../domain/entities.js";
+import { patientToDto } from "../domain/mappers/patient.js";
 import type { AuditLogger } from "../domain/ports/audit-logger.port.js";
 import type { PatientRepository } from "../domain/ports/patient.repository.js";
 
@@ -34,7 +36,8 @@ export function createPatientUseCases(deps: PatientUseCasesDeps) {
   }
 
   async function listPatients(clinicId: string): Promise<PatientDto[]> {
-    return patients.list(clinicId);
+    const items = await patients.list(clinicId);
+    return items.map(patientToDto);
   }
 
   async function createPatient(
@@ -42,12 +45,12 @@ export function createPatientUseCases(deps: PatientUseCasesDeps) {
     input: CreatePatientInput,
     ip: string,
   ): Promise<PatientDto> {
-    if (!user.clinicId) throw new ValidationError("Clínica no asignada");
+    const clinicId = requireClinic(user);
 
-    await assertPatientUnique(user.clinicId, input.email, input.identifier);
+    await assertPatientUnique(clinicId, input.email, input.identifier);
 
-    const dto = await patients.create({
-      clinicId: user.clinicId,
+    const created = await patients.create({
+      clinicId,
       givenName: input.givenName,
       familyName: input.familyName,
       email: input.email,
@@ -56,19 +59,20 @@ export function createPatientUseCases(deps: PatientUseCasesDeps) {
     });
 
     await auditLogger.write({
-      clinicId: user.clinicId,
+      clinicId,
       userId: user.id,
       action: "CREATE",
       resource: "patient",
-      resourceId: dto.id,
+      resourceId: created.id,
       ipAddress: ip,
     });
 
-    return dto;
+    return patientToDto(created);
   }
 
   async function getPatient(id: string): Promise<PatientDto | null> {
-    return patients.findDtoById(id);
+    const patient = await patients.findById(id);
+    return patient ? patientToDto(patient) : null;
   }
 
   return {

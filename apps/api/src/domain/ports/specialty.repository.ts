@@ -1,4 +1,4 @@
-import type { SpecialtyDto } from "@smoothflow/shared";
+import type { SpecialtyEntity } from "../entities.js";
 
 export interface SpecialtyChanges {
   name?: string;
@@ -6,9 +6,9 @@ export interface SpecialtyChanges {
 }
 
 export interface SpecialtyRepository {
-  listForClinic(clinicId: string): Promise<SpecialtyDto[]>;
-  findForClinic(clinicId: string, specialtyId: string): Promise<SpecialtyDto | null>;
-  create(clinicId: string, data: { name: string; description?: string | null }): Promise<SpecialtyDto>;
-  update(clinicId: string, specialtyId: string, changes: SpecialtyChanges): Promise<SpecialtyDto>;
+  listForClinic(clinicId: string): Promise<SpecialtyEntity[]>;
+  findForClinic(clinicId: string, specialtyId: string): Promise<SpecialtyEntity | null>;
+  create(clinicId: string, data: { name: string; description?: string | null }): Promise<SpecialtyEntity>;
+  update(clinicId: string, specialtyId: string, changes: SpecialtyChanges): Promise<SpecialtyEntity>;
   delete(clinicId: string, specialtyId: string): Promise<void>;
 }

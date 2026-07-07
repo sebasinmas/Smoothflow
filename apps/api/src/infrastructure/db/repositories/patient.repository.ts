@@ -1,5 +1,4 @@
 import { eq, and, sql, isNotNull } from "drizzle-orm";
-import type { PatientDto } from "@smoothflow/shared";
 import { db } from "../client.js";
 import { patients } from "../schema.js";
 import type { PatientEntity } from "../../../domain/entities.js";
@@ -11,30 +10,18 @@ import type {
 
 type PatientRow = typeof patients.$inferSelect;
 
-function toEntity(row: PatientRow): PatientEntity {
-  return {
-    id: row.id,
-    clinicId: row.clinicId,
-    userId: row.userId,
-    givenName: row.givenName,
-    familyName: row.familyName,
-    email: row.email,
-    createdAt: row.createdAt,
-  };
-}
-
 export function createPatientRepository(fieldCrypto: FieldCrypto): PatientRepository {
-  function toDto(row: PatientRow): PatientDto {
+  function toEntity(row: PatientRow): PatientEntity {
     return {
       id: row.id,
       clinicId: row.clinicId,
+      userId: row.userId,
       givenName: row.givenName,
       familyName: row.familyName,
       email: row.email,
       phone: row.phoneEncrypted ? fieldCrypto.decrypt(row.phoneEncrypted) : null,
       identifier: row.identifierEncrypted ? fieldCrypto.decrypt(row.identifierEncrypted) : null,
-      hasPortalAccess: row.userId != null,
-      createdAt: row.createdAt.toISOString(),
+      createdAt: row.createdAt,
     };
   }
 
@@ -59,11 +46,6 @@ export function createPatientRepository(fieldCrypto: FieldCrypto): PatientReposi
     async findById(id: string): Promise<PatientEntity | null> {
       const [row] = await db.select().from(patients).where(eq(patients.id, id)).limit(1);
       return row ? toEntity(row) : null;
-    },
-
-    async findDtoById(id: string): Promise<PatientDto | null> {
-      const [row] = await db.select().from(patients).where(eq(patients.id, id)).limit(1);
-      return row ? toDto(row) : null;
     },
 
     async findByUserId(userId: string): Promise<PatientEntity | null> {
@@ -100,12 +82,12 @@ export function createPatientRepository(fieldCrypto: FieldCrypto): PatientReposi
       return Boolean(row);
     },
 
-    async list(clinicId: string): Promise<PatientDto[]> {
+    async list(clinicId: string): Promise<PatientEntity[]> {
       const rows = await db.select().from(patients).where(eq(patients.clinicId, clinicId));
-      return rows.map(toDto);
+      return rows.map(toEntity);
     },
 
-    async create(data: NewPatient): Promise<PatientDto> {
+    async create(data: NewPatient): Promise<PatientEntity> {
       const [created] = await db
         .insert(patients)
         .values({
@@ -118,7 +100,7 @@ export function createPatientRepository(fieldCrypto: FieldCrypto): PatientReposi
           identifierEncrypted: data.identifier ? fieldCrypto.encrypt(data.identifier) : null,
         })
         .returning();
-      return toDto(created);
+      return toEntity(created);
     },
 
     async linkPortalAccount(patientId, userId, data): Promise<void> {

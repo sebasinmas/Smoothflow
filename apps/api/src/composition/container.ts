@@ -4,11 +4,12 @@ import { appointmentNotifier } from "../infrastructure/email/email-service.js";
 import { fieldCrypto } from "../infrastructure/crypto/encryption.js";
 import { passwordHasher } from "../infrastructure/auth/password.js";
 import { sessionRevoker } from "../infrastructure/session/session-revoker.js";
+import { db } from "../infrastructure/db/client.js";
 import { appointmentRepository } from "../infrastructure/db/repositories/appointment.repository.js";
-import { userRepository } from "../infrastructure/db/repositories/user.repository.js";
+import { createUserRepository } from "../infrastructure/db/repositories/user.repository.js";
 import { createPatientRepository } from "../infrastructure/db/repositories/patient.repository.js";
 import { practitionerRepository } from "../infrastructure/db/repositories/practitioner.repository.js";
-import { specialtyRepository } from "../infrastructure/db/repositories/specialty.repository.js";
+import { createSpecialtyRepository } from "../infrastructure/db/repositories/specialty.repository.js";
 import { scheduleRepository } from "../infrastructure/db/repositories/schedule.repository.js";
 import { clinicRepository } from "../infrastructure/db/repositories/clinic.repository.js";
 import { auditReadRepository } from "../infrastructure/db/repositories/audit.repository.js";
@@ -24,6 +25,8 @@ import { createAuditUseCases } from "../use-cases/audit.js";
  * Es la unica capa autorizada a conocer implementaciones concretas.
  */
 const patientRepository = createPatientRepository(fieldCrypto);
+const userRepository = createUserRepository(db);
+const specialtyRepository = createSpecialtyRepository(db);
 
 const patientUseCases = createPatientUseCases({
   patients: patientRepository,

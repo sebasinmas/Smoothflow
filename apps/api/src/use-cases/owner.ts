@@ -14,13 +14,16 @@ import type {
   OccupancyReportDto,
 } from "@smoothflow/shared";
 import { NotFoundError, ConflictError, ValidationError } from "../domain/errors.js";
+import { requireClinic } from "../domain/access/require-clinic.js";
 import { canUnlinkStaff, canRelinkStaff, canDeleteStaff, isRevokedStaff } from "../domain/staff-rules.js";
 import {
   findOverlappingSchedule,
   isValidScheduleRange,
 } from "../domain/scheduling/schedule-overlap.js";
 import { computeDayOccupancy } from "../domain/scheduling/occupancy.js";
+import { buildWeekDayRanges, toIsoDate } from "../domain/scheduling/week-range.js";
 import { userToDto } from "../domain/mappers/user.js";
+import { specialtyToDto } from "../domain/mappers/specialty.js";
 import type { PasswordHasher } from "../domain/ports/password-hasher.port.js";
 import type { AuditLogger } from "../domain/ports/audit-logger.port.js";
 import type { AgendaSyncPort } from "../domain/ports/agenda-sync.port.js";
@@ -43,11 +46,6 @@ export interface OwnerUseCasesDeps {
   sessionRevoker: SessionRevoker;
 }
 
-function requireClinic(user: SessionUser): string {
-  if (!user.clinicId) throw new ValidationError("Clínica no asignada");
-  return user.clinicId;
-}
-
 export function createOwnerUseCases(deps: OwnerUseCasesDeps) {
   const {
     users,
@@ -62,7 +60,8 @@ export function createOwnerUseCases(deps: OwnerUseCasesDeps) {
   } = deps;
 
   async function listStaff(clinicId: string): Promise<UserDto[]> {
-    return users.listStaff(clinicId);
+    const staff = await users.listStaff(clinicId);
+    return staff.map(userToDto);
   }
 
   async function createStaff(
@@ -216,7 +215,8 @@ export function createOwnerUseCases(deps: OwnerUseCasesDeps) {
   }
 
   async function listSpecialties(clinicId: string): Promise<SpecialtyDto[]> {
-    return specialties.listForClinic(clinicId);
+    const items = await specialties.listForClinic(clinicId);
+    return items.map(specialtyToDto);
   }
 
   async function createSpecialty(
@@ -237,7 +237,7 @@ export function createOwnerUseCases(deps: OwnerUseCasesDeps) {
       resourceId: created.id,
       ipAddress: ip,
     });
-    return created;
+    return specialtyToDto(created);
   }
 
   async function updateSpecialty(
@@ -264,7 +264,7 @@ export function createOwnerUseCases(deps: OwnerUseCasesDeps) {
       ipAddress: ip,
     });
 
-    return updated;
+    return specialtyToDto(updated);
   }
 
   async function deleteSpecialty(
@@ -373,21 +373,25 @@ export function createOwnerUseCases(deps: OwnerUseCasesDeps) {
     const existing = await schedules.findForClinic(clinicId, scheduleId);
     if (!existing) throw new NotFoundError("Horario no encontrado");
 
-    const next = {
+    const nextSchedule = {
       dayOfWeek: input.dayOfWeek ?? existing.dayOfWeek,
       startTime: input.startTime ?? existing.startTime,
       endTime: input.endTime ?? existing.endTime,
       slotDurationMinutes: input.slotDurationMinutes ?? existing.slotDurationMinutes,
     };
 
-    if (!isValidScheduleRange(next.startTime, next.endTime)) {
+    if (!isValidScheduleRange(nextSchedule.startTime, nextSchedule.endTime)) {
       throw new ValidationError("La hora de inicio debe ser anterior a la hora de fin");
     }
 
     const siblings = await schedules.listForPractitioner(existing.practitionerId);
 
     const overlap = findOverlappingSchedule(
-      { dayOfWeek: next.dayOfWeek, startTime: next.startTime, endTime: next.endTime },
+      {
+        dayOfWeek: nextSchedule.dayOfWeek,
+        startTime: nextSchedule.startTime,
+        endTime: nextSchedule.endTime,
+      },
       siblings,
       scheduleId,
       siblings.map((r) => r.id),
@@ -396,7 +400,7 @@ export function createOwnerUseCases(deps: OwnerUseCasesDeps) {
       throw new ConflictError("El horario se superpone con otro bloque del mismo día");
     }
 
-    const updated = await schedules.update(scheduleId, next);
+    const updated = await schedules.update(scheduleId, nextSchedule);
 
     await auditLogger.write({
       clinicId,
@@ -437,22 +441,16 @@ export function createOwnerUseCases(deps: OwnerUseCasesDeps) {
   ): Promise<OccupancyReportDto> {
     const start = new Date(weekStart);
     const days = [];
-    for (let i = 0; i < 7; i++) {
-      const dayStart = new Date(start);
-      dayStart.setDate(start.getDate() + i);
-      dayStart.setHours(0, 0, 0, 0);
-      const dayEnd = new Date(dayStart);
-      dayEnd.setHours(23, 59, 59, 999);
-
+    for (const { date, start: dayStart, end: dayEnd } of buildWeekDayRanges(start)) {
       const statuses = await appointments.listStatusesForDay(clinicId, dayStart, dayEnd);
 
       const occupancy = computeDayOccupancy(statuses);
       days.push({
-        date: dayStart.toISOString().slice(0, 10),
+        date,
         ...occupancy,
       });
     }
-    return { weekStart: start.toISOString().slice(0, 10), days };
+    return { weekStart: toIsoDate(start), days };
   }
 
   return {

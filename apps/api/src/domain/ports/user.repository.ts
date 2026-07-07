@@ -1,4 +1,4 @@
-import type { Role, UserDto } from "@smoothflow/shared";
+import type { Role } from "@smoothflow/shared";
 import type { UserEntity } from "../entities.js";
 
 export interface NewUser {
@@ -21,7 +21,7 @@ export interface UserChanges {
 export interface UserRepository {
   findByEmail(email: string): Promise<UserEntity | null>;
   findById(id: string): Promise<UserEntity | null>;
-  listStaff(clinicId: string): Promise<UserDto[]>;
+  listStaff(clinicId: string): Promise<UserEntity[]>;
   create(data: NewUser): Promise<UserEntity>;
   update(id: string, changes: UserChanges): Promise<UserEntity>;
   markRevoked(id: string): Promise<void>;

@@ -1,4 +1,3 @@
-import type { PatientDto } from "@smoothflow/shared";
 import type { PatientEntity } from "../entities.js";
 
 export interface NewPatient {
@@ -13,7 +12,6 @@ export interface NewPatient {
 
 export interface PatientRepository {
   findById(id: string): Promise<PatientEntity | null>;
-  findDtoById(id: string): Promise<PatientDto | null>;
   findByUserId(userId: string): Promise<PatientEntity | null>;
   findForPortalLink(
     clinicId: string,
@@ -22,8 +20,8 @@ export interface PatientRepository {
   ): Promise<PatientEntity | null>;
   existsByEmail(clinicId: string, email: string): Promise<boolean>;
   existsByIdentifier(clinicId: string, identifier: string): Promise<boolean>;
-  list(clinicId: string): Promise<PatientDto[]>;
-  create(data: NewPatient): Promise<PatientDto>;
+  list(clinicId: string): Promise<PatientEntity[]>;
+  create(data: NewPatient): Promise<PatientEntity>;
   /** Vincula una cuenta de portal a un paciente existente preservando datos previos. */
   linkPortalAccount(
     patientId: string,

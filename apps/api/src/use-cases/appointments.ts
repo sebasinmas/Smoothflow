@@ -11,6 +11,7 @@ import type {
   AppointmentStatus,
 } from "@smoothflow/shared";
 import { NotFoundError, ConflictError, ValidationError, ForbiddenError } from "../domain/errors.js";
+import { requireClinic } from "../domain/access/require-clinic.js";
 import {
   findBookingConflict,
   hasAppointmentsBlockingRange,
@@ -82,9 +83,7 @@ export function createAppointmentUseCases(deps: AppointmentUseCasesDeps) {
     user: SessionUser,
     filters: { from?: string; to?: string; practitionerId?: string },
   ): Promise<AppointmentDto[]> {
-    if (!user.clinicId && user.role !== "paciente") {
-      throw new ValidationError("Clínica no asignada");
-    }
+    const clinicId = user.role === "paciente" ? user.clinicId : requireClinic(user);
 
     const query: AppointmentListFilters = {};
     if (user.role === "medico") {
@@ -95,8 +94,8 @@ export function createAppointmentUseCases(deps: AppointmentUseCasesDeps) {
       const patient = await patients.findByUserId(user.id);
       if (!patient) return [];
       query.patientId = patient.id;
-    } else if (user.clinicId) {
-      query.clinicId = user.clinicId;
+    } else if (clinicId) {
+      query.clinicId = clinicId;
     }
 
     if (query.practitionerId === undefined && filters.practitionerId) {
@@ -165,8 +164,7 @@ export function createAppointmentUseCases(deps: AppointmentUseCasesDeps) {
       if (!patient) throw new NotFoundError("Paciente no encontrado");
       return createAppointmentForClinic(patient.clinicId, user, input, ip, patient.id);
     }
-    const clinicId = user.clinicId;
-    if (!clinicId) throw new ValidationError("Clínica no asignada");
+    const clinicId = requireClinic(user);
     if (!input.patientId) throw new ValidationError("patientId requerido");
     return createAppointmentForClinic(clinicId, user, input, ip, input.patientId);
   }
@@ -384,19 +382,19 @@ export function createAppointmentUseCases(deps: AppointmentUseCasesDeps) {
     input: CreateBlockInput,
     ip: string,
   ): Promise<AppointmentDto> {
-    if (!user.clinicId) throw new ValidationError("Clínica no asignada");
+    const clinicId = requireClinic(user);
     const startAt = new Date(input.startAt);
     const endAt = new Date(input.endAt);
 
     await assertNoConfirmedAppointmentsInBlockRange(
-      user.clinicId,
+      clinicId,
       input.practitionerId,
       startAt,
       endAt,
     );
 
     const created = await appointments.create({
-      clinicId: user.clinicId,
+      clinicId,
       practitionerId: input.practitionerId,
       status: "bloqueado",
       startAt,
@@ -406,7 +404,7 @@ export function createAppointmentUseCases(deps: AppointmentUseCasesDeps) {
     });
 
     await auditLogger.write({
-      clinicId: user.clinicId,
+      clinicId,
       userId: user.id,
       action: "BLOCK",
       resource: "appointment",
@@ -415,7 +413,7 @@ export function createAppointmentUseCases(deps: AppointmentUseCasesDeps) {
     });
 
     const dto = appointmentToDto(created);
-    agendaSync.broadcastUpdate(user.clinicId, { type: "appointment:blocked", appointment: dto });
+    agendaSync.broadcastUpdate(clinicId, { type: "appointment:blocked", appointment: dto });
     return dto;
   }
 

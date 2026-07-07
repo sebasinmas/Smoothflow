@@ -1,7 +1,7 @@
 import { eq, and } from "drizzle-orm";
-import type { SpecialtyDto } from "@smoothflow/shared";
-import { db } from "../client.js";
+import type { Database } from "../client.js";
 import { specialties } from "../schema.js";
+import type { SpecialtyEntity } from "../../../domain/entities.js";
 import type {
   SpecialtyRepository,
   SpecialtyChanges,
@@ -9,7 +9,7 @@ import type {
 
 type SpecialtyRow = typeof specialties.$inferSelect;
 
-function toDto(row: SpecialtyRow): SpecialtyDto {
+function toEntity(row: SpecialtyRow): SpecialtyEntity {
   return {
     id: row.id,
     clinicId: row.clinicId,
@@ -18,44 +18,46 @@ function toDto(row: SpecialtyRow): SpecialtyDto {
   };
 }
 
-export const specialtyRepository: SpecialtyRepository = {
-  async listForClinic(clinicId: string): Promise<SpecialtyDto[]> {
-    const rows = await db.select().from(specialties).where(eq(specialties.clinicId, clinicId));
-    return rows.map(toDto);
-  },
+export function createSpecialtyRepository(db: Database): SpecialtyRepository {
+  return {
+    async listForClinic(clinicId: string): Promise<SpecialtyEntity[]> {
+      const rows = await db.select().from(specialties).where(eq(specialties.clinicId, clinicId));
+      return rows.map(toEntity);
+    },
 
-  async findForClinic(clinicId: string, specialtyId: string): Promise<SpecialtyDto | null> {
-    const [row] = await db
-      .select()
-      .from(specialties)
-      .where(and(eq(specialties.id, specialtyId), eq(specialties.clinicId, clinicId)));
-    return row ? toDto(row) : null;
-  },
+    async findForClinic(clinicId: string, specialtyId: string): Promise<SpecialtyEntity | null> {
+      const [row] = await db
+        .select()
+        .from(specialties)
+        .where(and(eq(specialties.id, specialtyId), eq(specialties.clinicId, clinicId)));
+      return row ? toEntity(row) : null;
+    },
 
-  async create(clinicId, data): Promise<SpecialtyDto> {
-    const [created] = await db
-      .insert(specialties)
-      .values({ clinicId, name: data.name, description: data.description ?? null })
-      .returning();
-    return toDto(created);
-  },
+    async create(clinicId, data): Promise<SpecialtyEntity> {
+      const [created] = await db
+        .insert(specialties)
+        .values({ clinicId, name: data.name, description: data.description ?? null })
+        .returning();
+      return toEntity(created);
+    },
 
-  async update(clinicId, specialtyId, changes: SpecialtyChanges): Promise<SpecialtyDto> {
-    const updates: Partial<{ name: string; description: string | null }> = {};
-    if (changes.name !== undefined) updates.name = changes.name;
-    if (changes.description !== undefined) updates.description = changes.description;
+    async update(clinicId, specialtyId, changes: SpecialtyChanges): Promise<SpecialtyEntity> {
+      const updates: Partial<{ name: string; description: string | null }> = {};
+      if (changes.name !== undefined) updates.name = changes.name;
+      if (changes.description !== undefined) updates.description = changes.description;
 
-    const [updated] = await db
-      .update(specialties)
-      .set(updates)
-      .where(and(eq(specialties.id, specialtyId), eq(specialties.clinicId, clinicId)))
-      .returning();
-    return toDto(updated);
-  },
+      const [updated] = await db
+        .update(specialties)
+        .set(updates)
+        .where(and(eq(specialties.id, specialtyId), eq(specialties.clinicId, clinicId)))
+        .returning();
+      return toEntity(updated);
+    },
 
-  async delete(clinicId, specialtyId): Promise<void> {
-    await db
-      .delete(specialties)
-      .where(and(eq(specialties.id, specialtyId), eq(specialties.clinicId, clinicId)));
-  },
-};
+    async delete(clinicId, specialtyId): Promise<void> {
+      await db
+        .delete(specialties)
+        .where(and(eq(specialties.id, specialtyId), eq(specialties.clinicId, clinicId)));
+    },
+  };
+}

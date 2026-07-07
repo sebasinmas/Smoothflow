@@ -46,7 +46,16 @@ export interface PatientEntity {
   givenName: string;
   familyName: string;
   email: string | null;
+  phone: string | null;
+  identifier: string | null;
   createdAt: Date;
+}
+
+export interface SpecialtyEntity {
+  id: string;
+  clinicId: string;
+  name: string;
+  description: string | null;
 }
 
 export interface PractitionerRef {
