@@ -433,7 +433,7 @@ export function createAppointmentUseCases(deps: AppointmentUseCasesDeps) {
       const pBooked = data.booked.filter((b) => b.practitionerId === practitioner.id);
       for (const template of pTemplates) {
         allSlots.push(
-          ...generateSlotsFromTemplate(template, from, to, practitioner, pBooked),
+          ...generateSlotsFromTemplate(template, from, to, practitioner, pBooked, data.timezone),
         );
       }
     }

@@ -8,6 +8,7 @@ import {
   specialties,
   patients,
   scheduleTemplates,
+  clinics,
 } from "../schema.js";
 import type { AppointmentEntity } from "../../../domain/entities.js";
 import type {
@@ -221,6 +222,13 @@ export const appointmentRepository: AppointmentRepository = {
   },
 
   async getAvailabilityData(clinicId, query): Promise<AvailabilityData> {
+    const [clinicRow] = await db
+      .select({ timezone: clinics.timezone })
+      .from(clinics)
+      .where(eq(clinics.id, clinicId))
+      .limit(1);
+    const timezone = clinicRow?.timezone ?? "America/Santiago";
+
     const practitionerConditions = [eq(practitioners.clinicId, clinicId)];
     if (query.practitionerId) {
       practitionerConditions.push(eq(practitioners.id, query.practitionerId));
@@ -240,7 +248,7 @@ export const appointmentRepository: AppointmentRepository = {
 
     const practitionerIds = practitionerRows.map((p) => p.practitioner.id);
     if (practitionerIds.length === 0) {
-      return { practitioners: [], templates: [], booked: [] };
+      return { practitioners: [], templates: [], booked: [], timezone };
     }
 
     const from = new Date(query.from);
@@ -294,6 +302,7 @@ export const appointmentRepository: AppointmentRepository = {
         patientName: r.patientGiven ? `${r.patientGiven} ${r.patientFamily}` : undefined,
         requestReason: r.appointment.requestReason,
       })),
+      timezone,
     };
   },
 };

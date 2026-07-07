@@ -51,6 +51,7 @@ export interface AvailabilityData {
   practitioners: PractitionerAvailabilityContext[];
   templates: Array<ScheduleTemplateSlot & { practitionerId: string }>;
   booked: Array<BookedAppointmentSlot & { practitionerId: string }>;
+  timezone: string;
 }
 
 export interface AppointmentRepository {

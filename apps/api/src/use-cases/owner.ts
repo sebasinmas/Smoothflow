@@ -360,6 +360,7 @@ export function createOwnerUseCases(deps: OwnerUseCasesDeps) {
       resourceId: created.id,
       ipAddress: ip,
     });
+    agendaSync.broadcastUpdate(clinicId, { type: "schedule:updated" });
     return created;
   }
 
@@ -411,6 +412,8 @@ export function createOwnerUseCases(deps: OwnerUseCasesDeps) {
       ipAddress: ip,
     });
 
+    agendaSync.broadcastUpdate(clinicId, { type: "schedule:updated" });
+
     return updated;
   }
 
@@ -433,6 +436,8 @@ export function createOwnerUseCases(deps: OwnerUseCasesDeps) {
       resourceId: scheduleId,
       ipAddress: ip,
     });
+
+    agendaSync.broadcastUpdate(clinicId, { type: "schedule:updated" });
   }
 
   async function getOccupancyReport(
