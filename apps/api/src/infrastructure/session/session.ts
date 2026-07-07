@@ -11,7 +11,7 @@ export function createSessionMiddleware() {
     saveUninitialized: false,
     cookie: {
       httpOnly: true,
-      secure: isProd,
+      secure: isProd ? "auto" : false,
       sameSite: "lax",
       maxAge: 24 * 60 * 60 * 1000,
     },
