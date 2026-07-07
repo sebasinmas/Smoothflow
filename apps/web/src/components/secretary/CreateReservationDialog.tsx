@@ -207,9 +207,9 @@ function CreateReservationDialogActive({
           <Input
             id="reservation-notes"
             label="Notas (opcional)"
+            hideLabel
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
-            className="[&_label]:sr-only"
           />
         </div>
         {error && (

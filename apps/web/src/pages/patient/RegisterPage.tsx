@@ -32,7 +32,7 @@ export default function PatientRegisterPage() {
         phone: form.phone || undefined,
         identifier: form.identifier || undefined,
       });
-      navigate("/paciente/reservar");
+      navigate("/patient/booking");
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Error al registrarse");
     } finally {
@@ -57,9 +57,9 @@ export default function PatientRegisterPage() {
           <Input
             id="phone"
             label="Teléfono (opcional)"
+            hideLabel
             value={form.phone}
             onChange={(e) => setForm({ ...form, phone: e.target.value })}
-            className="[&_label]:sr-only"
           />
         </div>
         <div className="flex flex-col gap-1">
@@ -72,9 +72,9 @@ export default function PatientRegisterPage() {
           <Input
             id="identifier"
             label="RUT (opcional)"
+            hideLabel
             value={form.identifier}
             onChange={(e) => setForm({ ...form, identifier: e.target.value })}
-            className="[&_label]:sr-only"
           />
         </div>
         {error && <p className="text-sm text-red-600" role="alert">{error}</p>}
@@ -84,7 +84,7 @@ export default function PatientRegisterPage() {
       </form>
       <p className="mt-4 text-center text-sm">
         <Link
-          to="/paciente/login"
+          to="/patient/login"
           className="cursor-pointer text-brand underline decoration-brand/30 underline-offset-2 transition-colors hover:decoration-brand focus-visible:underline"
         >
           Ya tengo cuenta

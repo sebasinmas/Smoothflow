@@ -1,11 +1,13 @@
-import type { ReactNode } from "react";
-import { Tooltip, TooltipTrigger } from "react-aria-components";
+import type { ComponentProps, ReactElement, ReactNode } from "react";
+import { Focusable, Tooltip, TooltipTrigger } from "react-aria-components";
+
+type FocusableChild = ComponentProps<typeof Focusable>["children"];
 
 type TooltipPlacement = "top" | "bottom" | "left" | "right";
 
 interface AppTooltipProps {
   content: ReactNode;
-  children: ReactNode;
+  children: ReactElement;
   isDisabled?: boolean;
   placement?: TooltipPlacement;
   className?: string;
@@ -24,7 +26,7 @@ export function AppTooltip({
 
   return (
     <TooltipTrigger delay={400}>
-      {children}
+      <Focusable>{children as FocusableChild}</Focusable>
       <Tooltip
         offset={6}
         placement={placement}

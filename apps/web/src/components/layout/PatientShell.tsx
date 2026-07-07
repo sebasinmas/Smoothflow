@@ -37,7 +37,7 @@ export function PatientShell({ title, children }: PatientShellProps) {
 
   const handleLogout = async () => {
     await logout();
-    navigate("/paciente/login");
+    navigate("/patient/login");
   };
 
   return (

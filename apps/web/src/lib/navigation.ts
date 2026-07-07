@@ -18,18 +18,18 @@ import type { NavItem } from "@/components/layout/SideNav";
 type LucideIcon = ComponentType<LucideProps>;
 
 const NAV_ICONS: Record<string, LucideIcon> = {
-  "/secretaria/panel": LayoutDashboard,
-  "/secretaria/calendario": Calendar,
-  "/secretaria/pacientes": Users,
-  "/secretaria/solicitudes": ClipboardList,
-  "/doctor/calendario": Calendar,
-  "/doctor/historial": History,
+  "/secretary/dashboard": LayoutDashboard,
+  "/secretary/calendar": Calendar,
+  "/secretary/patients": Users,
+  "/secretary/requests": ClipboardList,
+  "/doctor/calendar": Calendar,
+  "/doctor/history": History,
   "/owner/staff": UserCog,
-  "/owner/horarios": CalendarClock,
-  "/owner/configuracion": Settings,
-  "/owner/reportes": BarChart3,
-  "/paciente/reservar": CalendarPlus,
-  "/paciente/mis-citas": CalendarCheck,
+  "/owner/schedules": CalendarClock,
+  "/owner/settings": Settings,
+  "/owner/reports": BarChart3,
+  "/patient/booking": CalendarPlus,
+  "/patient/appointments": CalendarCheck,
 };
 
 export function getNavIcon(path: string): LucideIcon {
@@ -37,28 +37,28 @@ export function getNavIcon(path: string): LucideIcon {
 }
 
 export const SECRETARIA_NAV: NavItem[] = [
-  { to: "/secretaria/panel", label: "Panel de control" },
-  { to: "/secretaria/calendario", label: "Calendario" },
-  { to: "/secretaria/pacientes", label: "Pacientes" },
-  { to: "/secretaria/solicitudes", label: "Solicitudes" },
+  { to: "/secretary/dashboard", label: "Panel de control" },
+  { to: "/secretary/calendar", label: "Calendario" },
+  { to: "/secretary/patients", label: "Pacientes" },
+  { to: "/secretary/requests", label: "Solicitudes" },
 ];
 
 export const DOCTOR_NAV: NavItem[] = [
-  { to: "/doctor/calendario", label: "Agenda del día" },
-  { to: "/doctor/historial", label: "Historial" },
+  { to: "/doctor/calendar", label: "Agenda del día" },
+  { to: "/doctor/history", label: "Historial" },
 ];
 
 export const OWNER_NAV: NavItem[] = [
   { to: "/owner/staff", label: "Personal" },
-  { to: "/owner/horarios", label: "Horarios" },
-  { to: "/owner/reportes", label: "Reportes" },
+  { to: "/owner/schedules", label: "Horarios" },
+  { to: "/owner/reports", label: "Reportes" },
 ];
 
 export const OWNER_BOTTOM_NAV: NavItem[] = [
-  { to: "/owner/configuracion", label: "Configuración" },
+  { to: "/owner/settings", label: "Configuración" },
 ];
 
 export const PACIENTE_NAV: NavItem[] = [
-  { to: "/paciente/reservar", label: "Reservar" },
-  { to: "/paciente/mis-citas", label: "Mis citas" },
+  { to: "/patient/booking", label: "Reservar" },
+  { to: "/patient/appointments", label: "Mis citas" },
 ];
