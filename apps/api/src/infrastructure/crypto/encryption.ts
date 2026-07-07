@@ -1,4 +1,5 @@
 import { createCipheriv, createDecipheriv, randomBytes, scryptSync } from "node:crypto";
+import type { FieldCrypto } from "../../domain/ports/field-crypto.port.js";
 
 const ALGORITHM = "aes-256-gcm";
 
@@ -25,3 +26,8 @@ export function decryptField(payload: string): string {
     decipher.final(),
   ]).toString("utf8");
 }
+
+export const fieldCrypto: FieldCrypto = {
+  encrypt: encryptField,
+  decrypt: decryptField,
+};

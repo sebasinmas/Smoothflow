@@ -1,15 +1,8 @@
 import { db } from "../db/client.js";
 import { auditLogs } from "../db/schema.js";
+import type { AuditLogger, AuditParams } from "../../domain/ports/audit-logger.port.js";
 
-export interface AuditParams {
-  clinicId?: string | null;
-  userId?: string | null;
-  action: string;
-  resource: string;
-  resourceId?: string | null;
-  ipAddress?: string | null;
-  metadata?: Record<string, unknown>;
-}
+export type { AuditParams };
 
 export async function writeAuditLog(params: AuditParams): Promise<void> {
   await db.insert(auditLogs).values({
@@ -22,3 +15,7 @@ export async function writeAuditLog(params: AuditParams): Promise<void> {
     metadata: params.metadata ?? null,
   });
 }
+
+export const auditLogger: AuditLogger = {
+  write: writeAuditLog,
+};

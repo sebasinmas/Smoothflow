@@ -1,3 +1,8 @@
+import type {
+  AppointmentNotifier,
+  AppointmentNotificationAction,
+} from "../../domain/ports/appointment-notifier.port.js";
+
 export interface EmailMessage {
   to: string;
   subject: string;
@@ -19,7 +24,7 @@ export const emailService: EmailService = new ConsoleEmailService();
 
 export async function sendAppointmentConfirmation(
   to: string,
-  action: "reserva" | "reagendamiento" | "cancelación",
+  action: AppointmentNotificationAction,
   startAt: string,
 ): Promise<void> {
   await emailService.send({
@@ -29,3 +34,7 @@ export async function sendAppointmentConfirmation(
     html: `<p>Su cita ha sido registrada con <strong>${action}</strong> para el <strong>${new Date(startAt).toLocaleString("es-CL")}</strong>.</p>`,
   });
 }
+
+export const appointmentNotifier: AppointmentNotifier = {
+  sendConfirmation: sendAppointmentConfirmation,
+};

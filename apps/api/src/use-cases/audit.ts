@@ -1,34 +1,19 @@
-import { desc, eq } from "drizzle-orm";
-import { db } from "../infrastructure/db/client.js";
-import { auditLogs } from "../infrastructure/db/schema.js";
+import type { AuditReadRepository, AuditLogDto } from "../domain/ports/audit.repository.js";
 
-export interface AuditLogDto {
-  id: string;
-  userId: string | null;
-  action: string;
-  resource: string;
-  resourceId: string | null;
-  ipAddress: string | null;
-  metadata: Record<string, unknown> | null;
-  createdAt: string;
+export type { AuditLogDto };
+
+export interface AuditUseCasesDeps {
+  auditRead: AuditReadRepository;
 }
 
-export async function listAuditLogs(clinicId: string, limit = 100): Promise<AuditLogDto[]> {
-  const rows = await db
-    .select()
-    .from(auditLogs)
-    .where(eq(auditLogs.clinicId, clinicId))
-    .orderBy(desc(auditLogs.createdAt))
-    .limit(limit);
+export function createAuditUseCases(deps: AuditUseCasesDeps) {
+  const { auditRead } = deps;
 
-  return rows.map((r) => ({
-    id: r.id,
-    userId: r.userId,
-    action: r.action,
-    resource: r.resource,
-    resourceId: r.resourceId,
-    ipAddress: r.ipAddress,
-    metadata: r.metadata as Record<string, unknown> | null,
-    createdAt: r.createdAt.toISOString(),
-  }));
+  async function listAuditLogs(clinicId: string, limit = 100): Promise<AuditLogDto[]> {
+    return auditRead.list(clinicId, limit);
+  }
+
+  return { listAuditLogs };
 }
+
+export type AuditUseCases = ReturnType<typeof createAuditUseCases>;

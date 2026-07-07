@@ -1,16 +1,15 @@
 import { Router } from "express";
 import { toFhirPatient, toFhirAppointment, toFhirPractitioner } from "@smoothflow/shared/fhir";
-import { listPatients } from "../../../use-cases/patients.js";
-import { listAppointments } from "../../../use-cases/appointments.js";
-import { listPractitioners } from "../../../use-cases/owner.js";
+import { listPatients, listAppointments, listPractitioners } from "../../../composition/container.js";
 import { requireAuth, type AuthenticatedRequest } from "../middleware/auth.js";
+import { requireClinic } from "../require-clinic.js";
 
 const router = Router();
 
 router.get("/Patient", requireAuth(["dueno"]), async (req, res, next) => {
   try {
     const user = (req as AuthenticatedRequest).user;
-    const patients = await listPatients(user.clinicId!);
+    const patients = await listPatients(requireClinic(user));
     res.json({
       resourceType: "Bundle",
       type: "searchset",
@@ -24,7 +23,7 @@ router.get("/Patient", requireAuth(["dueno"]), async (req, res, next) => {
 router.get("/Practitioner", requireAuth(["dueno", "secretaria"]), async (req, res, next) => {
   try {
     const user = (req as AuthenticatedRequest).user;
-    const practitioners = await listPractitioners(user.clinicId!);
+    const practitioners = await listPractitioners(requireClinic(user));
     res.json({
       resourceType: "Bundle",
       type: "searchset",

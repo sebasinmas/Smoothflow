@@ -144,7 +144,7 @@ export default function SecretaryPanelPage() {
             message="No hay citas programadas hoy."
             action={
               <Link
-                to="/secretaria/calendario"
+                to="/secretary/calendar"
                 className="cursor-pointer text-sm font-medium text-brand underline"
               >
                 Ir al calendario

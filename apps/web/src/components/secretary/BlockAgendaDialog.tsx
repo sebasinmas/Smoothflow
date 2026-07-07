@@ -138,9 +138,9 @@ function BlockAgendaDialogActive({
           <Input
             id="block-reason"
             label="Motivo (opcional)"
+            hideLabel
             value={reason}
             onChange={(e) => setReason(e.target.value)}
-            className="[&_label]:sr-only"
           />
         </div>
         {error && (

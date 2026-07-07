@@ -22,7 +22,7 @@ export default function PatientLoginPage() {
     setLoading(true);
     try {
       await patientLogin(email, password);
-      navigate("/paciente/reservar");
+      navigate("/patient/booking");
     } catch (err) {
       triggerError(
         err instanceof ApiError && err.code === "INVALID_CREDENTIALS"
@@ -42,6 +42,7 @@ export default function PatientLoginPage() {
         <Input
           label="Email"
           type="email"
+          placeholder="Ingrese su email"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           errorPulse={inputPulse}
@@ -50,6 +51,7 @@ export default function PatientLoginPage() {
         <Input
           label="Contraseña"
           type="password"
+          placeholder="Ingrese su contraseña"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
           errorPulse={inputPulse}
@@ -63,7 +65,7 @@ export default function PatientLoginPage() {
       <p className="mt-4 text-center text-sm">
         ¿No tiene cuenta?{" "}
         <Link
-          to="/paciente/registro"
+          to="/patient/register"
           className="cursor-pointer text-brand underline decoration-brand/30 underline-offset-2 transition-colors hover:decoration-brand focus-visible:underline"
         >
           Registrarse

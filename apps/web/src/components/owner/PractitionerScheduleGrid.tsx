@@ -1,12 +1,7 @@
-import { useEffect, useMemo, useState } from "react";
-import { Plus } from "lucide-react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { Plus, ZoomIn, ZoomOut } from "lucide-react";
 import type { PractitionerDto, ScheduleTemplateDto } from "@smoothflow/shared";
-import {
-  ROW_HEIGHT,
-  MINUTES_PER_ROW,
-  formatHourLabel,
-  minutesToTop,
-} from "@/components/calendar/calendar-utils";
+import { MINUTES_PER_ROW, formatHourLabel } from "@/components/calendar/calendar-utils";
 import { EditScheduleDrawer, type ScheduleDrawerPreset } from "@/components/owner/EditScheduleDrawer";
 import { AppTooltip } from "@/components/ui/Tooltip";
 import { Select } from "@/components/ui/Select";
@@ -22,8 +17,13 @@ const WEEKDAYS = [
 
 const DAY_START_MINUTES = 7 * 60;
 const DAY_END_MINUTES = 20 * 60;
-const TIME_COL_WIDTH = "3.5rem";
+const TOTAL_ROWS = (DAY_END_MINUTES - DAY_START_MINUTES) / MINUTES_PER_ROW;
+const TIME_COL_WIDTH = "4.5rem";
 const MIN_BLOCK_HEIGHT = 36;
+const HEADER_HEIGHT = 40;
+const MIN_ROW_HEIGHT = 22;
+const MAX_FIT_ROW_HEIGHT = 64;
+const ZOOM_LEVELS = [1, 1.25, 1.5, 2, 2.5, 3];
 const GRID_TEMPLATE_COLUMNS = `${TIME_COL_WIDTH} repeat(5, minmax(8rem, 1fr))`;
 
 function timeToMinutes(time: string): number {
@@ -35,11 +35,6 @@ function minutesToTimeString(minutes: number): string {
   const h = Math.floor(minutes / 60);
   const m = minutes % 60;
   return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
-}
-
-function blockHeight(startTime: string, endTime: string): number {
-  const duration = Math.max(timeToMinutes(endTime) - timeToMinutes(startTime), MINUTES_PER_ROW);
-  return Math.max((duration / MINUTES_PER_ROW) * ROW_HEIGHT, MIN_BLOCK_HEIGHT);
 }
 
 interface PractitionerScheduleGridProps {
@@ -56,12 +51,45 @@ export function PractitionerScheduleGrid({
   const [editSchedule, setEditSchedule] = useState<ScheduleTemplateDto | null>(null);
   const [preset, setPreset] = useState<ScheduleDrawerPreset | undefined>();
   const [hoveredDay, setHoveredDay] = useState<number | null>(null);
+  const [zoomIndex, setZoomIndex] = useState(0);
+  const [availableHeight, setAvailableHeight] = useState(0);
+  const scrollRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     if (!practitionerId && practitioners.length > 0) {
       setPractitionerId(practitioners[0].id);
     }
   }, [practitionerId, practitioners]);
+
+  useLayoutEffect(() => {
+    const container = scrollRef.current;
+    if (!container) return;
+    const measure = () => setAvailableHeight(container.clientHeight);
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(container);
+    return () => observer.disconnect();
+  }, []);
+
+  const zoom = ZOOM_LEVELS[zoomIndex];
+  const fitRowHeight = availableHeight
+    ? Math.min(
+        Math.max((availableHeight - HEADER_HEIGHT) / TOTAL_ROWS, MIN_ROW_HEIGHT),
+        MAX_FIT_ROW_HEIGHT,
+      )
+    : 48;
+  const rowHeight = fitRowHeight * zoom;
+
+  const topFor = (minutes: number) =>
+    ((minutes - DAY_START_MINUTES) / MINUTES_PER_ROW) * rowHeight;
+
+  const blockHeight = (startTime: string, endTime: string) => {
+    const duration = Math.max(
+      timeToMinutes(endTime) - timeToMinutes(startTime),
+      MINUTES_PER_ROW,
+    );
+    return Math.max((duration / MINUTES_PER_ROW) * rowHeight, MIN_BLOCK_HEIGHT);
+  };
 
   const practitionerOptions = practitioners.map((p) => ({
     value: p.id,
@@ -73,16 +101,20 @@ export function PractitionerScheduleGrid({
     [schedules, practitionerId],
   );
 
-  const hourLabels = useMemo(() => {
-    const labels: number[] = [];
+  const gridTicks = useMemo(() => {
+    const ticks: number[] = [];
     for (let m = DAY_START_MINUTES; m <= DAY_END_MINUTES; m += MINUTES_PER_ROW) {
-      if (m % 60 === 0) labels.push(m);
+      ticks.push(m);
     }
-    return labels;
+    return ticks;
   }, []);
 
-  const gridHeight =
-    ((DAY_END_MINUTES - DAY_START_MINUTES) / MINUTES_PER_ROW) * ROW_HEIGHT;
+  const hourLabels = useMemo(
+    () => gridTicks.filter((m) => m % 60 === 0),
+    [gridTicks],
+  );
+
+  const gridHeight = TOTAL_ROWS * rowHeight;
 
   const openCreate = (dayOfWeek: number, startMinutes: number) => {
     const startTime = minutesToTimeString(startMinutes);
@@ -102,7 +134,7 @@ export function PractitionerScheduleGrid({
     if ((event.target as HTMLElement).closest("[data-schedule-block]")) return;
     const rect = event.currentTarget.getBoundingClientRect();
     const y = event.clientY - rect.top;
-    const rawMinutes = DAY_START_MINUTES + (y / ROW_HEIGHT) * MINUTES_PER_ROW;
+    const rawMinutes = DAY_START_MINUTES + (y / rowHeight) * MINUTES_PER_ROW;
     const snapped = Math.floor(rawMinutes / MINUTES_PER_ROW) * MINUTES_PER_ROW;
     const clamped = Math.max(DAY_START_MINUTES, Math.min(snapped, DAY_END_MINUTES - MINUTES_PER_ROW));
     openCreate(dayOfWeek, clamped);
@@ -129,6 +161,40 @@ export function PractitionerScheduleGrid({
 
         <div className="flex flex-wrap items-center gap-3 text-xs text-text-muted">
           <span>Haga clic en un bloque para editarlo o en una celda vacía para agregar uno.</span>
+          <div className="flex items-center gap-1 rounded-lg border border-border bg-surface p-0.5">
+            <AppTooltip content="Alejar">
+              <button
+                type="button"
+                onClick={() => setZoomIndex((i) => Math.max(0, i - 1))}
+                disabled={zoomIndex === 0}
+                aria-label="Alejar"
+                className="flex size-7 items-center justify-center rounded-md text-text-muted transition-colors hover:bg-surface-muted hover:text-text disabled:cursor-not-allowed disabled:opacity-40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
+              >
+                <ZoomOut className="size-4" aria-hidden="true" />
+              </button>
+            </AppTooltip>
+            <AppTooltip content="Ajustar al viewport">
+              <button
+                type="button"
+                onClick={() => setZoomIndex(0)}
+                aria-label="Ajustar al viewport"
+                className="min-w-14 rounded-md px-1.5 py-1 text-center text-[11px] font-semibold tabular-nums text-text transition-colors hover:bg-surface-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
+              >
+                {zoomIndex === 0 ? "Ajustar" : `${Math.round(zoom * 100)}%`}
+              </button>
+            </AppTooltip>
+            <AppTooltip content="Acercar">
+              <button
+                type="button"
+                onClick={() => setZoomIndex((i) => Math.min(ZOOM_LEVELS.length - 1, i + 1))}
+                disabled={zoomIndex === ZOOM_LEVELS.length - 1}
+                aria-label="Acercar"
+                className="flex size-7 items-center justify-center rounded-md text-text-muted transition-colors hover:bg-surface-muted hover:text-text disabled:cursor-not-allowed disabled:opacity-40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
+              >
+                <ZoomIn className="size-4" aria-hidden="true" />
+              </button>
+            </AppTooltip>
+          </div>
           <div className="flex items-center gap-3">
             <AppTooltip content={TOOLTIPS.calendar.legendBlock}>
               <span className="flex cursor-help items-center gap-1.5">
@@ -148,6 +214,7 @@ export function PractitionerScheduleGrid({
 
       <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden rounded-2xl border border-border bg-white shadow-card">
         <div
+          ref={scrollRef}
           className="min-h-0 flex-1 overflow-auto"
           style={{ scrollbarGutter: "stable" }}
         >
@@ -180,8 +247,8 @@ export function PractitionerScheduleGrid({
                 {hourLabels.map((minutes) => (
                   <span
                     key={minutes}
-                    className="absolute right-2 -translate-y-1/2 text-[10px] text-text-muted"
-                    style={{ top: minutesToTop(minutes, DAY_START_MINUTES) }}
+                    className="absolute right-2 -translate-y-1/2 whitespace-nowrap text-[11px] tabular-nums text-text-muted"
+                    style={{ top: topFor(minutes) }}
                   >
                     {formatHourLabel(minutes)}
                   </span>
@@ -214,11 +281,13 @@ export function PractitionerScheduleGrid({
                           }
                         }}
                       >
-                      {hourLabels.map((minutes) => (
+                      {gridTicks.map((minutes) => (
                         <div
                           key={minutes}
-                          className="pointer-events-none absolute inset-x-0 border-t border-border/40"
-                          style={{ top: minutesToTop(minutes, DAY_START_MINUTES) }}
+                          className={`pointer-events-none absolute inset-x-0 border-t ${
+                            minutes % 60 === 0 ? "border-border/60" : "border-border/25"
+                          }`}
+                          style={{ top: topFor(minutes) }}
                         />
                       ))}
 
@@ -241,7 +310,7 @@ export function PractitionerScheduleGrid({
                             data-schedule-block
                             className="absolute inset-x-1 z-[1] flex min-h-[36px] cursor-pointer flex-col justify-center rounded-md border border-brand/25 border-l-4 border-l-slot-reserved-border bg-slot-reserved px-2 py-1.5 text-left text-xs leading-snug text-brand shadow-sm transition-all hover:z-[2] hover:shadow-md hover:ring-2 hover:ring-brand/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
                             style={{
-                              top: minutesToTop(timeToMinutes(block.startTime), DAY_START_MINUTES),
+                              top: topFor(timeToMinutes(block.startTime)),
                               height: blockHeight(block.startTime, block.endTime),
                             }}
                             onClick={(e) => {

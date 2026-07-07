@@ -129,9 +129,9 @@ export default function OwnerConfigPage() {
             <Input
               id="new-specialty"
               label="Nueva especialidad"
+              hideLabel
               value={specialtyName}
               onChange={(e) => setSpecialtyName(e.target.value)}
-              className="flex-1 [&_label]:sr-only"
             />
           </div>
           <div className="flex items-end">

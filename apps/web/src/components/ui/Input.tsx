@@ -23,6 +23,7 @@ interface InputProps extends InputHTMLAttributes<HTMLInputElement> {
   error?: string;
   errorPulse?: boolean;
   icon?: LucideIcon | null;
+  hideLabel?: boolean;
 }
 
 function getDefaultIcon(type?: string, label?: string): LucideIcon | undefined {
@@ -49,6 +50,7 @@ export function Input({
   className = "",
   type,
   icon,
+  hideLabel,
   ...props
 }: InputProps) {
   const inputId = id ?? label.toLowerCase().replace(/\s+/g, "-");
@@ -61,7 +63,10 @@ export function Input({
 
   return (
     <div className="flex flex-col gap-1">
-      <label htmlFor={inputId} className="text-sm font-medium text-text">
+      <label
+        htmlFor={inputId}
+        className={hideLabel ? "sr-only" : "text-sm font-medium text-text"}
+      >
         {label}
       </label>
       <div className="relative">
@@ -106,4 +111,4 @@ export function Input({
     </div>
   );
 }
-
+

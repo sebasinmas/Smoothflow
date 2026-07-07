@@ -1,122 +1,86 @@
-import { eq, and, sql, isNotNull } from "drizzle-orm";
 import type { CreatePatientInput, SessionUser, PatientDto } from "@smoothflow/shared";
-import { db } from "../infrastructure/db/client.js";
-import { patients } from "../infrastructure/db/schema.js";
-import { AppError } from "../domain/errors.js";
-import { encryptField, decryptField } from "../infrastructure/crypto/encryption.js";
-import { writeAuditLog } from "../infrastructure/audit/audit-logger.js";
+import { ConflictError } from "../domain/errors.js";
+import { requireClinic } from "../domain/access/require-clinic.js";
+import type { PatientEntity } from "../domain/entities.js";
+import { patientToDto } from "../domain/mappers/patient.js";
+import type { AuditLogger } from "../domain/ports/audit-logger.port.js";
+import type { PatientRepository } from "../domain/ports/patient.repository.js";
 
-function toPatientDto(row: typeof patients.$inferSelect): PatientDto {
+export interface PatientUseCasesDeps {
+  patients: PatientRepository;
+  auditLogger: AuditLogger;
+}
+
+export function createPatientUseCases(deps: PatientUseCasesDeps) {
+  const { patients, auditLogger } = deps;
+
+  async function assertPatientUnique(
+    clinicId: string,
+    email?: string,
+    identifier?: string,
+  ): Promise<void> {
+    if (email && (await patients.existsByEmail(clinicId, email))) {
+      throw new ConflictError("Ya existe un paciente con este email", "PATIENT_EMAIL_EXISTS");
+    }
+    if (identifier && (await patients.existsByIdentifier(clinicId, identifier))) {
+      throw new ConflictError("Ya existe un paciente con este RUT", "PATIENT_IDENTIFIER_EXISTS");
+    }
+  }
+
+  async function findPatientForPortalLink(
+    clinicId: string,
+    email: string,
+    identifier?: string,
+  ): Promise<PatientEntity | null> {
+    return patients.findForPortalLink(clinicId, email, identifier);
+  }
+
+  async function listPatients(clinicId: string): Promise<PatientDto[]> {
+    const items = await patients.list(clinicId);
+    return items.map(patientToDto);
+  }
+
+  async function createPatient(
+    user: SessionUser,
+    input: CreatePatientInput,
+    ip: string,
+  ): Promise<PatientDto> {
+    const clinicId = requireClinic(user);
+
+    await assertPatientUnique(clinicId, input.email, input.identifier);
+
+    const created = await patients.create({
+      clinicId,
+      givenName: input.givenName,
+      familyName: input.familyName,
+      email: input.email,
+      phone: input.phone,
+      identifier: input.identifier,
+    });
+
+    await auditLogger.write({
+      clinicId,
+      userId: user.id,
+      action: "CREATE",
+      resource: "patient",
+      resourceId: created.id,
+      ipAddress: ip,
+    });
+
+    return patientToDto(created);
+  }
+
+  async function getPatient(id: string): Promise<PatientDto | null> {
+    const patient = await patients.findById(id);
+    return patient ? patientToDto(patient) : null;
+  }
+
   return {
-    id: row.id,
-    clinicId: row.clinicId,
-    givenName: row.givenName,
-    familyName: row.familyName,
-    email: row.email,
-    phone: row.phoneEncrypted ? decryptField(row.phoneEncrypted) : null,
-    identifier: row.identifierEncrypted ? decryptField(row.identifierEncrypted) : null,
-    hasPortalAccess: row.userId != null,
-    createdAt: row.createdAt.toISOString(),
+    listPatients,
+    createPatient,
+    getPatient,
+    findPatientForPortalLink,
   };
 }
 
-async function findPatientByIdentifier(
-  clinicId: string,
-  identifier: string,
-): Promise<typeof patients.$inferSelect | null> {
-  const rows = await db
-    .select()
-    .from(patients)
-    .where(and(eq(patients.clinicId, clinicId), isNotNull(patients.identifierEncrypted)));
-
-  for (const row of rows) {
-    if (row.identifierEncrypted && decryptField(row.identifierEncrypted) === identifier) {
-      return row;
-    }
-  }
-  return null;
-}
-
-export async function findPatientForPortalLink(
-  clinicId: string,
-  email: string,
-  identifier?: string,
-): Promise<typeof patients.$inferSelect | null> {
-  const [byEmail] = await db
-    .select()
-    .from(patients)
-    .where(and(eq(patients.clinicId, clinicId), sql`lower(${patients.email}) = ${email}`))
-    .limit(1);
-
-  if (byEmail) return byEmail;
-  if (identifier) return findPatientByIdentifier(clinicId, identifier);
-  return null;
-}
-
-async function assertPatientUnique(
-  clinicId: string,
-  email?: string,
-  identifier?: string,
-): Promise<void> {
-  const normalizedEmail = email?.toLowerCase();
-  if (normalizedEmail) {
-    const [existing] = await db
-      .select()
-      .from(patients)
-      .where(and(eq(patients.clinicId, clinicId), sql`lower(${patients.email}) = ${normalizedEmail}`))
-      .limit(1);
-    if (existing) {
-      throw new AppError("Ya existe un paciente con este email", 409, "PATIENT_EMAIL_EXISTS");
-    }
-  }
-
-  if (identifier) {
-    const existing = await findPatientByIdentifier(clinicId, identifier);
-    if (existing) {
-      throw new AppError("Ya existe un paciente con este RUT", 409, "PATIENT_IDENTIFIER_EXISTS");
-    }
-  }
-}
-
-export async function listPatients(clinicId: string): Promise<PatientDto[]> {
-  const rows = await db.select().from(patients).where(eq(patients.clinicId, clinicId));
-  return rows.map(toPatientDto);
-}
-
-export async function createPatient(
-  user: SessionUser,
-  input: CreatePatientInput,
-  ip: string,
-): Promise<PatientDto> {
-  if (!user.clinicId) throw new AppError("Clínica no asignada", 400);
-
-  await assertPatientUnique(user.clinicId, input.email, input.identifier);
-
-  const [created] = await db
-    .insert(patients)
-    .values({
-      clinicId: user.clinicId,
-      givenName: input.givenName,
-      familyName: input.familyName,
-      email: input.email?.toLowerCase() ?? null,
-      phoneEncrypted: input.phone ? encryptField(input.phone) : null,
-      identifierEncrypted: input.identifier ? encryptField(input.identifier) : null,
-    })
-    .returning();
-
-  await writeAuditLog({
-    clinicId: user.clinicId,
-    userId: user.id,
-    action: "CREATE",
-    resource: "patient",
-    resourceId: created.id,
-    ipAddress: ip,
-  });
-
-  return toPatientDto(created);
-}
-
-export async function getPatient(id: string): Promise<PatientDto | null> {
-  const [row] = await db.select().from(patients).where(eq(patients.id, id)).limit(1);
-  return row ? toPatientDto(row) : null;
-}
+export type PatientUseCases = ReturnType<typeof createPatientUseCases>;

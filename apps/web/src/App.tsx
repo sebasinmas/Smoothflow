@@ -47,8 +47,8 @@ export default function App() {
           <Routes>
             <Route element={<GuestOnly />}>
               <Route path="/login" element={<LoginPage />} />
-              <Route path="/paciente/login" element={<PatientLoginPage />} />
-              <Route path="/paciente/registro" element={<PatientRegisterPage />} />
+              <Route path="/patient/login" element={<PatientLoginPage />} />
+              <Route path="/patient/register" element={<PatientRegisterPage />} />
             </Route>
 
             <Route element={<RequireAuth roles={["secretaria"]} />}>
@@ -59,11 +59,11 @@ export default function App() {
                   </RealtimeProvider>
                 }
               >
-                <Route path="/secretaria" element={<Navigate to="/secretaria/calendario" replace />} />
-                <Route path="/secretaria/panel" element={<SecretaryPanelPage />} />
-                <Route path="/secretaria/calendario" element={<SecretaryCalendarPage />} />
-                <Route path="/secretaria/pacientes" element={<SecretaryPatientsPage />} />
-                <Route path="/secretaria/solicitudes" element={<SecretaryRequestsPage />} />
+                <Route path="/secretary" element={<Navigate to="/secretary/calendar" replace />} />
+                <Route path="/secretary/dashboard" element={<SecretaryPanelPage />} />
+                <Route path="/secretary/calendar" element={<SecretaryCalendarPage />} />
+                <Route path="/secretary/patients" element={<SecretaryPatientsPage />} />
+                <Route path="/secretary/requests" element={<SecretaryRequestsPage />} />
               </Route>
             </Route>
 
@@ -72,12 +72,12 @@ export default function App() {
                 path="/doctor"
                 element={
                   <RealtimeProvider>
-                    <Navigate to="/doctor/calendario" replace />
+                    <Navigate to="/doctor/calendar" replace />
                   </RealtimeProvider>
                 }
               />
               <Route
-                path="/doctor/calendario"
+                path="/doctor/calendar"
                 element={
                   <RealtimeProvider>
                     <DoctorCalendarPage />
@@ -85,7 +85,7 @@ export default function App() {
                 }
               />
               <Route
-                path="/doctor/historial"
+                path="/doctor/history"
                 element={
                   <RealtimeProvider>
                     <DoctorHistoryPage />
@@ -97,14 +97,14 @@ export default function App() {
             <Route element={<RequireAuth roles={["dueno"]} />}>
               <Route path="/owner" element={<Navigate to="/owner/staff" replace />} />
               <Route path="/owner/staff" element={<OwnerStaffPage />} />
-              <Route path="/owner/horarios" element={<OwnerSchedulesPage />} />
-              <Route path="/owner/configuracion" element={<OwnerConfigPage />} />
-              <Route path="/owner/reportes" element={<OwnerReportsPage />} />
+              <Route path="/owner/schedules" element={<OwnerSchedulesPage />} />
+              <Route path="/owner/settings" element={<OwnerConfigPage />} />
+              <Route path="/owner/reports" element={<OwnerReportsPage />} />
             </Route>
 
             <Route element={<RequireAuth roles={["paciente"]} />}>
-              <Route path="/paciente/reservar" element={<PatientBookingPage />} />
-              <Route path="/paciente/mis-citas" element={<PatientAppointmentsPage />} />
+              <Route path="/patient/booking" element={<PatientBookingPage />} />
+              <Route path="/patient/appointments" element={<PatientAppointmentsPage />} />
             </Route>
 
             <Route path="/" element={<Navigate to="/login" replace />} />

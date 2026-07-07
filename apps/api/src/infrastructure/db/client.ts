@@ -14,3 +14,6 @@ const pool = new pg.Pool({ connectionString });
 
 export const db = drizzle(pool, { schema });
 export { pool };
+
+/** Tipo de la instancia Drizzle inyectable en las factories de repositorios. */
+export type Database = typeof db;

@@ -5,10 +5,10 @@ import patientRoutes from "./routes/patients.js";
 import ownerRoutes from "./routes/owner.js";
 import auditRoutes from "./routes/audit.js";
 import fhirRoutes from "./routes/fhir.js";
-import { requireAuth } from "./middleware/auth.js";
+import { requireAuth, loadSessionUser } from "./middleware/auth.js";
 import { availabilityQuerySchema } from "@smoothflow/shared";
-import { getAvailability } from "../../use-cases/appointments.js";
-import { AppError } from "../../domain/errors.js";
+import { getAvailability, listSpecialties } from "../../composition/container.js";
+import { ValidationError } from "../../domain/errors.js";
 import type { AuthenticatedRequest } from "./middleware/auth.js";
 
 const apiRouter = Router();
@@ -24,12 +24,11 @@ apiRouter.get("/availability", async (req, res, next) => {
     const query = availabilityQuerySchema.parse(req.query);
     let clinicId = req.query.clinicId as string | undefined;
     if (!clinicId && req.session.userId) {
-      const { loadSessionUser } = await import("./middleware/auth.js");
       const user = await loadSessionUser(req);
       clinicId = user?.clinicId ?? undefined;
     }
     clinicId = clinicId || process.env.DEFAULT_CLINIC_ID;
-    if (!clinicId) throw new AppError("clinicId requerido", 400);
+    if (!clinicId) throw new ValidationError("clinicId requerido");
     const slots = await getAvailability(clinicId, query);
     res.json({ slots });
   } catch (err) {
@@ -40,7 +39,6 @@ apiRouter.get("/availability", async (req, res, next) => {
 apiRouter.get("/specialties", requireAuth(["dueno", "secretaria", "paciente"]), async (req, res, next) => {
   try {
     const user = (req as AuthenticatedRequest).user;
-    const { listSpecialties } = await import("../../use-cases/owner.js");
     const clinicId = user.clinicId ?? (req.query.clinicId as string);
     if (!clinicId) {
       res.json({ items: [] });

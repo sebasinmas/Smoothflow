@@ -1,7 +1,7 @@
 import type { Request, Response, NextFunction } from "express";
 import type { Role, SessionUser } from "@smoothflow/shared";
-import { AppError } from "../../../domain/errors.js";
-import { getUserById } from "../../../use-cases/auth.js";
+import { AuthError, ForbiddenError } from "../../../domain/errors.js";
+import { getUserById } from "../../../composition/container.js";
 
 export interface AuthenticatedRequest extends Request {
   user: SessionUser;
@@ -17,10 +17,10 @@ export function requireAuth(roles?: Role[]) {
     try {
       const user = await loadSessionUser(req);
       if (!user) {
-        throw new AppError("No autenticado", 401, "UNAUTHORIZED");
+        throw new AuthError("No autenticado", "UNAUTHORIZED");
       }
       if (roles && !roles.includes(user.role)) {
-        throw new AppError("Acceso denegado", 403, "FORBIDDEN");
+        throw new ForbiddenError("Acceso denegado", "FORBIDDEN");
       }
       (req as AuthenticatedRequest).user = user;
       next();

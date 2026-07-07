@@ -1,10 +1,10 @@
 import type { Role } from "@smoothflow/shared";
 
 export const ROLE_HOME: Record<Role, string> = {
-  secretaria: "/secretaria/calendario",
-  medico: "/doctor/calendario",
+  secretaria: "/secretary/calendar",
+  medico: "/doctor/calendar",
   dueno: "/owner/staff",
-  paciente: "/paciente/reservar",
+  paciente: "/patient/booking",
 };
 
 export function formatPersonName(given: string, family: string): string {

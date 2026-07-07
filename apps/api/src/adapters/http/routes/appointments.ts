@@ -13,7 +13,7 @@ import {
   createBlock,
   applyDoctorAction,
   reviewCancellationRequest,
-} from "../../../use-cases/appointments.js";
+} from "../../../composition/container.js";
 import { requireAuth, getClientIp, type AuthenticatedRequest } from "../middleware/auth.js";
 
 const router = Router();

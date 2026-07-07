@@ -74,7 +74,7 @@ export default function LoginPage() {
       <p className="mt-4 text-center text-sm">
         <AppTooltip content={TOOLTIPS.layout.patientPortalLink}>
           <a
-            href="/paciente/login"
+            href="/patient/login"
             className="cursor-pointer text-brand underline decoration-brand/30 underline-offset-2 transition-colors hover:decoration-brand focus-visible:underline"
           >
             Portal de pacientes
