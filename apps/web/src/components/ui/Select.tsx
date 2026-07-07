@@ -20,7 +20,7 @@ export function Select({ label, options, error, hideLabel, id, className = "", .
       <select
         id={selectId}
         aria-invalid={!!error}
-        className={`h-10 cursor-pointer rounded border border-border bg-white px-3 text-sm text-text transition-colors duration-200 hover:border-brand/40 focus-visible:border-brand ${className}`}
+        className={`h-10 cursor-pointer rounded border border-border bg-white px-3 text-sm text-text transition-colors duration-200 hover:border-brand/30 focus-visible:border-brand focus-visible:ring-2 focus-visible:ring-brand/20 ${className}`}
         {...props}
       >
         {options.map((o) => (

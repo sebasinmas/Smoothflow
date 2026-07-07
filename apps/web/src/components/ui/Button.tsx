@@ -12,13 +12,13 @@ interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
 
 const variants: Record<Variant, string> = {
   primary:
-    "bg-brand text-white shadow-sm hover:bg-brand-hover hover:shadow-md active:scale-[0.98] active:shadow-sm",
+    "bg-brand text-white shadow-sm hover:bg-brand-hover hover:shadow-md active:scale-[0.98] active:shadow-sm focus-visible:ring-2 focus-visible:ring-brand/40 focus-visible:ring-offset-2",
   secondary:
-    "bg-white border border-border text-text shadow-sm hover:border-brand/30 hover:bg-surface-muted hover:shadow active:scale-[0.98]",
+    "bg-white border border-border text-text shadow-sm hover:border-brand/30 hover:bg-surface-muted hover:shadow active:scale-[0.98] focus-visible:ring-2 focus-visible:ring-brand/40 focus-visible:ring-offset-2",
   ghost:
-    "bg-transparent text-text hover:bg-surface-muted active:scale-[0.98]",
+    "bg-transparent text-text hover:bg-surface-muted active:scale-[0.98] focus-visible:ring-2 focus-visible:ring-brand/40 focus-visible:ring-offset-2",
   danger:
-    "bg-red-600 text-white shadow-sm hover:bg-red-700 hover:shadow-md active:scale-[0.98]",
+    "bg-red-600 text-white shadow-sm hover:bg-red-700 hover:shadow-md active:scale-[0.98] focus-visible:ring-2 focus-visible:ring-red-500/40 focus-visible:ring-offset-2",
 };
 
 const sizes: Record<Size, string> = {
@@ -44,7 +44,14 @@ export function Button({
       className={`inline-flex cursor-pointer items-center justify-center gap-2 rounded-lg font-semibold transition-all duration-200 ease-out disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50 ${variants[variant]} ${sizes[size]} ${className}`}
       {...props}
     >
-      {loading ? "Cargando…" : children}
+      {loading ? (
+        <>
+          <span className="btn-spinner" aria-hidden="true" />
+          <span>Cargando…</span>
+        </>
+      ) : (
+        children
+      )}
     </button>
   );
-}
+}

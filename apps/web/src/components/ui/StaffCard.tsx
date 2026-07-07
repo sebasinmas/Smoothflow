@@ -19,7 +19,7 @@ export function StaffCard({ staff, specialtyName, onManage, onUnlink }: StaffCar
   const badgeTooltip = staff.active ? TOOLTIPS.owner.badgeActive : TOOLTIPS.owner.badgeInactive;
 
   return (
-    <article className="rounded-xl border border-border bg-white p-4 shadow-card">
+    <article className="card card-hover rounded-xl p-4">
       <div className="flex items-start justify-between gap-3">
         <div className="flex items-center gap-3">
           <div

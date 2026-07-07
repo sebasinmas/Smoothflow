@@ -30,7 +30,7 @@ export function AppShell({
 }: AppShellProps) {
   return (
     <SidebarProvider>
-      <div className="flex h-screen overflow-hidden bg-surface">
+      <div className="flex h-screen overflow-hidden bg-surface app-bg">
         <a
           href="#main-content"
           className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-50 focus:rounded focus:bg-brand focus:px-4 focus:py-2 focus:text-white"

@@ -36,7 +36,13 @@ export default function App() {
             offset={16}
             richColors
             closeButton
-            toastOptions={{ className: "shadow-lg" }}
+            toastOptions={{
+              classNames: {
+                toast: "card rounded-lg shadow-card ring-1 ring-border/50",
+                title: "text-sm font-semibold",
+                description: "text-sm text-text-muted",
+              },
+            }}
           />
           <Routes>
             <Route element={<GuestOnly />}>

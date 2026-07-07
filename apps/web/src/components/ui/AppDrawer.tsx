@@ -34,7 +34,7 @@ export function AppDrawer({
   const drawer = (
     <DialogTrigger isOpen={isOpen} onOpenChange={onOpenChange}>
       <ModalOverlay
-        className={`drawer-overlay ${overlayPosition} inset-0 z-modal flex justify-end overflow-hidden bg-black/40 backdrop-blur-sm`}
+        className={`drawer-overlay ${overlayPosition} inset-0 z-modal flex justify-end overflow-hidden bg-black/40 backdrop-blur-[2px]`}
         isDismissable
       >
         <Modal className="drawer-panel flex h-full w-full max-w-md flex-col overflow-hidden border-l border-border bg-white shadow-2xl outline-none">
