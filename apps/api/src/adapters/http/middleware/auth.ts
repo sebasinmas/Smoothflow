@@ -1,7 +1,7 @@
 import type { Request, Response, NextFunction } from "express";
 import type { Role, SessionUser } from "@smoothflow/shared";
 import { AppError } from "../../../domain/errors.js";
-import { getUserById } from "../../../use-cases/auth.js";
+import { getUserById } from "../../../composition/container.js";
 
 export interface AuthenticatedRequest extends Request {
   user: SessionUser;

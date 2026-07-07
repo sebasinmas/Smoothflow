@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { requireAuth, type AuthenticatedRequest } from "../middleware/auth.js";
-import { listAuditLogs } from "../../../use-cases/audit.js";
+import { listAuditLogs } from "../../../composition/container.js";
 
 const router = Router();
 

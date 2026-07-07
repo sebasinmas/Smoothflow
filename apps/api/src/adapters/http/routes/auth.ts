@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { loginSchema, patientRegisterSchema } from "@smoothflow/shared";
-import { loginUser, registerPatient, getUserById } from "../../../use-cases/auth.js";
+import { loginUser, registerPatient, getUserById } from "../../../composition/container.js";
 import { getClientIp, requireAuth, type AuthenticatedRequest } from "../middleware/auth.js";
 import { closeUserConnections } from "../../ws/ws-server.js";
 

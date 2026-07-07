@@ -13,22 +13,28 @@ export interface AuditLogDto {
   createdAt: string;
 }
 
-export async function listAuditLogs(clinicId: string, limit = 100): Promise<AuditLogDto[]> {
-  const rows = await db
-    .select()
-    .from(auditLogs)
-    .where(eq(auditLogs.clinicId, clinicId))
-    .orderBy(desc(auditLogs.createdAt))
-    .limit(limit);
+export function createAuditUseCases() {
+  async function listAuditLogs(clinicId: string, limit = 100): Promise<AuditLogDto[]> {
+    const rows = await db
+      .select()
+      .from(auditLogs)
+      .where(eq(auditLogs.clinicId, clinicId))
+      .orderBy(desc(auditLogs.createdAt))
+      .limit(limit);
 
-  return rows.map((r) => ({
-    id: r.id,
-    userId: r.userId,
-    action: r.action,
-    resource: r.resource,
-    resourceId: r.resourceId,
-    ipAddress: r.ipAddress,
-    metadata: r.metadata as Record<string, unknown> | null,
-    createdAt: r.createdAt.toISOString(),
-  }));
+    return rows.map((r) => ({
+      id: r.id,
+      userId: r.userId,
+      action: r.action,
+      resource: r.resource,
+      resourceId: r.resourceId,
+      ipAddress: r.ipAddress,
+      metadata: r.metadata as Record<string, unknown> | null,
+      createdAt: r.createdAt.toISOString(),
+    }));
+  }
+
+  return { listAuditLogs };
 }
+
+export type AuditUseCases = ReturnType<typeof createAuditUseCases>;

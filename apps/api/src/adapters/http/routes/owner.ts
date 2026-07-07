@@ -26,7 +26,7 @@ import {
   updateSchedule,
   deleteSchedule,
   getOccupancyReport,
-} from "../../../use-cases/owner.js";
+} from "../../../composition/container.js";
 import { requireAuth, getClientIp, type AuthenticatedRequest } from "../middleware/auth.js";
 
 const router = Router();

@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { createPatientSchema } from "@smoothflow/shared";
-import { listPatients, createPatient } from "../../../use-cases/patients.js";
+import { listPatients, createPatient } from "../../../composition/container.js";
 import { requireAuth, getClientIp, type AuthenticatedRequest } from "../middleware/auth.js";
 
 const router = Router();

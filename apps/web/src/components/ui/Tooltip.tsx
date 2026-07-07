@@ -25,7 +25,7 @@ export function AppTooltip({
   }
 
   return (
-    <TooltipTrigger delay={400}>
+    <TooltipTrigger delay={700} closeDelay={100}>
       <Focusable>{children as FocusableChild}</Focusable>
       <Tooltip
         offset={6}

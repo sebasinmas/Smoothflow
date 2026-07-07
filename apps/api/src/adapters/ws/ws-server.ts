@@ -4,7 +4,7 @@ import * as Y from "yjs";
 import { unsign } from "cookie-signature";
 import session from "express-session";
 import { getClinicDoc, onSessionRevoked } from "../../infrastructure/realtime/agenda-sync.js";
-import { getUserById } from "../../use-cases/auth.js";
+import { getUserById } from "../../composition/container.js";
 import { SESSION_SECRET, sessionStore } from "../../infrastructure/session/session-store.js";
 
 interface WsClient {

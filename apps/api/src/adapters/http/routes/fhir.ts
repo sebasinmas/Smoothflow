@@ -1,8 +1,6 @@
 import { Router } from "express";
 import { toFhirPatient, toFhirAppointment, toFhirPractitioner } from "@smoothflow/shared/fhir";
-import { listPatients } from "../../../use-cases/patients.js";
-import { listAppointments } from "../../../use-cases/appointments.js";
-import { listPractitioners } from "../../../use-cases/owner.js";
+import { listPatients, listAppointments, listPractitioners } from "../../../composition/container.js";
 import { requireAuth, type AuthenticatedRequest } from "../middleware/auth.js";
 
 const router = Router();
