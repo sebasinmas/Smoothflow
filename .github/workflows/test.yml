@@ -23,6 +23,8 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
 
+      - run: pnpm --filter @smoothflow/shared build
+
       - run: pnpm test
 
       - run: pnpm --filter @smoothflow/api typecheck

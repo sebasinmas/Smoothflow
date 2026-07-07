@@ -11,6 +11,7 @@ RUN echo "node-linker=hoisted" >> .npmrc && \
 COPY apps/web apps/web
 COPY packages/shared packages/shared
 COPY tsconfig.base.json .
+RUN pnpm --filter @smoothflow/shared build
 RUN cd apps/web && ../../node_modules/.bin/vite build
 
 FROM nginx:alpine AS runner
