@@ -42,6 +42,7 @@ export default function PatientLoginPage() {
         <Input
           label="Email"
           type="email"
+          placeholder="Ingrese su email"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           errorPulse={inputPulse}
@@ -50,6 +51,7 @@ export default function PatientLoginPage() {
         <Input
           label="Contraseña"
           type="password"
+          placeholder="Ingrese su contraseña"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
           errorPulse={inputPulse}
