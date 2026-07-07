@@ -8,7 +8,7 @@ import fhirRoutes from "./routes/fhir.js";
 import { requireAuth, loadSessionUser } from "./middleware/auth.js";
 import { availabilityQuerySchema } from "@smoothflow/shared";
 import { getAvailability, listSpecialties } from "../../composition/container.js";
-import { AppError } from "../../domain/errors.js";
+import { ValidationError } from "../../domain/errors.js";
 import type { AuthenticatedRequest } from "./middleware/auth.js";
 
 const apiRouter = Router();
@@ -28,7 +28,7 @@ apiRouter.get("/availability", async (req, res, next) => {
       clinicId = user?.clinicId ?? undefined;
     }
     clinicId = clinicId || process.env.DEFAULT_CLINIC_ID;
-    if (!clinicId) throw new AppError("clinicId requerido", 400);
+    if (!clinicId) throw new ValidationError("clinicId requerido");
     const slots = await getAvailability(clinicId, query);
     res.json({ slots });
   } catch (err) {

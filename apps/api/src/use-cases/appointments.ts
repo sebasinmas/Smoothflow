@@ -1,4 +1,3 @@
-import { eq, and, gte, lte, ne, inArray, desc } from "drizzle-orm";
 import type {
   CreateAppointmentInput,
   UpdateAppointmentInput,
@@ -11,178 +10,102 @@ import type {
   ReviewCancellationInput,
   AppointmentStatus,
 } from "@smoothflow/shared";
-import { db } from "../infrastructure/db/client.js";
-import {
-  appointments,
-  appointmentEvents,
-  practitioners,
-  specialties,
-  patients,
-  scheduleTemplates,
-} from "../infrastructure/db/schema.js";
-import { AppError } from "../domain/errors.js";
+import { NotFoundError, ConflictError, ValidationError, ForbiddenError } from "../domain/errors.js";
 import {
   findBookingConflict,
   hasAppointmentsBlockingRange,
 } from "../domain/scheduling/appointment-rules.js";
 import { generateSlotsFromTemplate } from "../domain/scheduling/slot-generator.js";
+import { appointmentToDto } from "../domain/mappers/appointment.js";
 import type { AuditLogger } from "../domain/ports/audit-logger.port.js";
 import type { AppointmentNotifier } from "../domain/ports/appointment-notifier.port.js";
 import type { AgendaSyncPort } from "../domain/ports/agenda-sync.port.js";
+import type {
+  AppointmentRepository,
+  AppointmentListFilters,
+} from "../domain/ports/appointment.repository.js";
+import type { PatientRepository } from "../domain/ports/patient.repository.js";
+import type { PractitionerRepository } from "../domain/ports/practitioner.repository.js";
 
 export interface AppointmentUseCasesDeps {
+  appointments: AppointmentRepository;
+  patients: PatientRepository;
+  practitioners: PractitionerRepository;
   auditLogger: AuditLogger;
   notifier: AppointmentNotifier;
   agendaSync: AgendaSyncPort;
 }
 
-function toAppointmentDto(
-  row: typeof appointments.$inferSelect,
-  extras?: Partial<AppointmentDto>,
-): AppointmentDto {
-  return {
-    id: row.id,
-    clinicId: row.clinicId,
-    patientId: row.patientId,
-    practitionerId: row.practitionerId,
-    status: row.status,
-    startAt: row.startAt.toISOString(),
-    endAt: row.endAt.toISOString(),
-    notes: row.notes,
-    pendingReschedule: row.pendingReschedule,
-    createdByUserId: row.createdByUserId,
-    requestReason: row.requestReason,
-    reviewNote: row.reviewNote,
-    createdAt: row.createdAt.toISOString(),
-    updatedAt: row.updatedAt.toISOString(),
-    ...extras,
-  };
-}
-
-async function assertNoConflict(
-  clinicId: string,
-  practitionerId: string,
-  startAt: Date,
-  endAt: Date,
-  excludeId?: string,
-) {
-  if (startAt.getTime() < Date.now()) {
-    throw new AppError("No se puede agendar ni solicitar citas en el pasado.", 400);
-  }
-  const rows = await db
-    .select()
-    .from(appointments)
-    .where(
-      and(
-        eq(appointments.clinicId, clinicId),
-        eq(appointments.practitionerId, practitionerId),
-        ne(appointments.status, "cancelado"),
-        lte(appointments.startAt, endAt),
-        gte(appointments.endAt, startAt),
-      ),
-    );
-
-  const conflict = findBookingConflict(rows, startAt, endAt, excludeId);
-  if (conflict) {
-    throw new AppError("El horario ya está ocupado o bloqueado", 409, "DOUBLE_BOOKING");
-  }
-}
-
-async function assertNoConfirmedAppointmentsInBlockRange(
-  clinicId: string,
-  practitionerId: string,
-  startAt: Date,
-  endAt: Date,
-): Promise<void> {
-  const rows = await db
-    .select()
-    .from(appointments)
-    .where(
-      and(
-        eq(appointments.clinicId, clinicId),
-        eq(appointments.practitionerId, practitionerId),
-        inArray(appointments.status, ["confirmado", "reservado", "reagendado"]),
-        lte(appointments.startAt, endAt),
-        gte(appointments.endAt, startAt),
-      ),
-    );
-
-  if (hasAppointmentsBlockingRange(rows, startAt, endAt)) {
-    throw new AppError(
-      "Existen citas confirmadas en el rango seleccionado. Gestiónelas antes de bloquear.",
-      409,
-      "BLOCK_CONFLICT",
-    );
-  }
-}
-
 const DOCTOR_ACTIONABLE_STATUSES = new Set(["reservado", "confirmado", "reagendado"]);
 
-type BookedAppointment = typeof appointments.$inferSelect & {
-  patientName?: string;
-};
-
 export function createAppointmentUseCases(deps: AppointmentUseCasesDeps) {
-  const { auditLogger, notifier, agendaSync } = deps;
+  const { appointments, patients, practitioners, auditLogger, notifier, agendaSync } = deps;
+
+  async function assertNoConflict(
+    clinicId: string,
+    practitionerId: string,
+    startAt: Date,
+    endAt: Date,
+    excludeId?: string,
+  ) {
+    if (startAt.getTime() < Date.now()) {
+      throw new ValidationError("No se puede agendar ni solicitar citas en el pasado.");
+    }
+    const rows = await appointments.findConflicting(clinicId, practitionerId, startAt, endAt);
+    const conflict = findBookingConflict(rows, startAt, endAt, excludeId);
+    if (conflict) {
+      throw new ConflictError("El horario ya está ocupado o bloqueado", "DOUBLE_BOOKING");
+    }
+  }
+
+  async function assertNoConfirmedAppointmentsInBlockRange(
+    clinicId: string,
+    practitionerId: string,
+    startAt: Date,
+    endAt: Date,
+  ): Promise<void> {
+    const rows = await appointments.findBlockingCandidates(
+      clinicId,
+      practitionerId,
+      startAt,
+      endAt,
+    );
+    if (hasAppointmentsBlockingRange(rows, startAt, endAt)) {
+      throw new ConflictError(
+        "Existen citas confirmadas en el rango seleccionado. Gestiónelas antes de bloquear.",
+        "BLOCK_CONFLICT",
+      );
+    }
+  }
 
   async function listAppointments(
     user: SessionUser,
     filters: { from?: string; to?: string; practitionerId?: string },
   ): Promise<AppointmentDto[]> {
     if (!user.clinicId && user.role !== "paciente") {
-      throw new AppError("Clínica no asignada", 400);
+      throw new ValidationError("Clínica no asignada");
     }
 
-    const conditions = [];
+    const query: AppointmentListFilters = {};
     if (user.role === "medico") {
-      const [practitioner] = await db
-        .select()
-        .from(practitioners)
-        .where(eq(practitioners.userId, user.id))
-        .limit(1);
+      const practitioner = await practitioners.findByUserId(user.id);
       if (!practitioner) return [];
-      conditions.push(eq(appointments.practitionerId, practitioner.id));
+      query.practitionerId = practitioner.id;
     } else if (user.role === "paciente") {
-      const [patient] = await db
-        .select()
-        .from(patients)
-        .where(eq(patients.userId, user.id))
-        .limit(1);
+      const patient = await patients.findByUserId(user.id);
       if (!patient) return [];
-      conditions.push(eq(appointments.patientId, patient.id));
+      query.patientId = patient.id;
     } else if (user.clinicId) {
-      conditions.push(eq(appointments.clinicId, user.clinicId));
+      query.clinicId = user.clinicId;
     }
 
-    if (filters.practitionerId) {
-      conditions.push(eq(appointments.practitionerId, filters.practitionerId));
+    if (query.practitionerId === undefined && filters.practitionerId) {
+      query.practitionerId = filters.practitionerId;
     }
-    if (filters.from) conditions.push(gte(appointments.startAt, new Date(filters.from)));
-    if (filters.to) conditions.push(lte(appointments.startAt, new Date(filters.to)));
+    if (filters.from) query.from = filters.from;
+    if (filters.to) query.to = filters.to;
 
-    const rows = await db
-      .select({
-        appointment: appointments,
-        patientGiven: patients.givenName,
-        patientFamily: patients.familyName,
-        practitionerGiven: practitioners.givenName,
-        practitionerFamily: practitioners.familyName,
-        specialtyName: specialties.name,
-      })
-      .from(appointments)
-      .leftJoin(patients, eq(appointments.patientId, patients.id))
-      .innerJoin(practitioners, eq(appointments.practitionerId, practitioners.id))
-      .innerJoin(specialties, eq(practitioners.specialtyId, specialties.id))
-      .where(conditions.length ? and(...conditions) : undefined)
-      .orderBy(appointments.startAt);
-
-    return rows.map((r) =>
-      toAppointmentDto(r.appointment, {
-        patientName: r.patientGiven ? `${r.patientGiven} ${r.patientFamily}` : undefined,
-        practitionerName: `${r.practitionerGiven} ${r.practitionerFamily}`,
-        specialtyName: r.specialtyName,
-      }),
-    );
+    return appointments.list(query);
   }
 
   async function createAppointmentForClinic(
@@ -196,21 +119,18 @@ export function createAppointmentUseCases(deps: AppointmentUseCasesDeps) {
     const endAt = new Date(input.endAt);
     await assertNoConflict(clinicId, input.practitionerId, startAt, endAt);
 
-    const [created] = await db
-      .insert(appointments)
-      .values({
-        clinicId,
-        patientId,
-        practitionerId: input.practitionerId,
-        status: "confirmado",
-        startAt,
-        endAt,
-        notes: input.notes ?? null,
-        createdByUserId: user.id,
-      })
-      .returning();
+    const created = await appointments.create({
+      clinicId,
+      patientId,
+      practitionerId: input.practitionerId,
+      status: "confirmado",
+      startAt,
+      endAt,
+      notes: input.notes ?? null,
+      createdByUserId: user.id,
+    });
 
-    await db.insert(appointmentEvents).values({
+    await appointments.addEvent({
       appointmentId: created.id,
       userId: user.id,
       newStatus: "confirmado",
@@ -225,12 +145,12 @@ export function createAppointmentUseCases(deps: AppointmentUseCasesDeps) {
       ipAddress: ip,
     });
 
-    const [patient] = await db.select().from(patients).where(eq(patients.id, patientId)).limit(1);
+    const patient = await patients.findById(patientId);
     if (patient?.email) {
       await notifier.sendConfirmation(patient.email, "reserva", created.startAt.toISOString());
     }
 
-    const dto = toAppointmentDto(created);
+    const dto = appointmentToDto(created);
     agendaSync.broadcastUpdate(clinicId, { type: "appointment:created", appointment: dto });
     return dto;
   }
@@ -241,17 +161,13 @@ export function createAppointmentUseCases(deps: AppointmentUseCasesDeps) {
     ip: string,
   ): Promise<AppointmentDto> {
     if (user.role === "paciente") {
-      const [patient] = await db
-        .select()
-        .from(patients)
-        .where(eq(patients.userId, user.id))
-        .limit(1);
-      if (!patient) throw new AppError("Paciente no encontrado", 404);
+      const patient = await patients.findByUserId(user.id);
+      if (!patient) throw new NotFoundError("Paciente no encontrado");
       return createAppointmentForClinic(patient.clinicId, user, input, ip, patient.id);
     }
     const clinicId = user.clinicId;
-    if (!clinicId) throw new AppError("Clínica no asignada", 400);
-    if (!input.patientId) throw new AppError("patientId requerido", 400);
+    if (!clinicId) throw new ValidationError("Clínica no asignada");
+    if (!input.patientId) throw new ValidationError("patientId requerido");
     return createAppointmentForClinic(clinicId, user, input, ip, input.patientId);
   }
 
@@ -261,52 +177,55 @@ export function createAppointmentUseCases(deps: AppointmentUseCasesDeps) {
     input: UpdateAppointmentInput,
     ip: string,
   ): Promise<AppointmentDto> {
-    const [existing] = await db.select().from(appointments).where(eq(appointments.id, id)).limit(1);
-    if (!existing) throw new AppError("Cita no encontrada", 404);
+    const existing = await appointments.findById(id);
+    if (!existing) throw new NotFoundError("Cita no encontrada");
     if (user.clinicId && existing.clinicId !== user.clinicId && user.role !== "paciente") {
-      throw new AppError("Acceso denegado", 403);
+      throw new ForbiddenError("Acceso denegado");
     }
 
     if (user.role === "paciente") {
       const hoursUntilAppointment = (existing.startAt.getTime() - Date.now()) / (1000 * 60 * 60);
       if (hoursUntilAppointment < 24) {
-        throw new AppError("No puedes modificar o cancelar una cita con menos de 24 horas de anticipación. Por favor, contacta a la clínica.", 403);
+        throw new ForbiddenError("No puedes modificar o cancelar una cita con menos de 24 horas de anticipación. Por favor, contacta a la clínica.");
       }
     }
 
     let startAt = input.startAt ? new Date(input.startAt) : existing.startAt;
     let endAt = input.endAt ? new Date(input.endAt) : existing.endAt;
     let newStatus = input.status ?? existing.status;
-    let pendingReschedule = input.pendingReschedule !== undefined ? input.pendingReschedule : existing.pendingReschedule;
+    let pendingReschedule: { startAt: Date; endAt: Date } | null =
+      input.pendingReschedule !== undefined
+        ? input.pendingReschedule
+          ? {
+              startAt: new Date(input.pendingReschedule.startAt),
+              endAt: new Date(input.pendingReschedule.endAt),
+            }
+          : null
+        : existing.pendingReschedule;
 
     if (user.role === "paciente" && input.startAt && input.endAt && input.status === "reagendado") {
       // El paciente solicita reagendar: interceptamos la fecha y no modificamos la cita original
-      pendingReschedule = { startAt: input.startAt, endAt: input.endAt };
+      pendingReschedule = { startAt: new Date(input.startAt), endAt: new Date(input.endAt) };
       startAt = existing.startAt;
       endAt = existing.endAt;
       newStatus = existing.status;
     }
 
     if (pendingReschedule) {
-      await assertNoConflict(existing.clinicId, existing.practitionerId, new Date(pendingReschedule.startAt), new Date(pendingReschedule.endAt), id);
+      await assertNoConflict(existing.clinicId, existing.practitionerId, pendingReschedule.startAt, pendingReschedule.endAt, id);
     } else if (startAt !== existing.startAt || endAt !== existing.endAt) {
       await assertNoConflict(existing.clinicId, existing.practitionerId, startAt, endAt, id);
     }
 
-    const [updated] = await db
-      .update(appointments)
-      .set({
-        startAt,
-        endAt,
-        status: newStatus,
-        notes: input.notes ?? existing.notes,
-        pendingReschedule,
-        updatedAt: new Date(),
-      })
-      .where(eq(appointments.id, id))
-      .returning();
+    const updated = await appointments.update(id, {
+      startAt,
+      endAt,
+      status: newStatus,
+      notes: input.notes ?? existing.notes,
+      pendingReschedule,
+    });
 
-    await db.insert(appointmentEvents).values({
+    await appointments.addEvent({
       appointmentId: id,
       userId: user.id,
       previousStatus: existing.status,
@@ -324,11 +243,7 @@ export function createAppointmentUseCases(deps: AppointmentUseCasesDeps) {
     });
 
     if (existing.patientId) {
-      const [patient] = await db
-        .select()
-        .from(patients)
-        .where(eq(patients.id, existing.patientId))
-        .limit(1);
+      const patient = await patients.findById(existing.patientId);
       if (patient?.email) {
         const action =
           newStatus === "cancelado"
@@ -340,7 +255,7 @@ export function createAppointmentUseCases(deps: AppointmentUseCasesDeps) {
       }
     }
 
-    const dto = toAppointmentDto(updated);
+    const dto = appointmentToDto(updated);
     agendaSync.broadcastUpdate(existing.clinicId, { type: "appointment:updated", appointment: dto });
     return dto;
   }
@@ -351,20 +266,16 @@ export function createAppointmentUseCases(deps: AppointmentUseCasesDeps) {
     input: DoctorActionInput,
     ip: string,
   ): Promise<AppointmentDto> {
-    const [practitioner] = await db
-      .select()
-      .from(practitioners)
-      .where(eq(practitioners.userId, user.id))
-      .limit(1);
-    if (!practitioner) throw new AppError("Médico no encontrado", 404);
+    const practitioner = await practitioners.findByUserId(user.id);
+    if (!practitioner) throw new NotFoundError("Médico no encontrado");
 
-    const [existing] = await db.select().from(appointments).where(eq(appointments.id, id)).limit(1);
-    if (!existing) throw new AppError("Cita no encontrada", 404);
+    const existing = await appointments.findById(id);
+    if (!existing) throw new NotFoundError("Cita no encontrada");
     if (existing.practitionerId !== practitioner.id) {
-      throw new AppError("Solo puede gestionar sus propias citas", 403);
+      throw new ForbiddenError("Solo puede gestionar sus propias citas");
     }
     if (!DOCTOR_ACTIONABLE_STATUSES.has(existing.status)) {
-      throw new AppError("La cita no admite esta acción en su estado actual", 409, "INVALID_STATUS");
+      throw new ConflictError("La cita no admite esta acción en su estado actual", "INVALID_STATUS");
     }
 
     const newStatus =
@@ -374,21 +285,17 @@ export function createAppointmentUseCases(deps: AppointmentUseCasesDeps) {
           ? ("no_asistio" as const)
           : ("cancelacion_pendiente" as const);
 
-    const [updated] = await db
-      .update(appointments)
-      .set({
-        status: newStatus,
-        requestedByUserId: input.action === "solicitar_cancelacion" ? user.id : existing.requestedByUserId,
-        requestReason:
-          input.action === "solicitar_cancelacion"
-            ? (input.reason?.trim() ?? null)
-            : existing.requestReason,
-        updatedAt: new Date(),
-      })
-      .where(eq(appointments.id, id))
-      .returning();
+    const updated = await appointments.update(id, {
+      status: newStatus,
+      requestedByUserId:
+        input.action === "solicitar_cancelacion" ? user.id : existing.requestedByUserId,
+      requestReason:
+        input.action === "solicitar_cancelacion"
+          ? (input.reason?.trim() ?? null)
+          : existing.requestReason,
+    });
 
-    await db.insert(appointmentEvents).values({
+    await appointments.addEvent({
       appointmentId: id,
       userId: user.id,
       previousStatus: existing.status,
@@ -406,7 +313,7 @@ export function createAppointmentUseCases(deps: AppointmentUseCasesDeps) {
       metadata: { action: input.action, status: newStatus },
     });
 
-    const dto = toAppointmentDto(updated);
+    const dto = appointmentToDto(updated);
     agendaSync.broadcastUpdate(existing.clinicId, { type: "appointment:updated", appointment: dto });
     return dto;
   }
@@ -417,47 +324,32 @@ export function createAppointmentUseCases(deps: AppointmentUseCasesDeps) {
     input: ReviewCancellationInput,
     ip: string,
   ): Promise<AppointmentDto> {
-    const [existing] = await db.select().from(appointments).where(eq(appointments.id, id)).limit(1);
-    if (!existing) throw new AppError("Cita no encontrada", 404);
+    const existing = await appointments.findById(id);
+    if (!existing) throw new NotFoundError("Cita no encontrada");
     if (!user.clinicId || existing.clinicId !== user.clinicId) {
-      throw new AppError("Acceso denegado", 403);
+      throw new ForbiddenError("Acceso denegado");
     }
     if (existing.status !== "cancelacion_pendiente") {
-      throw new AppError("La cita no tiene una solicitud de cancelación pendiente", 409, "INVALID_STATUS");
+      throw new ConflictError("La cita no tiene una solicitud de cancelación pendiente", "INVALID_STATUS");
     }
 
     // Al rechazar, restaurar el estado que tenía la cita antes de la solicitud.
     let restoredStatus: AppointmentStatus = "confirmado";
     if (input.decision === "rechazar") {
-      const [requestEvent] = await db
-        .select()
-        .from(appointmentEvents)
-        .where(
-          and(
-            eq(appointmentEvents.appointmentId, id),
-            eq(appointmentEvents.newStatus, "cancelacion_pendiente"),
-          ),
-        )
-        .orderBy(desc(appointmentEvents.createdAt))
-        .limit(1);
-      if (requestEvent?.previousStatus) restoredStatus = requestEvent.previousStatus;
+      const previousStatus = await appointments.findPreviousStatusOfLatestRequest(id);
+      if (previousStatus) restoredStatus = previousStatus;
     }
 
     const newStatus = input.decision === "aprobar" ? ("cancelado" as const) : restoredStatus;
 
-    const [updated] = await db
-      .update(appointments)
-      .set({
-        status: newStatus,
-        reviewedByUserId: user.id,
-        reviewNote: input.note.trim(),
-        reviewedAt: new Date(),
-        updatedAt: new Date(),
-      })
-      .where(eq(appointments.id, id))
-      .returning();
+    const updated = await appointments.update(id, {
+      status: newStatus,
+      reviewedByUserId: user.id,
+      reviewNote: input.note.trim(),
+      reviewedAt: new Date(),
+    });
 
-    await db.insert(appointmentEvents).values({
+    await appointments.addEvent({
       appointmentId: id,
       userId: user.id,
       previousStatus: existing.status,
@@ -476,17 +368,13 @@ export function createAppointmentUseCases(deps: AppointmentUseCasesDeps) {
     });
 
     if (input.decision === "aprobar" && existing.patientId) {
-      const [patient] = await db
-        .select()
-        .from(patients)
-        .where(eq(patients.id, existing.patientId))
-        .limit(1);
+      const patient = await patients.findById(existing.patientId);
       if (patient?.email) {
         await notifier.sendConfirmation(patient.email, "cancelación", updated.startAt.toISOString());
       }
     }
 
-    const dto = toAppointmentDto(updated);
+    const dto = appointmentToDto(updated);
     agendaSync.broadcastUpdate(existing.clinicId, { type: "appointment:updated", appointment: dto });
     return dto;
   }
@@ -496,7 +384,7 @@ export function createAppointmentUseCases(deps: AppointmentUseCasesDeps) {
     input: CreateBlockInput,
     ip: string,
   ): Promise<AppointmentDto> {
-    if (!user.clinicId) throw new AppError("Clínica no asignada", 400);
+    if (!user.clinicId) throw new ValidationError("Clínica no asignada");
     const startAt = new Date(input.startAt);
     const endAt = new Date(input.endAt);
 
@@ -507,18 +395,15 @@ export function createAppointmentUseCases(deps: AppointmentUseCasesDeps) {
       endAt,
     );
 
-    const [created] = await db
-      .insert(appointments)
-      .values({
-        clinicId: user.clinicId,
-        practitionerId: input.practitionerId,
-        status: "bloqueado",
-        startAt,
-        endAt,
-        notes: input.reason ?? "Bloqueo de agenda",
-        createdByUserId: user.id,
-      })
-      .returning();
+    const created = await appointments.create({
+      clinicId: user.clinicId,
+      practitionerId: input.practitionerId,
+      status: "bloqueado",
+      startAt,
+      endAt,
+      notes: input.reason ?? "Bloqueo de agenda",
+      createdByUserId: user.id,
+    });
 
     await auditLogger.write({
       clinicId: user.clinicId,
@@ -529,7 +414,7 @@ export function createAppointmentUseCases(deps: AppointmentUseCasesDeps) {
       ipAddress: ip,
     });
 
-    const dto = toAppointmentDto(created);
+    const dto = appointmentToDto(created);
     agendaSync.broadcastUpdate(user.clinicId, { type: "appointment:blocked", appointment: dto });
     return dto;
   }
@@ -538,70 +423,19 @@ export function createAppointmentUseCases(deps: AppointmentUseCasesDeps) {
     clinicId: string,
     query: AvailabilityQuery,
   ): Promise<AvailabilitySlotDto[]> {
+    const data = await appointments.getAvailabilityData(clinicId, query);
+    if (data.practitioners.length === 0) return [];
+
     const from = new Date(query.from);
     const to = new Date(query.to);
 
-    const practitionerConditions = [eq(practitioners.clinicId, clinicId)];
-    if (query.practitionerId) {
-      practitionerConditions.push(eq(practitioners.id, query.practitionerId));
-    }
-    if (query.specialtyId) {
-      practitionerConditions.push(eq(practitioners.specialtyId, query.specialtyId));
-    }
-
-    const practitionerRows = await db
-      .select({
-        practitioner: practitioners,
-        specialtyName: specialties.name,
-      })
-      .from(practitioners)
-      .innerJoin(specialties, eq(practitioners.specialtyId, specialties.id))
-      .where(and(...practitionerConditions));
-
-    const practitionerIds = practitionerRows.map((p) => p.practitioner.id);
-    if (practitionerIds.length === 0) return [];
-
-    const bookedRows = await db
-      .select({
-        appointment: appointments,
-        patientGiven: patients.givenName,
-        patientFamily: patients.familyName,
-      })
-      .from(appointments)
-      .leftJoin(patients, eq(appointments.patientId, patients.id))
-      .where(
-        and(
-          eq(appointments.clinicId, clinicId),
-          inArray(appointments.practitionerId, practitionerIds),
-          lte(appointments.startAt, to),
-          gte(appointments.endAt, from),
-          ne(appointments.status, "cancelado"),
-        ),
-      );
-
-    const booked: BookedAppointment[] = bookedRows.map((r) => ({
-      ...r.appointment,
-      patientName: r.patientGiven ? `${r.patientGiven} ${r.patientFamily}` : undefined,
-    }));
-
-    const templates = await db
-      .select()
-      .from(scheduleTemplates)
-      .where(inArray(scheduleTemplates.practitionerId, practitionerIds));
-
     const allSlots: AvailabilitySlotDto[] = [];
-    for (const row of practitionerRows) {
-      const pTemplates = templates.filter((t) => t.practitionerId === row.practitioner.id);
-      const pBooked = booked.filter((b) => b.practitionerId === row.practitioner.id);
+    for (const practitioner of data.practitioners) {
+      const pTemplates = data.templates.filter((t) => t.practitionerId === practitioner.id);
+      const pBooked = data.booked.filter((b) => b.practitionerId === practitioner.id);
       for (const template of pTemplates) {
         allSlots.push(
-          ...generateSlotsFromTemplate(
-            template,
-            from,
-            to,
-            { ...row.practitioner, specialtyName: row.specialtyName },
-            pBooked,
-          ),
+          ...generateSlotsFromTemplate(template, from, to, practitioner, pBooked),
         );
       }
     }

@@ -1,4 +1,3 @@
-import { eq, and, gte, lte, sql } from "drizzle-orm";
 import type {
   CreateStaffInput,
   UpdateStaffInput,
@@ -14,30 +13,30 @@ import type {
   ScheduleTemplateDto,
   OccupancyReportDto,
 } from "@smoothflow/shared";
-import { db } from "../infrastructure/db/client.js";
-import {
-  users,
-  specialties,
-  practitioners,
-  scheduleTemplates,
-  appointments,
-  appointmentEvents,
-  auditLogs,
-} from "../infrastructure/db/schema.js";
-import { AppError } from "../domain/errors.js";
+import { NotFoundError, ConflictError, ValidationError } from "../domain/errors.js";
 import { canUnlinkStaff, canRelinkStaff, canDeleteStaff, isRevokedStaff } from "../domain/staff-rules.js";
-import { buildScheduleTemplateRows } from "../domain/scheduling/default-schedule.js";
 import {
   findOverlappingSchedule,
   isValidScheduleRange,
 } from "../domain/scheduling/schedule-overlap.js";
-import { unlinkUser } from "../infrastructure/auth/password.js";
+import { computeDayOccupancy } from "../domain/scheduling/occupancy.js";
+import { userToDto } from "../domain/mappers/user.js";
 import type { PasswordHasher } from "../domain/ports/password-hasher.port.js";
 import type { AuditLogger } from "../domain/ports/audit-logger.port.js";
 import type { AgendaSyncPort } from "../domain/ports/agenda-sync.port.js";
 import type { SessionRevoker } from "../domain/ports/session-revoker.port.js";
+import type { UserRepository } from "../domain/ports/user.repository.js";
+import type { PractitionerRepository } from "../domain/ports/practitioner.repository.js";
+import type { SpecialtyRepository } from "../domain/ports/specialty.repository.js";
+import type { ScheduleRepository } from "../domain/ports/schedule.repository.js";
+import type { AppointmentRepository } from "../domain/ports/appointment.repository.js";
 
 export interface OwnerUseCasesDeps {
+  users: UserRepository;
+  practitioners: PractitionerRepository;
+  specialties: SpecialtyRepository;
+  schedules: ScheduleRepository;
+  appointments: AppointmentRepository;
   passwordHasher: PasswordHasher;
   auditLogger: AuditLogger;
   agendaSync: AgendaSyncPort;
@@ -45,43 +44,25 @@ export interface OwnerUseCasesDeps {
 }
 
 function requireClinic(user: SessionUser): string {
-  if (!user.clinicId) throw new AppError("Clínica no asignada", 400);
+  if (!user.clinicId) throw new ValidationError("Clínica no asignada");
   return user.clinicId;
 }
 
-function toUserDto(row: typeof users.$inferSelect): UserDto {
-  return {
-    id: row.id,
-    clinicId: row.clinicId,
-    email: row.email,
-    role: row.role,
-    givenName: row.givenName,
-    familyName: row.familyName,
-    active: row.active,
-    revokedAt: row.revokedAt?.toISOString() ?? null,
-    createdAt: row.createdAt.toISOString(),
-  };
-}
-
 export function createOwnerUseCases(deps: OwnerUseCasesDeps) {
-  const { passwordHasher, auditLogger, agendaSync, sessionRevoker } = deps;
+  const {
+    users,
+    practitioners,
+    specialties,
+    schedules,
+    appointments,
+    passwordHasher,
+    auditLogger,
+    agendaSync,
+    sessionRevoker,
+  } = deps;
 
   async function listStaff(clinicId: string): Promise<UserDto[]> {
-    const rows = await db
-      .select()
-      .from(users)
-      .where(and(eq(users.clinicId, clinicId), sql`${users.role} != 'paciente'`));
-    return rows.map((r) => ({
-      id: r.id,
-      clinicId: r.clinicId,
-      email: r.email,
-      role: r.role,
-      givenName: r.givenName,
-      familyName: r.familyName,
-      active: r.active,
-      revokedAt: r.revokedAt?.toISOString() ?? null,
-      createdAt: r.createdAt.toISOString(),
-    }));
+    return users.listStaff(clinicId);
   }
 
   async function createStaff(
@@ -91,34 +72,27 @@ export function createOwnerUseCases(deps: OwnerUseCasesDeps) {
   ): Promise<UserDto> {
     const clinicId = requireClinic(user);
     const passwordHash = await passwordHasher.hash(input.password);
-    const [created] = await db
-      .insert(users)
-      .values({
-        clinicId,
-        email: input.email.toLowerCase(),
-        passwordHash,
-        role: input.role,
-        givenName: input.givenName,
-        familyName: input.familyName,
-      })
-      .returning();
+    const created = await users.create({
+      clinicId,
+      email: input.email.toLowerCase(),
+      passwordHash,
+      role: input.role,
+      givenName: input.givenName,
+      familyName: input.familyName,
+    });
 
     if (input.role === "medico") {
       const specialtyId = input.specialtyId;
-      if (!specialtyId) throw new AppError("Especialidad requerida para médicos", 400);
-      const [practitioner] = await db
-        .insert(practitioners)
-        .values({
-          clinicId,
-          userId: created.id,
-          specialtyId,
-          givenName: input.givenName,
-          familyName: input.familyName,
-          email: input.email.toLowerCase(),
-        })
-        .returning();
-
-      await db.insert(scheduleTemplates).values(buildScheduleTemplateRows(practitioner.id));
+      if (!specialtyId) throw new ValidationError("Especialidad requerida para médicos");
+      const practitioner = await practitioners.createForStaff({
+        clinicId,
+        userId: created.id,
+        specialtyId,
+        givenName: input.givenName,
+        familyName: input.familyName,
+        email: input.email.toLowerCase(),
+      });
+      await schedules.createDefaults(practitioner.id);
     }
 
     await auditLogger.write({
@@ -130,17 +104,7 @@ export function createOwnerUseCases(deps: OwnerUseCasesDeps) {
       ipAddress: ip,
     });
 
-    return {
-      id: created.id,
-      clinicId: created.clinicId,
-      email: created.email,
-      role: created.role,
-      givenName: created.givenName,
-      familyName: created.familyName,
-      active: created.active,
-      revokedAt: null,
-      createdAt: created.createdAt.toISOString(),
-    };
+    return userToDto(created);
   }
 
   async function updateStaff(
@@ -150,20 +114,15 @@ export function createOwnerUseCases(deps: OwnerUseCasesDeps) {
     ip: string,
   ): Promise<UserDto> {
     const clinicId = requireClinic(user);
-    const [existing] = await db.select().from(users).where(eq(users.id, staffId)).limit(1);
-    if (!existing || existing.clinicId !== clinicId) throw new AppError("Usuario no encontrado", 404);
+    const existing = await users.findById(staffId);
+    if (!existing || existing.clinicId !== clinicId) throw new NotFoundError("Usuario no encontrado");
 
-    const [updated] = await db
-      .update(users)
-      .set({
-        givenName: input.givenName ?? existing.givenName,
-        familyName: input.familyName ?? existing.familyName,
-        role: input.role ?? existing.role,
-        active: input.active ?? existing.active,
-        updatedAt: new Date(),
-      })
-      .where(eq(users.id, staffId))
-      .returning();
+    const updated = await users.update(staffId, {
+      givenName: input.givenName ?? existing.givenName,
+      familyName: input.familyName ?? existing.familyName,
+      role: input.role ?? existing.role,
+      active: input.active ?? existing.active,
+    });
 
     await auditLogger.write({
       clinicId,
@@ -174,26 +133,17 @@ export function createOwnerUseCases(deps: OwnerUseCasesDeps) {
       ipAddress: ip,
     });
 
-    return {
-      id: updated.id,
-      clinicId: updated.clinicId,
-      email: updated.email,
-      role: updated.role,
-      givenName: updated.givenName,
-      familyName: updated.familyName,
-      active: updated.active,
-      revokedAt: updated.revokedAt?.toISOString() ?? null,
-      createdAt: updated.createdAt.toISOString(),
-    };
+    return userToDto(updated);
   }
 
   async function unlinkStaff(user: SessionUser, staffId: string, ip: string): Promise<void> {
     const clinicId = requireClinic(user);
-    const [existing] = await db.select().from(users).where(eq(users.id, staffId)).limit(1);
-    if (!existing || existing.clinicId !== clinicId) throw new AppError("Usuario no encontrado", 404);
-    if (!canUnlinkStaff(existing.role)) throw new AppError("No se puede desvincular al dueño", 400);
+    const existing = await users.findById(staffId);
+    if (!existing || existing.clinicId !== clinicId) throw new NotFoundError("Usuario no encontrado");
+    if (!canUnlinkStaff(existing.role)) throw new ValidationError("No se puede desvincular al dueño");
 
-    await unlinkUser(staffId);
+    await users.markRevoked(staffId);
+    await sessionRevoker.revokeUserSessions(staffId);
     agendaSync.broadcastSessionRevoked(staffId);
 
     await auditLogger.write({
@@ -212,18 +162,14 @@ export function createOwnerUseCases(deps: OwnerUseCasesDeps) {
     ip: string,
   ): Promise<UserDto> {
     const clinicId = requireClinic(user);
-    const [existing] = await db.select().from(users).where(eq(users.id, staffId)).limit(1);
-    if (!existing || existing.clinicId !== clinicId) throw new AppError("Usuario no encontrado", 404);
-    if (!canRelinkStaff(existing.role)) throw new AppError("No se puede revincular al dueño", 400);
+    const existing = await users.findById(staffId);
+    if (!existing || existing.clinicId !== clinicId) throw new NotFoundError("Usuario no encontrado");
+    if (!canRelinkStaff(existing.role)) throw new ValidationError("No se puede revincular al dueño");
     if (!isRevokedStaff(existing)) {
-      throw new AppError("Solo se puede revincular personal previamente desvinculado", 400);
+      throw new ValidationError("Solo se puede revincular personal previamente desvinculado");
     }
 
-    const [updated] = await db
-      .update(users)
-      .set({ active: true, revokedAt: null, updatedAt: new Date() })
-      .where(eq(users.id, staffId))
-      .returning();
+    const updated = await users.update(staffId, { active: true, revokedAt: null });
 
     await auditLogger.write({
       clinicId,
@@ -234,7 +180,7 @@ export function createOwnerUseCases(deps: OwnerUseCasesDeps) {
       ipAddress: ip,
     });
 
-    return toUserDto(updated);
+    return userToDto(updated);
   }
 
   async function deleteStaffPermanently(
@@ -243,11 +189,11 @@ export function createOwnerUseCases(deps: OwnerUseCasesDeps) {
     ip: string,
   ): Promise<void> {
     const clinicId = requireClinic(user);
-    const [existing] = await db.select().from(users).where(eq(users.id, staffId)).limit(1);
-    if (!existing || existing.clinicId !== clinicId) throw new AppError("Usuario no encontrado", 404);
-    if (!canDeleteStaff(existing.role)) throw new AppError("No se puede eliminar al dueño", 400);
+    const existing = await users.findById(staffId);
+    if (!existing || existing.clinicId !== clinicId) throw new NotFoundError("Usuario no encontrado");
+    if (!canDeleteStaff(existing.role)) throw new ValidationError("No se puede eliminar al dueño");
     if (!isRevokedStaff(existing)) {
-      throw new AppError("Solo se puede eliminar personal previamente desvinculado", 400);
+      throw new ValidationError("Solo se puede eliminar personal previamente desvinculado");
     }
 
     await auditLogger.write({
@@ -265,37 +211,12 @@ export function createOwnerUseCases(deps: OwnerUseCasesDeps) {
       },
     });
 
-    await db.update(practitioners).set({ userId: null }).where(eq(practitioners.userId, staffId));
-    await db
-      .update(appointments)
-      .set({ createdByUserId: null })
-      .where(eq(appointments.createdByUserId, staffId));
-    await db
-      .update(appointments)
-      .set({ requestedByUserId: null })
-      .where(eq(appointments.requestedByUserId, staffId));
-    await db
-      .update(appointments)
-      .set({ reviewedByUserId: null })
-      .where(eq(appointments.reviewedByUserId, staffId));
-    await db
-      .update(appointmentEvents)
-      .set({ userId: null })
-      .where(eq(appointmentEvents.userId, staffId));
-    await db.update(auditLogs).set({ userId: null }).where(eq(auditLogs.userId, staffId));
-
     await sessionRevoker.revokeUserSessions(staffId);
-    await db.delete(users).where(eq(users.id, staffId));
+    await users.deleteWithReferences(staffId);
   }
 
   async function listSpecialties(clinicId: string): Promise<SpecialtyDto[]> {
-    const rows = await db.select().from(specialties).where(eq(specialties.clinicId, clinicId));
-    return rows.map((r) => ({
-      id: r.id,
-      clinicId: r.clinicId,
-      name: r.name,
-      description: r.description,
-    }));
+    return specialties.listForClinic(clinicId);
   }
 
   async function createSpecialty(
@@ -304,10 +225,10 @@ export function createOwnerUseCases(deps: OwnerUseCasesDeps) {
     ip: string,
   ): Promise<SpecialtyDto> {
     const clinicId = requireClinic(user);
-    const [created] = await db
-      .insert(specialties)
-      .values({ clinicId, name: input.name, description: input.description ?? null })
-      .returning();
+    const created = await specialties.create(clinicId, {
+      name: input.name,
+      description: input.description ?? null,
+    });
     await auditLogger.write({
       clinicId,
       userId: user.id,
@@ -316,24 +237,7 @@ export function createOwnerUseCases(deps: OwnerUseCasesDeps) {
       resourceId: created.id,
       ipAddress: ip,
     });
-    return {
-      id: created.id,
-      clinicId: created.clinicId,
-      name: created.name,
-      description: created.description,
-    };
-  }
-
-  async function getSpecialtyForClinic(
-    clinicId: string,
-    specialtyId: string,
-  ): Promise<typeof specialties.$inferSelect> {
-    const [row] = await db
-      .select()
-      .from(specialties)
-      .where(and(eq(specialties.id, specialtyId), eq(specialties.clinicId, clinicId)));
-    if (!row) throw new AppError("Especialidad no encontrada", 404);
-    return row;
+    return created;
   }
 
   async function updateSpecialty(
@@ -343,17 +247,13 @@ export function createOwnerUseCases(deps: OwnerUseCasesDeps) {
     ip: string,
   ): Promise<SpecialtyDto> {
     const clinicId = requireClinic(user);
-    await getSpecialtyForClinic(clinicId, specialtyId);
+    const found = await specialties.findForClinic(clinicId, specialtyId);
+    if (!found) throw new NotFoundError("Especialidad no encontrada");
 
-    const updates: Partial<{ name: string; description: string | null }> = {};
-    if (input.name !== undefined) updates.name = input.name;
-    if (input.description !== undefined) updates.description = input.description;
-
-    const [updated] = await db
-      .update(specialties)
-      .set(updates)
-      .where(and(eq(specialties.id, specialtyId), eq(specialties.clinicId, clinicId)))
-      .returning();
+    const updated = await specialties.update(clinicId, specialtyId, {
+      name: input.name,
+      description: input.description,
+    });
 
     await auditLogger.write({
       clinicId,
@@ -364,12 +264,7 @@ export function createOwnerUseCases(deps: OwnerUseCasesDeps) {
       ipAddress: ip,
     });
 
-    return {
-      id: updated.id,
-      clinicId: updated.clinicId,
-      name: updated.name,
-      description: updated.description,
-    };
+    return updated;
   }
 
   async function deleteSpecialty(
@@ -378,21 +273,14 @@ export function createOwnerUseCases(deps: OwnerUseCasesDeps) {
     ip: string,
   ): Promise<void> {
     const clinicId = requireClinic(user);
-    await getSpecialtyForClinic(clinicId, specialtyId);
+    const found = await specialties.findForClinic(clinicId, specialtyId);
+    if (!found) throw new NotFoundError("Especialidad no encontrada");
 
-    const linked = await db
-      .select({ id: practitioners.id })
-      .from(practitioners)
-      .where(eq(practitioners.specialtyId, specialtyId))
-      .limit(1);
-
-    if (linked.length > 0) {
-      throw new AppError("No se puede eliminar: hay médicos asignados a esta especialidad", 409);
+    if (await practitioners.existsForSpecialty(specialtyId)) {
+      throw new ConflictError("No se puede eliminar: hay médicos asignados a esta especialidad");
     }
 
-    await db
-      .delete(specialties)
-      .where(and(eq(specialties.id, specialtyId), eq(specialties.clinicId, clinicId)));
+    await specialties.delete(clinicId, specialtyId);
 
     await auditLogger.write({
       clinicId,
@@ -405,21 +293,7 @@ export function createOwnerUseCases(deps: OwnerUseCasesDeps) {
   }
 
   async function listPractitioners(clinicId: string): Promise<PractitionerDto[]> {
-    const rows = await db
-      .select({ practitioner: practitioners, specialtyName: specialties.name })
-      .from(practitioners)
-      .innerJoin(specialties, eq(practitioners.specialtyId, specialties.id))
-      .where(eq(practitioners.clinicId, clinicId));
-    return rows.map((r) => ({
-      id: r.practitioner.id,
-      clinicId: r.practitioner.clinicId,
-      userId: r.practitioner.userId,
-      specialtyId: r.practitioner.specialtyId,
-      givenName: r.practitioner.givenName,
-      familyName: r.practitioner.familyName,
-      email: r.practitioner.email,
-      specialtyName: r.specialtyName,
-    }));
+    return practitioners.listForClinic(clinicId);
   }
 
   async function createPractitioner(
@@ -428,22 +302,14 @@ export function createOwnerUseCases(deps: OwnerUseCasesDeps) {
     ip: string,
   ): Promise<PractitionerDto> {
     const clinicId = requireClinic(user);
-    const [created] = await db
-      .insert(practitioners)
-      .values({
-        clinicId,
-        userId: input.userId ?? null,
-        specialtyId: input.specialtyId,
-        givenName: input.givenName,
-        familyName: input.familyName,
-        email: input.email ?? null,
-      })
-      .returning();
-    const [spec] = await db
-      .select()
-      .from(specialties)
-      .where(eq(specialties.id, input.specialtyId))
-      .limit(1);
+    const created = await practitioners.create({
+      clinicId,
+      userId: input.userId ?? null,
+      specialtyId: input.specialtyId,
+      givenName: input.givenName,
+      familyName: input.familyName,
+      email: input.email ?? null,
+    });
     await auditLogger.write({
       clinicId,
       userId: user.id,
@@ -452,32 +318,11 @@ export function createOwnerUseCases(deps: OwnerUseCasesDeps) {
       resourceId: created.id,
       ipAddress: ip,
     });
-    return {
-      id: created.id,
-      clinicId: created.clinicId,
-      userId: created.userId,
-      specialtyId: created.specialtyId,
-      givenName: created.givenName,
-      familyName: created.familyName,
-      email: created.email,
-      specialtyName: spec?.name,
-    };
+    return created;
   }
 
   async function listSchedules(clinicId: string): Promise<ScheduleTemplateDto[]> {
-    const rows = await db
-      .select({ template: scheduleTemplates, clinicId: practitioners.clinicId })
-      .from(scheduleTemplates)
-      .innerJoin(practitioners, eq(scheduleTemplates.practitionerId, practitioners.id))
-      .where(eq(practitioners.clinicId, clinicId));
-    return rows.map((r) => ({
-      id: r.template.id,
-      practitionerId: r.template.practitionerId,
-      dayOfWeek: r.template.dayOfWeek,
-      startTime: r.template.startTime,
-      endTime: r.template.endTime,
-      slotDurationMinutes: r.template.slotDurationMinutes,
-    }));
+    return schedules.listForClinic(clinicId);
   }
 
   async function createSchedule(
@@ -486,22 +331,15 @@ export function createOwnerUseCases(deps: OwnerUseCasesDeps) {
     ip: string,
   ): Promise<ScheduleTemplateDto> {
     const clinicId = requireClinic(user);
-    const [practitioner] = await db
-      .select()
-      .from(practitioners)
-      .where(eq(practitioners.id, input.practitionerId))
-      .limit(1);
+    const practitioner = await practitioners.findById(input.practitionerId);
     if (!practitioner || practitioner.clinicId !== clinicId) {
-      throw new AppError("Profesional no encontrado", 404);
+      throw new NotFoundError("Profesional no encontrado");
     }
     if (!isValidScheduleRange(input.startTime, input.endTime)) {
-      throw new AppError("La hora de inicio debe ser anterior a la hora de fin", 400);
+      throw new ValidationError("La hora de inicio debe ser anterior a la hora de fin");
     }
 
-    const existing = await db
-      .select()
-      .from(scheduleTemplates)
-      .where(eq(scheduleTemplates.practitionerId, input.practitionerId));
+    const existing = await schedules.listForPractitioner(input.practitionerId);
 
     const overlap = findOverlappingSchedule(
       input,
@@ -510,10 +348,10 @@ export function createOwnerUseCases(deps: OwnerUseCasesDeps) {
       existing.map((r) => r.id),
     );
     if (overlap) {
-      throw new AppError("El horario se superpone con otro bloque del mismo día", 409);
+      throw new ConflictError("El horario se superpone con otro bloque del mismo día");
     }
 
-    const [created] = await db.insert(scheduleTemplates).values(input).returning();
+    const created = await schedules.create(input);
     await auditLogger.write({
       clinicId,
       userId: user.id,
@@ -522,28 +360,7 @@ export function createOwnerUseCases(deps: OwnerUseCasesDeps) {
       resourceId: created.id,
       ipAddress: ip,
     });
-    return {
-      id: created.id,
-      practitionerId: created.practitionerId,
-      dayOfWeek: created.dayOfWeek,
-      startTime: created.startTime,
-      endTime: created.endTime,
-      slotDurationMinutes: created.slotDurationMinutes,
-    };
-  }
-
-  async function getScheduleForClinic(
-    clinicId: string,
-    scheduleId: string,
-  ): Promise<typeof scheduleTemplates.$inferSelect> {
-    const rows = await db
-      .select({ template: scheduleTemplates })
-      .from(scheduleTemplates)
-      .innerJoin(practitioners, eq(scheduleTemplates.practitionerId, practitioners.id))
-      .where(and(eq(scheduleTemplates.id, scheduleId), eq(practitioners.clinicId, clinicId)))
-      .limit(1);
-    if (!rows[0]) throw new AppError("Horario no encontrado", 404);
-    return rows[0].template;
+    return created;
   }
 
   async function updateSchedule(
@@ -553,7 +370,8 @@ export function createOwnerUseCases(deps: OwnerUseCasesDeps) {
     ip: string,
   ): Promise<ScheduleTemplateDto> {
     const clinicId = requireClinic(user);
-    const existing = await getScheduleForClinic(clinicId, scheduleId);
+    const existing = await schedules.findForClinic(clinicId, scheduleId);
+    if (!existing) throw new NotFoundError("Horario no encontrado");
 
     const next = {
       dayOfWeek: input.dayOfWeek ?? existing.dayOfWeek,
@@ -563,13 +381,10 @@ export function createOwnerUseCases(deps: OwnerUseCasesDeps) {
     };
 
     if (!isValidScheduleRange(next.startTime, next.endTime)) {
-      throw new AppError("La hora de inicio debe ser anterior a la hora de fin", 400);
+      throw new ValidationError("La hora de inicio debe ser anterior a la hora de fin");
     }
 
-    const siblings = await db
-      .select()
-      .from(scheduleTemplates)
-      .where(eq(scheduleTemplates.practitionerId, existing.practitionerId));
+    const siblings = await schedules.listForPractitioner(existing.practitionerId);
 
     const overlap = findOverlappingSchedule(
       { dayOfWeek: next.dayOfWeek, startTime: next.startTime, endTime: next.endTime },
@@ -578,14 +393,10 @@ export function createOwnerUseCases(deps: OwnerUseCasesDeps) {
       siblings.map((r) => r.id),
     );
     if (overlap) {
-      throw new AppError("El horario se superpone con otro bloque del mismo día", 409);
+      throw new ConflictError("El horario se superpone con otro bloque del mismo día");
     }
 
-    const [updated] = await db
-      .update(scheduleTemplates)
-      .set(next)
-      .where(eq(scheduleTemplates.id, scheduleId))
-      .returning();
+    const updated = await schedules.update(scheduleId, next);
 
     await auditLogger.write({
       clinicId,
@@ -596,14 +407,7 @@ export function createOwnerUseCases(deps: OwnerUseCasesDeps) {
       ipAddress: ip,
     });
 
-    return {
-      id: updated.id,
-      practitionerId: updated.practitionerId,
-      dayOfWeek: updated.dayOfWeek,
-      startTime: updated.startTime,
-      endTime: updated.endTime,
-      slotDurationMinutes: updated.slotDurationMinutes,
-    };
+    return updated;
   }
 
   async function deleteSchedule(
@@ -612,9 +416,10 @@ export function createOwnerUseCases(deps: OwnerUseCasesDeps) {
     ip: string,
   ): Promise<void> {
     const clinicId = requireClinic(user);
-    await getScheduleForClinic(clinicId, scheduleId);
+    const existing = await schedules.findForClinic(clinicId, scheduleId);
+    if (!existing) throw new NotFoundError("Horario no encontrado");
 
-    await db.delete(scheduleTemplates).where(eq(scheduleTemplates.id, scheduleId));
+    await schedules.delete(scheduleId);
 
     await auditLogger.write({
       clinicId,
@@ -639,27 +444,12 @@ export function createOwnerUseCases(deps: OwnerUseCasesDeps) {
       const dayEnd = new Date(dayStart);
       dayEnd.setHours(23, 59, 59, 999);
 
-      const dayAppointments = await db
-        .select()
-        .from(appointments)
-        .where(
-          and(
-            eq(appointments.clinicId, clinicId),
-            gte(appointments.startAt, dayStart),
-            lte(appointments.startAt, dayEnd),
-          ),
-        );
+      const statuses = await appointments.listStatusesForDay(clinicId, dayStart, dayEnd);
 
-      const booked = dayAppointments.filter(
-        (a) => a.status !== "cancelado" && a.status !== "bloqueado" && a.status !== "disponible",
-      ).length;
-      const blocked = dayAppointments.filter((a) => a.status === "bloqueado").length;
-      const totalSlots = booked + blocked + 20;
+      const occupancy = computeDayOccupancy(statuses);
       days.push({
         date: dayStart.toISOString().slice(0, 10),
-        totalSlots,
-        bookedSlots: booked,
-        occupancyRate: totalSlots > 0 ? Math.round((booked / totalSlots) * 100) : 0,
+        ...occupancy,
       });
     }
     return { weekStart: start.toISOString().slice(0, 10), days };

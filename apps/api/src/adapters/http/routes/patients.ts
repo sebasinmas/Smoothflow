@@ -2,13 +2,14 @@ import { Router } from "express";
 import { createPatientSchema } from "@smoothflow/shared";
 import { listPatients, createPatient } from "../../../composition/container.js";
 import { requireAuth, getClientIp, type AuthenticatedRequest } from "../middleware/auth.js";
+import { requireClinic } from "../require-clinic.js";
 
 const router = Router();
 
 router.get("/", requireAuth(["secretaria", "dueno"]), async (req, res, next) => {
   try {
     const user = (req as AuthenticatedRequest).user;
-    const items = await listPatients(user.clinicId!);
+    const items = await listPatients(requireClinic(user));
     res.json({ items });
   } catch (err) {
     next(err);

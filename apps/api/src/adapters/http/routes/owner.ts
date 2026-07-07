@@ -28,6 +28,7 @@ import {
   getOccupancyReport,
 } from "../../../composition/container.js";
 import { requireAuth, getClientIp, type AuthenticatedRequest } from "../middleware/auth.js";
+import { requireClinic } from "../require-clinic.js";
 
 const router = Router();
 const ownerOnly = requireAuth(["dueno"]);
@@ -35,7 +36,7 @@ const ownerOnly = requireAuth(["dueno"]);
 router.get("/staff", ownerOnly, async (req, res, next) => {
   try {
     const user = (req as AuthenticatedRequest).user;
-    const items = await listStaff(user.clinicId!);
+    const items = await listStaff(requireClinic(user));
     res.json({ items });
   } catch (err) {
     next(err);
@@ -97,7 +98,7 @@ router.delete("/staff/:id", ownerOnly, async (req, res, next) => {
 router.get("/specialties", ownerOnly, async (req, res, next) => {
   try {
     const user = (req as AuthenticatedRequest).user;
-    const items = await listSpecialties(user.clinicId!);
+    const items = await listSpecialties(requireClinic(user));
     res.json({ items });
   } catch (err) {
     next(err);
@@ -165,7 +166,7 @@ router.post("/practitioners", ownerOnly, async (req, res, next) => {
 router.get("/schedules", ownerOnly, async (req, res, next) => {
   try {
     const user = (req as AuthenticatedRequest).user;
-    const items = await listSchedules(user.clinicId!);
+    const items = await listSchedules(requireClinic(user));
     res.json({ items });
   } catch (err) {
     next(err);
@@ -208,7 +209,7 @@ router.get("/reports/occupancy", ownerOnly, async (req, res, next) => {
   try {
     const user = (req as AuthenticatedRequest).user;
     const weekStart = (req.query.weekStart as string) ?? new Date().toISOString().slice(0, 10);
-    const report = await getOccupancyReport(user.clinicId!, weekStart);
+    const report = await getOccupancyReport(requireClinic(user), weekStart);
     res.json({ report });
   } catch (err) {
     next(err);

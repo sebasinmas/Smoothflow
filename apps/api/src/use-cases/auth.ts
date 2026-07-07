@@ -1,41 +1,40 @@
-import { eq } from "drizzle-orm";
 import type { LoginInput, PatientRegisterInput, SessionUser } from "@smoothflow/shared";
-import { db } from "../infrastructure/db/client.js";
-import { users, patients, clinics } from "../infrastructure/db/schema.js";
-import { AppError } from "../domain/errors.js";
-import { toSessionUser } from "../infrastructure/db/mappers/user-mapper.js";
+import { AuthError, ConflictError, UnavailableError } from "../domain/errors.js";
+import { toSessionUser } from "../domain/mappers/session-user.js";
 import type { PasswordHasher } from "../domain/ports/password-hasher.port.js";
-import type { FieldCrypto } from "../domain/ports/field-crypto.port.js";
 import type { AuditLogger } from "../domain/ports/audit-logger.port.js";
-import type { PatientUseCases } from "./patients.js";
+import type { UserRepository } from "../domain/ports/user.repository.js";
+import type { PatientRepository } from "../domain/ports/patient.repository.js";
+import type { ClinicRepository } from "../domain/ports/clinic.repository.js";
 
 export interface AuthUseCasesDeps {
+  users: UserRepository;
+  patients: PatientRepository;
+  clinics: ClinicRepository;
   passwordHasher: PasswordHasher;
-  fieldCrypto: FieldCrypto;
   auditLogger: AuditLogger;
-  findPatientForPortalLink: PatientUseCases["findPatientForPortalLink"];
 }
 
 export function createAuthUseCases(deps: AuthUseCasesDeps) {
-  const { passwordHasher, fieldCrypto, auditLogger, findPatientForPortalLink } = deps;
+  const { users, patients, clinics, passwordHasher, auditLogger } = deps;
 
   async function loginUser(input: LoginInput, ip: string): Promise<SessionUser> {
-    const [row] = await db.select().from(users).where(eq(users.email, input.email.toLowerCase())).limit(1);
-    if (!row || !row.active || row.revokedAt) {
-      throw new AppError("Credenciales inválidas", 401, "INVALID_CREDENTIALS");
+    const user = await users.findByEmail(input.email.toLowerCase());
+    if (!user || !user.active || user.revokedAt) {
+      throw new AuthError("Credenciales inválidas", "INVALID_CREDENTIALS");
     }
-    const valid = await passwordHasher.verify(input.password, row.passwordHash);
-    if (!valid) throw new AppError("Credenciales inválidas", 401, "INVALID_CREDENTIALS");
+    const valid = await passwordHasher.verify(input.password, user.passwordHash);
+    if (!valid) throw new AuthError("Credenciales inválidas", "INVALID_CREDENTIALS");
 
     await auditLogger.write({
-      clinicId: row.clinicId,
-      userId: row.id,
+      clinicId: user.clinicId,
+      userId: user.id,
       action: "LOGIN",
       resource: "session",
       ipAddress: ip,
     });
 
-    return toSessionUser(row);
+    return toSessionUser(user);
   }
 
   async function registerPatient(
@@ -43,44 +42,33 @@ export function createAuthUseCases(deps: AuthUseCasesDeps) {
     ip: string,
   ): Promise<SessionUser> {
     const email = input.email.toLowerCase();
-    const [existingUser] = await db.select().from(users).where(eq(users.email, email)).limit(1);
-    if (existingUser) throw new AppError("El email ya está registrado", 409, "EMAIL_EXISTS");
+    const existingUser = await users.findByEmail(email);
+    if (existingUser) throw new ConflictError("El email ya está registrado", "EMAIL_EXISTS");
 
-    const [clinic] = await db.select().from(clinics).limit(1);
-    if (!clinic) throw new AppError("No hay clínicas configuradas", 503);
+    const clinic = await clinics.findFirst();
+    if (!clinic) throw new UnavailableError("No hay clínicas configuradas");
 
-    const existingPatient = await findPatientForPortalLink(clinic.id, email, input.identifier);
+    const existingPatient = await patients.findForPortalLink(clinic.id, email, input.identifier);
     if (existingPatient?.userId) {
-      throw new AppError("Este paciente ya tiene cuenta de portal", 409, "PORTAL_ACCOUNT_EXISTS");
+      throw new ConflictError("Este paciente ya tiene cuenta de portal", "PORTAL_ACCOUNT_EXISTS");
     }
 
     const passwordHash = await passwordHasher.hash(input.password);
-    const [user] = await db
-      .insert(users)
-      .values({
-        email,
-        passwordHash,
-        role: "paciente",
-        givenName: input.givenName,
-        familyName: input.familyName,
-        clinicId: clinic.id,
-      })
-      .returning();
+    const user = await users.create({
+      email,
+      passwordHash,
+      role: "paciente",
+      givenName: input.givenName,
+      familyName: input.familyName,
+      clinicId: clinic.id,
+    });
 
     if (existingPatient) {
-      await db
-        .update(patients)
-        .set({
-          userId: user.id,
-          email: existingPatient.email ?? email,
-          phoneEncrypted:
-            existingPatient.phoneEncrypted ??
-            (input.phone ? fieldCrypto.encrypt(input.phone) : null),
-          identifierEncrypted:
-            existingPatient.identifierEncrypted ??
-            (input.identifier ? fieldCrypto.encrypt(input.identifier) : null),
-        })
-        .where(eq(patients.id, existingPatient.id));
+      await patients.linkPortalAccount(existingPatient.id, user.id, {
+        email,
+        phone: input.phone,
+        identifier: input.identifier,
+      });
 
       await auditLogger.write({
         clinicId: clinic.id,
@@ -91,14 +79,14 @@ export function createAuthUseCases(deps: AuthUseCasesDeps) {
         ipAddress: ip,
       });
     } else {
-      await db.insert(patients).values({
+      await patients.create({
         clinicId: clinic.id,
         userId: user.id,
         givenName: input.givenName,
         familyName: input.familyName,
         email,
-        phoneEncrypted: input.phone ? fieldCrypto.encrypt(input.phone) : null,
-        identifierEncrypted: input.identifier ? fieldCrypto.encrypt(input.identifier) : null,
+        phone: input.phone,
+        identifier: input.identifier,
       });
 
       await auditLogger.write({
@@ -114,9 +102,9 @@ export function createAuthUseCases(deps: AuthUseCasesDeps) {
   }
 
   async function getUserById(id: string): Promise<SessionUser | null> {
-    const [row] = await db.select().from(users).where(eq(users.id, id)).limit(1);
-    if (!row || !row.active || row.revokedAt) return null;
-    return toSessionUser(row);
+    const user = await users.findById(id);
+    if (!user || !user.active || user.revokedAt) return null;
+    return toSessionUser(user);
   }
 
   return {

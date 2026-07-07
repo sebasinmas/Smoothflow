@@ -4,6 +4,14 @@ import { appointmentNotifier } from "../infrastructure/email/email-service.js";
 import { fieldCrypto } from "../infrastructure/crypto/encryption.js";
 import { passwordHasher } from "../infrastructure/auth/password.js";
 import { sessionRevoker } from "../infrastructure/session/session-revoker.js";
+import { appointmentRepository } from "../infrastructure/db/repositories/appointment.repository.js";
+import { userRepository } from "../infrastructure/db/repositories/user.repository.js";
+import { createPatientRepository } from "../infrastructure/db/repositories/patient.repository.js";
+import { practitionerRepository } from "../infrastructure/db/repositories/practitioner.repository.js";
+import { specialtyRepository } from "../infrastructure/db/repositories/specialty.repository.js";
+import { scheduleRepository } from "../infrastructure/db/repositories/schedule.repository.js";
+import { clinicRepository } from "../infrastructure/db/repositories/clinic.repository.js";
+import { auditReadRepository } from "../infrastructure/db/repositories/audit.repository.js";
 import { createPatientUseCases } from "../use-cases/patients.js";
 import { createAuthUseCases } from "../use-cases/auth.js";
 import { createAppointmentUseCases } from "../use-cases/appointments.js";
@@ -11,33 +19,47 @@ import { createOwnerUseCases } from "../use-cases/owner.js";
 import { createAuditUseCases } from "../use-cases/audit.js";
 
 /**
- * Composition root: instancia las implementaciones de infraestructura y las
- * inyecta en las factories de casos de uso. Es la unica capa autorizada a
- * conocer implementaciones concretas y ensamblarlas.
+ * Composition root: instancia las implementaciones de infraestructura
+ * (repositorios y servicios) y las inyecta en las factories de casos de uso.
+ * Es la unica capa autorizada a conocer implementaciones concretas.
  */
-const patientUseCases = createPatientUseCases({ fieldCrypto, auditLogger });
+const patientRepository = createPatientRepository(fieldCrypto);
+
+const patientUseCases = createPatientUseCases({
+  patients: patientRepository,
+  auditLogger,
+});
 
 const authUseCases = createAuthUseCases({
+  users: userRepository,
+  patients: patientRepository,
+  clinics: clinicRepository,
   passwordHasher,
-  fieldCrypto,
   auditLogger,
-  findPatientForPortalLink: patientUseCases.findPatientForPortalLink,
 });
 
 const appointmentUseCases = createAppointmentUseCases({
+  appointments: appointmentRepository,
+  patients: patientRepository,
+  practitioners: practitionerRepository,
   auditLogger,
   notifier: appointmentNotifier,
   agendaSync: agendaSyncPort,
 });
 
 const ownerUseCases = createOwnerUseCases({
+  users: userRepository,
+  practitioners: practitionerRepository,
+  specialties: specialtyRepository,
+  schedules: scheduleRepository,
+  appointments: appointmentRepository,
   passwordHasher,
   auditLogger,
   agendaSync: agendaSyncPort,
   sessionRevoker,
 });
 
-const auditUseCases = createAuditUseCases();
+const auditUseCases = createAuditUseCases({ auditRead: auditReadRepository });
 
 export const container = {
   patientUseCases,
