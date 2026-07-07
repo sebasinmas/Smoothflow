@@ -1,13 +1,19 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { Link } from "react-router-dom";
-import type { AppointmentDto } from "@smoothflow/shared";
+import type { AppointmentDto, AppointmentStatus } from "@smoothflow/shared";
 import { PatientShell } from "@/components/layout/PatientShell";
 import { Button } from "@/components/ui/Button";
+import { AppTooltip } from "@/components/ui/Tooltip";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { api } from "@/lib/api";
 import { formatDateTime } from "@/lib/utils";
+import { TOOLTIPS } from "@/lib/tooltips";
 import { RescheduleDialog } from "./components/RescheduleDialog";
+
+function patientStatusTooltip(status: AppointmentStatus): string {
+  return TOOLTIPS.patient.appointmentStatus[status as keyof typeof TOOLTIPS.patient.appointmentStatus] ?? `Estado: ${status}`;
+}
 
 export default function PatientAppointmentsPage() {
   const queryClient = useQueryClient();
@@ -43,20 +49,54 @@ export default function PatientAppointmentsPage() {
               <p className="text-sm text-text-muted">
                 {a.practitionerName} — {a.specialtyName}
               </p>
-              <p className="mt-1 text-xs capitalize text-text-muted">Estado: {a.status}</p>
-              {a.pendingReschedule && (
-                <p className="mt-1 text-sm font-semibold text-amber-600">
-                  ⏳ Solicitud de reagendamiento en revisión (para el {formatDateTime(a.pendingReschedule.startAt)})
+              <AppTooltip content={patientStatusTooltip(a.status)}>
+                <p className="mt-1 cursor-help text-xs capitalize text-text-muted">
+                  Estado: {a.status}
                 </p>
+              </AppTooltip>
+              {a.pendingReschedule && (
+                <AppTooltip content={TOOLTIPS.patient.pendingReschedule}>
+                  <p className="mt-1 cursor-help text-sm font-semibold text-amber-600">
+                    ⏳ Solicitud de reagendamiento en revisión (para el {formatDateTime(a.pendingReschedule.startAt)})
+                  </p>
+                </AppTooltip>
               )}
               <div className="mt-3 flex flex-col gap-2">
                 <div className="flex gap-2">
-                  <Button variant="secondary" onClick={() => setRescheduleTarget(a)} disabled={isWithin24Hours || !!a.pendingReschedule}>
-                    Reagendar
-                  </Button>
-                  <Button variant="danger" onClick={() => setCancelTarget(a)} disabled={isWithin24Hours}>
-                    Cancelar
-                  </Button>
+                  <AppTooltip
+                    content={
+                      isWithin24Hours
+                        ? TOOLTIPS.patient.rescheduleDisabled
+                        : a.pendingReschedule
+                          ? TOOLTIPS.patient.pendingReschedule
+                          : undefined
+                    }
+                    isDisabled={!isWithin24Hours && !a.pendingReschedule}
+                  >
+                    <span className="inline-flex">
+                      <Button
+                        variant="secondary"
+                        onClick={() => setRescheduleTarget(a)}
+                        disabled={isWithin24Hours || !!a.pendingReschedule}
+                      >
+                        Reagendar
+                      </Button>
+                    </span>
+                  </AppTooltip>
+                  <AppTooltip
+                    content={isWithin24Hours ? TOOLTIPS.patient.cancelDisabled : undefined}
+                    isDisabled={!isWithin24Hours}
+                  >
+                    <span className="inline-flex">
+                      <Button
+                        variant="danger"
+                        onClick={() => setCancelTarget(a)}
+                        disabled={isWithin24Hours}
+                      >
+                        Cancelar
+                      </Button>
+                    </span>
+                  </AppTooltip>
                 </div>
                 {isWithin24Hours && (
                   <p className="text-xs text-red-500">Para modificaciones a menos de 24 horas, contacte a la clínica.</p>

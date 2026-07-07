@@ -5,10 +5,12 @@ import { toast } from "sonner";
 import { ScheduleBlockPreview } from "@/components/owner/ScheduleBlockPreview";
 import { FormDialogFooter } from "@/components/secretary/FormDialogFooter";
 import { AppDrawer } from "@/components/ui/AppDrawer";
+import { AppTooltip } from "@/components/ui/Tooltip";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { SegmentedControl } from "@/components/ui/SegmentedControl";
 import { ApiError, api } from "@/lib/api";
+import { TOOLTIPS } from "@/lib/tooltips";
 
 const DAYS = [
   { value: "1", label: "Lun" },
@@ -24,6 +26,12 @@ const SLOT_DURATIONS = [
   { value: "45", label: "45 min" },
   { value: "60", label: "60 min" },
 ];
+
+const PRESET_TOOLTIPS: Record<string, string> = {
+  Mañana: TOOLTIPS.calendar.presetMorning,
+  Tarde: TOOLTIPS.calendar.presetAfternoon,
+  Jornada: TOOLTIPS.calendar.presetFullDay,
+};
 
 const TIME_PRESETS = [
   { label: "Mañana", startTime: "09:00", endTime: "13:00" },
@@ -193,12 +201,16 @@ export function EditScheduleDrawer({
     >
       {isOpen ? (
         <form id="edit-schedule-form" className="grid gap-5" onSubmit={handleSubmit}>
-          <ScheduleBlockPreview
-            dayOfWeek={Number(dayOfWeek)}
-            startTime={startTime}
-            endTime={endTime}
-            slotDurationMinutes={Number(slotDurationMinutes)}
-          />
+          <AppTooltip content={TOOLTIPS.calendar.slotPreview}>
+            <div>
+              <ScheduleBlockPreview
+                dayOfWeek={Number(dayOfWeek)}
+                startTime={startTime}
+                endTime={endTime}
+                slotDurationMinutes={Number(slotDurationMinutes)}
+              />
+            </div>
+          </AppTooltip>
 
           <div className="grid gap-2">
             <span className="text-sm font-medium text-text">Día de la semana</span>
@@ -209,15 +221,16 @@ export function EditScheduleDrawer({
             <span className="text-sm font-medium text-text">Plantillas rápidas</span>
             <div className="flex flex-wrap gap-2">
               {TIME_PRESETS.map((p) => (
-                <Button
-                  key={p.label}
-                  type="button"
-                  variant="secondary"
-                  size="sm"
-                  onClick={() => applyPreset(p.startTime, p.endTime)}
-                >
-                  {p.label} ({p.startTime}–{p.endTime})
-                </Button>
+                <AppTooltip key={p.label} content={PRESET_TOOLTIPS[p.label]}>
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    size="sm"
+                    onClick={() => applyPreset(p.startTime, p.endTime)}
+                  >
+                    {p.label} ({p.startTime}–{p.endTime})
+                  </Button>
+                </AppTooltip>
               ))}
             </div>
           </div>
@@ -244,11 +257,15 @@ export function EditScheduleDrawer({
 
           <div className="grid gap-2">
             <span className="text-sm font-medium text-text">Duración de cada cita</span>
-            <SegmentedControl
-              value={slotDurationMinutes}
-              options={SLOT_DURATIONS}
-              onChange={setSlotDurationMinutes}
-            />
+            <AppTooltip content={TOOLTIPS.calendar.slotDuration}>
+              <div>
+                <SegmentedControl
+                  value={slotDurationMinutes}
+                  options={SLOT_DURATIONS}
+                  onChange={setSlotDurationMinutes}
+                />
+              </div>
+            </AppTooltip>
           </div>
 
           {formError && (

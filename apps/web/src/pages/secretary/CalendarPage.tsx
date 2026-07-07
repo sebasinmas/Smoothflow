@@ -22,6 +22,7 @@ import { AppTooltip } from "@/components/ui/Tooltip";
 import { api } from "@/lib/api";
 import { addDays, startOfWeek } from "@/lib/utils";
 import { useRealtime } from "@/contexts/RealtimeContext";
+import { TOOLTIPS } from "@/lib/tooltips";
 
 function startOfToday(): Date {
   const d = new Date();
@@ -197,7 +198,7 @@ export default function SecretaryCalendarPage() {
         <CalendarToolbar>
           <div className="flex w-full flex-wrap items-center gap-x-4 gap-y-2">
             <div className="flex items-center gap-2">
-              <AppTooltip content={view === "week" ? "Semana anterior" : "Día anterior"}>
+              <AppTooltip content={view === "week" ? TOOLTIPS.calendar.navPrevWeek : TOOLTIPS.calendar.navPrevDay}>
                 <Button
                   variant="secondary"
                   className="size-9 px-0"
@@ -207,7 +208,7 @@ export default function SecretaryCalendarPage() {
                   <ChevronLeft className="size-[18px] shrink-0" aria-hidden="true" />
                 </Button>
               </AppTooltip>
-              <AppTooltip content={view === "week" ? "Semana siguiente" : "Día siguiente"}>
+              <AppTooltip content={view === "week" ? TOOLTIPS.calendar.navNextWeek : TOOLTIPS.calendar.navNextDay}>
                 <Button
                   variant="secondary"
                   className="size-9 px-0"
@@ -218,7 +219,7 @@ export default function SecretaryCalendarPage() {
                 </Button>
               </AppTooltip>
               <AppTooltip
-                content={view === "week" ? "Ir a la semana actual" : "Ir al día de hoy"}
+                content={view === "week" ? TOOLTIPS.calendar.goToWeek : TOOLTIPS.calendar.goToToday}
               >
                 <Button variant="secondary" onClick={handleGoToToday}>
                   Hoy
@@ -230,21 +231,29 @@ export default function SecretaryCalendarPage() {
           </div>
 
           <div className="flex w-full flex-wrap items-center gap-3">
-            <Select
-              label="Filtrar por médico"
-              hideLabel
-              value={selectedPractitioner}
-              onChange={(e) => setSelectedPractitioner(e.target.value)}
-              options={practitionerOptions}
-            />
+            <AppTooltip content={TOOLTIPS.calendar.filterPractitioner}>
+              <div>
+                <Select
+                  label="Filtrar por médico"
+                  hideLabel
+                  value={selectedPractitioner}
+                  onChange={(e) => setSelectedPractitioner(e.target.value)}
+                  options={practitionerOptions}
+                />
+              </div>
+            </AppTooltip>
             {!selectedPractitioner && (
-              <span className="rounded-full bg-surface-muted px-2.5 py-1 text-[11px] text-text-muted">
-                Mostrando todos los médicos — los horarios pueden superponerse
-              </span>
+              <AppTooltip content={TOOLTIPS.calendar.overlapBadge}>
+                <span className="cursor-help rounded-full bg-surface-muted px-2.5 py-1 text-[11px] text-text-muted">
+                  Mostrando todos los médicos — los horarios pueden superponerse
+                </span>
+              </AppTooltip>
             )}
             <div className="ml-auto flex flex-wrap items-center gap-3">
-              <Button onClick={() => openCreateDialog()}>Crear reservación</Button>
-              <AppTooltip content={view === "week" ? "Vista semanal" : "Vista diaria"}>
+              <AppTooltip content={TOOLTIPS.calendar.createReservation}>
+                <Button onClick={() => openCreateDialog()}>Crear reservación</Button>
+              </AppTooltip>
+              <AppTooltip content={view === "week" ? TOOLTIPS.calendar.viewWeek : TOOLTIPS.calendar.viewDay}>
                 <div>
                   <SegmentedControl
                     value={view}
@@ -256,12 +265,12 @@ export default function SecretaryCalendarPage() {
                   />
                 </div>
               </AppTooltip>
-              <AppTooltip content="Bloquear horarios de un médico">
+              <AppTooltip content={TOOLTIPS.calendar.blockAgenda}>
                 <Button variant="secondary" onClick={() => setBlockOpen(true)}>
                   Bloquear agenda
                 </Button>
               </AppTooltip>
-              <AppTooltip content="Actualizar datos de la agenda">
+              <AppTooltip content={TOOLTIPS.calendar.refreshAgenda}>
                 <Button
                   variant="secondary"
                   className="size-9 px-0"

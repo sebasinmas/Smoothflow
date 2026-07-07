@@ -98,12 +98,14 @@ docker compose up --build
 
 Esto levanta tres servicios: `postgres` (puerto 5432), `api` (puerto 3000) y `web` (puerto 5173).
 
+Para producción en la VPS se usa `docker-compose.prod.yml`, que consume las imágenes publicadas en GHCR (`ghcr.io/<owner>/smoothflow-api` y `smoothflow-web`).
+
 ## Deploy (CI/CD)
 
 El pipeline de GitHub Actions (`.github/workflows/deploy.yml`) se ejecuta en cada push a `main`:
 
 1. **Build** — Construye las imágenes Docker para `api` y `web` en paralelo y las publica en GitHub Container Registry (GHCR).
-2. **Deploy** — Conecta a la VPS vía SSH y ejecuta `docker compose pull && docker compose up -d`.
+2. **Deploy** — Conecta a la VPS vía SSH, hace login en GHCR, `git pull` y ejecuta `docker compose -f docker-compose.prod.yml pull && up -d` con el tag del commit.
 
 ### Secrets requeridos en GitHub
 
@@ -112,6 +114,7 @@ El pipeline de GitHub Actions (`.github/workflows/deploy.yml`) se ejecuta en cad
 | `VPS_HOST` | IP o dominio de la VPS |
 | `VPS_USER` | Usuario SSH |
 | `VPS_SSH_KEY` | Clave privada SSH |
+| `GHCR_TOKEN` | PAT con `read:packages` para que la VPS pueda hacer pull de imágenes privadas |
 
 ## Marco Legal
 

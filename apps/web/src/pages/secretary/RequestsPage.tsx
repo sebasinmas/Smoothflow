@@ -4,6 +4,8 @@ import { api } from "@/lib/api";
 import type { AppointmentDto } from "@smoothflow/shared";
 import { formatDateTime } from "@/lib/utils";
 import { Button } from "@/components/ui/Button";
+import { AppTooltip } from "@/components/ui/Tooltip";
+import { TOOLTIPS } from "@/lib/tooltips";
 
 export default function SecretaryRequestsPage() {
   const queryClient = useQueryClient();
@@ -39,43 +41,55 @@ export default function SecretaryRequestsPage() {
 
                   <div className="mt-4 grid grid-cols-2 gap-4 rounded-lg bg-background p-3">
                     <div>
-                      <p className="text-xs font-semibold text-text-muted uppercase">Horario Original</p>
+                      <AppTooltip content={TOOLTIPS.secretary.originalSchedule}>
+                        <p className="cursor-help text-xs font-semibold uppercase text-text-muted">
+                          Horario Original
+                        </p>
+                      </AppTooltip>
                       <p className="text-sm text-text line-through">{formatDateTime(a.startAt)}</p>
                     </div>
                     <div>
-                      <p className="text-xs font-semibold text-brand uppercase">Nuevo Horario</p>
+                      <AppTooltip content={TOOLTIPS.secretary.newSchedule}>
+                        <p className="cursor-help text-xs font-semibold uppercase text-brand">
+                          Nuevo Horario
+                        </p>
+                      </AppTooltip>
                       <p className="text-sm font-semibold text-brand">{formatDateTime(a.pendingReschedule!.startAt)}</p>
                     </div>
                   </div>
                 </div>
                 <div className="flex sm:flex-col gap-2">
-                  <Button
-                    variant="primary"
-                    onClick={() =>
-                      updateMutation.mutate({
-                        id: a.id,
-                        payload: {
-                          startAt: a.pendingReschedule!.startAt,
-                          endAt: a.pendingReschedule!.endAt,
-                          status: "confirmado",
-                          pendingReschedule: null,
-                        },
-                      })
-                    }
-                  >
-                    Aprobar
-                  </Button>
-                  <Button
-                    variant="danger"
-                    onClick={() =>
-                      updateMutation.mutate({
-                        id: a.id,
-                        payload: { pendingReschedule: null },
-                      })
-                    }
-                  >
-                    Rechazar
-                  </Button>
+                  <AppTooltip content={TOOLTIPS.secretary.approveReschedule}>
+                    <Button
+                      variant="primary"
+                      onClick={() =>
+                        updateMutation.mutate({
+                          id: a.id,
+                          payload: {
+                            startAt: a.pendingReschedule!.startAt,
+                            endAt: a.pendingReschedule!.endAt,
+                            status: "confirmado",
+                            pendingReschedule: null,
+                          },
+                        })
+                      }
+                    >
+                      Aprobar
+                    </Button>
+                  </AppTooltip>
+                  <AppTooltip content={TOOLTIPS.secretary.rejectReschedule}>
+                    <Button
+                      variant="danger"
+                      onClick={() =>
+                        updateMutation.mutate({
+                          id: a.id,
+                          payload: { pendingReschedule: null },
+                        })
+                      }
+                    >
+                      Rechazar
+                    </Button>
+                  </AppTooltip>
                 </div>
               </div>
             </li>

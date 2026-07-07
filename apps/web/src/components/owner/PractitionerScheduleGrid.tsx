@@ -8,7 +8,9 @@ import {
   minutesToTop,
 } from "@/components/calendar/calendar-utils";
 import { EditScheduleDrawer, type ScheduleDrawerPreset } from "@/components/owner/EditScheduleDrawer";
+import { AppTooltip } from "@/components/ui/Tooltip";
 import { Select } from "@/components/ui/Select";
+import { TOOLTIPS } from "@/lib/tooltips";
 
 const WEEKDAYS = [
   { dayOfWeek: 1, label: "Lun" },
@@ -128,14 +130,18 @@ export function PractitionerScheduleGrid({
         <div className="flex flex-wrap items-center gap-3 text-xs text-text-muted">
           <span>Haga clic en un bloque para editarlo o en una celda vacía para agregar uno.</span>
           <div className="flex items-center gap-3">
-            <span className="flex items-center gap-1.5">
-              <span className="inline-block size-3 rounded border border-brand/30 bg-slot-reserved" />
-              Bloque de atención
-            </span>
-            <span className="flex items-center gap-1.5">
-              <span className="inline-block size-3 rounded border border-dashed border-border bg-surface" />
-              Celda disponible
-            </span>
+            <AppTooltip content={TOOLTIPS.calendar.legendBlock}>
+              <span className="flex cursor-help items-center gap-1.5">
+                <span className="inline-block size-3 rounded border border-brand/30 bg-slot-reserved" />
+                Bloque de atención
+              </span>
+            </AppTooltip>
+            <AppTooltip content={TOOLTIPS.calendar.legendEmpty}>
+              <span className="flex cursor-help items-center gap-1.5">
+                <span className="inline-block size-3 rounded border border-dashed border-border bg-surface" />
+                Celda disponible
+              </span>
+            </AppTooltip>
           </div>
         </div>
       </div>
@@ -152,12 +158,14 @@ export function PractitionerScheduleGrid({
             >
               <div className="sticky left-0 z-[1] border-r border-border bg-surface-muted/40" />
               {WEEKDAYS.map(({ dayOfWeek, label }) => (
-                <div
+                <AppTooltip
                   key={dayOfWeek}
-                  className="flex h-10 items-center justify-center border-r border-border text-xs font-semibold text-text last:border-r-0"
+                  content={TOOLTIPS.calendar.dayName[dayOfWeek] ?? label}
                 >
-                  {label}
-                </div>
+                  <div className="flex h-10 items-center justify-center border-r border-border text-xs font-semibold text-text last:border-r-0">
+                    {label}
+                  </div>
+                </AppTooltip>
               ))}
             </div>
 
@@ -190,21 +198,22 @@ export function PractitionerScheduleGrid({
                     className="relative min-w-0 border-r border-border last:border-r-0"
                     style={{ height: gridHeight }}
                   >
-                    <div
-                      className="group/column relative h-full cursor-pointer bg-surface/30 transition-colors hover:bg-surface-muted/50"
-                      onClick={(e) => handleColumnClick(dayOfWeek, e)}
-                      onMouseEnter={() => setHoveredDay(dayOfWeek)}
-                      onMouseLeave={() => setHoveredDay(null)}
-                      role="button"
-                      tabIndex={0}
-                      aria-label={`Agregar horario el ${label}`}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter" || e.key === " ") {
-                          e.preventDefault();
-                          openCreate(dayOfWeek, 9 * 60);
-                        }
-                      }}
-                    >
+                    <AppTooltip content={TOOLTIPS.calendar.emptyCell}>
+                      <div
+                        className="group/column relative h-full cursor-pointer bg-surface/30 transition-colors hover:bg-surface-muted/50"
+                        onClick={(e) => handleColumnClick(dayOfWeek, e)}
+                        onMouseEnter={() => setHoveredDay(dayOfWeek)}
+                        onMouseLeave={() => setHoveredDay(null)}
+                        role="button"
+                        tabIndex={0}
+                        aria-label={`Agregar horario el ${label}`}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter" || e.key === " ") {
+                            e.preventDefault();
+                            openCreate(dayOfWeek, 9 * 60);
+                          }
+                        }}
+                      >
                       {hourLabels.map((minutes) => (
                         <div
                           key={minutes}
@@ -223,29 +232,34 @@ export function PractitionerScheduleGrid({
                       )}
 
                       {dayBlocks.map((block) => (
-                        <button
+                        <AppTooltip
                           key={block.id}
-                          type="button"
-                          data-schedule-block
-                          className="absolute inset-x-1 z-[1] flex min-h-[36px] cursor-pointer flex-col justify-center rounded-md border border-brand/25 border-l-4 border-l-slot-reserved-border bg-slot-reserved px-2 py-1.5 text-left text-xs leading-snug text-brand shadow-sm transition-all hover:z-[2] hover:shadow-md hover:ring-2 hover:ring-brand/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
-                          style={{
-                            top: minutesToTop(timeToMinutes(block.startTime), DAY_START_MINUTES),
-                            height: blockHeight(block.startTime, block.endTime),
-                          }}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            openEdit(block);
-                          }}
+                          content={TOOLTIPS.calendar.scheduleBlock(block.startTime, block.endTime)}
                         >
-                          <span className="font-semibold">
-                            {block.startTime} – {block.endTime}
-                          </span>
-                          <span className="text-[11px] opacity-80">
-                            Citas de {block.slotDurationMinutes} min
-                          </span>
-                        </button>
+                          <button
+                            type="button"
+                            data-schedule-block
+                            className="absolute inset-x-1 z-[1] flex min-h-[36px] cursor-pointer flex-col justify-center rounded-md border border-brand/25 border-l-4 border-l-slot-reserved-border bg-slot-reserved px-2 py-1.5 text-left text-xs leading-snug text-brand shadow-sm transition-all hover:z-[2] hover:shadow-md hover:ring-2 hover:ring-brand/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
+                            style={{
+                              top: minutesToTop(timeToMinutes(block.startTime), DAY_START_MINUTES),
+                              height: blockHeight(block.startTime, block.endTime),
+                            }}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              openEdit(block);
+                            }}
+                          >
+                            <span className="font-semibold">
+                              {block.startTime} – {block.endTime}
+                            </span>
+                            <span className="text-[11px] opacity-80">
+                              Citas de {block.slotDurationMinutes} min
+                            </span>
+                          </button>
+                        </AppTooltip>
                       ))}
-                    </div>
+                      </div>
+                    </AppTooltip>
                   </div>
                 );
               })}

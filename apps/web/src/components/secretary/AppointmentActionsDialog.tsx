@@ -2,12 +2,15 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import type { CalendarEventItem } from "@/components/calendar/calendar-utils";
 import { Button } from "@/components/ui/Button";
+import { AppTooltip } from "@/components/ui/Tooltip";
+import { FieldHint } from "@/components/ui/FieldHint";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { Input } from "@/components/ui/Input";
 import { SecretaryModal } from "@/components/secretary/SecretaryModal";
 import { RescheduleDialog } from "@/components/secretary/RescheduleDialog";
 import { ApiError, api } from "@/lib/api";
 import { formatDateTime } from "@/lib/utils";
+import { TOOLTIPS } from "@/lib/tooltips";
 import { APPOINTMENT_STATUS_LABELS, SLOT_STATUS_LABELS } from "@smoothflow/shared";
 
 interface AppointmentActionsDialogProps {
@@ -111,41 +114,47 @@ export function AppointmentActionsDialog({
               >
                 Cerrar
               </Button>
-              <Button
-                variant="secondary"
-                size="lg"
-                className="flex-1 sm:flex-none"
-                disabled={!reviewNoteValid}
-                loading={reviewMutation.isPending}
-                onClick={() => {
-                  setError("");
-                  reviewMutation.mutate("rechazar");
-                }}
-              >
-                Rechazar
-              </Button>
-              <Button
-                variant="danger"
-                size="lg"
-                className="flex-1 sm:flex-none"
-                disabled={!reviewNoteValid}
-                loading={reviewMutation.isPending}
-                onClick={() => {
-                  setError("");
-                  reviewMutation.mutate("aprobar");
-                }}
-              >
-                Aprobar cancelación
-              </Button>
+              <AppTooltip content={TOOLTIPS.secretary.rejectCancellation}>
+                <Button
+                  variant="secondary"
+                  size="lg"
+                  className="flex-1 sm:flex-none"
+                  disabled={!reviewNoteValid}
+                  loading={reviewMutation.isPending}
+                  onClick={() => {
+                    setError("");
+                    reviewMutation.mutate("rechazar");
+                  }}
+                >
+                  Rechazar
+                </Button>
+              </AppTooltip>
+              <AppTooltip content={TOOLTIPS.secretary.approveCancellation}>
+                <Button
+                  variant="danger"
+                  size="lg"
+                  className="flex-1 sm:flex-none"
+                  disabled={!reviewNoteValid}
+                  loading={reviewMutation.isPending}
+                  onClick={() => {
+                    setError("");
+                    reviewMutation.mutate("aprobar");
+                  }}
+                >
+                  Aprobar cancelación
+                </Button>
+              </AppTooltip>
             </div>
           ) : isBlocked ? (
             <div className="flex flex-wrap gap-3">
               <Button variant="secondary" size="lg" className="flex-1 sm:flex-none" onClick={() => onOpenChange(false)}>
                 Cerrar
               </Button>
-              <Button variant="danger" size="lg" className="flex-1 sm:flex-none" onClick={() => setShowUnblockConfirm(true)}>
-                Levantar bloqueo
-              </Button>
+              <AppTooltip content={TOOLTIPS.secretary.liftBlock}>
+                <Button variant="danger" size="lg" className="flex-1 sm:flex-none" onClick={() => setShowUnblockConfirm(true)}>
+                  Levantar bloqueo
+                </Button>
+              </AppTooltip>
             </div>
           ) : (
             <div className="flex flex-wrap gap-3">
@@ -224,14 +233,24 @@ export function AppointmentActionsDialog({
                 {event.requestReason ?? "Sin motivo registrado"}
               </p>
             </div>
-            <Input
-              label="Motivo de la revisión"
-              icon={null}
-              value={reviewNote}
-              onChange={(e) => setReviewNote(e.target.value)}
-              placeholder="Indique el motivo de su decisión (mínimo 5 caracteres)"
-              maxLength={300}
-            />
+            <div className="flex flex-col gap-1">
+              <div className="flex items-center gap-1.5">
+                <label htmlFor="review-note" className="text-sm font-medium text-text">
+                  Motivo de la revisión
+                </label>
+                <FieldHint content={TOOLTIPS.secretary.reviewReason} />
+              </div>
+              <Input
+                id="review-note"
+                label="Motivo de la revisión"
+                icon={null}
+                value={reviewNote}
+                onChange={(e) => setReviewNote(e.target.value)}
+                placeholder="Indique el motivo de su decisión (mínimo 5 caracteres)"
+                maxLength={300}
+                className="[&_label]:sr-only"
+              />
+            </div>
           </div>
         )}
 

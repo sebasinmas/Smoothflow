@@ -1,10 +1,17 @@
 import { useQuery } from "@tanstack/react-query";
-import type { AppointmentDto } from "@smoothflow/shared";
+import type { AppointmentDto, AppointmentStatus } from "@smoothflow/shared";
+import { APPOINTMENT_STATUS_LABELS } from "@smoothflow/shared";
 import { AppShell } from "@/components/layout/AppShell";
+import { AppTooltip } from "@/components/ui/Tooltip";
 import { LoadingState } from "@/components/ui/LoadingState";
 import { api } from "@/lib/api";
 import { formatDateTime } from "@/lib/utils";
 import { DOCTOR_NAV } from "@/lib/navigation";
+import { TOOLTIPS } from "@/lib/tooltips";
+
+function statusTooltip(status: AppointmentStatus): string {
+  return TOOLTIPS.doctor.status[status as keyof typeof TOOLTIPS.doctor.status] ?? APPOINTMENT_STATUS_LABELS[status];
+}
 
 export default function DoctorHistoryPage() {
   const monthAgo = new Date();
@@ -20,6 +27,11 @@ export default function DoctorHistoryPage() {
 
   return (
     <AppShell userRole="medico" navItems={DOCTOR_NAV} title="Historial de citas" showNotifications>
+      <AppTooltip content={TOOLTIPS.doctor.historyScope}>
+        <p className="mb-4 cursor-help text-sm text-text-muted">
+          Citas de los últimos 30 días
+        </p>
+      </AppTooltip>
       {isLoading ? (
         <LoadingState message="Cargando historial…" />
       ) : (
@@ -37,7 +49,13 @@ export default function DoctorHistoryPage() {
                 <tr key={a.id} className="border-b border-border last:border-0">
                   <td className="px-4 py-3">{formatDateTime(a.startAt)}</td>
                   <td className="px-4 py-3">{a.patientName ?? "—"}</td>
-                  <td className="px-4 py-3 capitalize">{a.status}</td>
+                  <td className="px-4 py-3">
+                    <AppTooltip content={statusTooltip(a.status)}>
+                      <span className="cursor-help capitalize">
+                        {APPOINTMENT_STATUS_LABELS[a.status]}
+                      </span>
+                    </AppTooltip>
+                  </td>
                 </tr>
               ))}
               {data?.items.length === 0 && (

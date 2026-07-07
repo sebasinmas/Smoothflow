@@ -5,8 +5,10 @@ import { APPOINTMENT_STATUS_LABELS } from "@smoothflow/shared";
 import type { CalendarEventItem } from "@/components/calendar/calendar-utils";
 import { SecretaryModal } from "@/components/secretary/SecretaryModal";
 import { Button } from "@/components/ui/Button";
+import { AppTooltip } from "@/components/ui/Tooltip";
 import { Input } from "@/components/ui/Input";
 import { ApiError, api } from "@/lib/api";
+import { TOOLTIPS } from "@/lib/tooltips";
 import { formatDateTime } from "@/lib/utils";
 
 interface DoctorAppointmentSheetProps {
@@ -92,33 +94,47 @@ export function DoctorAppointmentSheet({
           </Button>
           {isActionable && pendingAction === null && (
             <>
-              <Button
-                size="lg"
-                className="flex-1 sm:flex-none"
-                disabled={!attendanceEnabled}
-                loading={actionMutation.isPending}
-                onClick={() => submitAction("atendido")}
+              <AppTooltip
+                content={!attendanceEnabled ? TOOLTIPS.doctor.actionWindow : TOOLTIPS.doctor.markAttended}
               >
-                Todo bien
-              </Button>
-              <Button
-                variant="secondary"
-                size="lg"
-                className="flex-1 sm:flex-none"
-                disabled={!attendanceEnabled}
-                loading={actionMutation.isPending}
-                onClick={() => submitAction("no_asistio")}
+                <span className="inline-flex flex-1 sm:flex-none">
+                  <Button
+                    size="lg"
+                    className="w-full"
+                    disabled={!attendanceEnabled}
+                    loading={actionMutation.isPending}
+                    onClick={() => submitAction("atendido")}
+                  >
+                    Todo bien
+                  </Button>
+                </span>
+              </AppTooltip>
+              <AppTooltip
+                content={!attendanceEnabled ? TOOLTIPS.doctor.actionWindow : TOOLTIPS.doctor.markNoShow}
               >
-                El paciente no llegó
-              </Button>
-              <Button
-                variant="danger"
-                size="lg"
-                className="flex-1 sm:flex-none"
-                onClick={() => setPendingAction("solicitar_cancelacion")}
-              >
-                Cancelar hora
-              </Button>
+                <span className="inline-flex flex-1 sm:flex-none">
+                  <Button
+                    variant="secondary"
+                    size="lg"
+                    className="w-full"
+                    disabled={!attendanceEnabled}
+                    loading={actionMutation.isPending}
+                    onClick={() => submitAction("no_asistio")}
+                  >
+                    El paciente no llegó
+                  </Button>
+                </span>
+              </AppTooltip>
+              <AppTooltip content={TOOLTIPS.doctor.requestCancel}>
+                <Button
+                  variant="danger"
+                  size="lg"
+                  className="flex-1 sm:flex-none"
+                  onClick={() => setPendingAction("solicitar_cancelacion")}
+                >
+                  Cancelar hora
+                </Button>
+              </AppTooltip>
             </>
           )}
           {pendingAction === "solicitar_cancelacion" && (

@@ -2,8 +2,10 @@ import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/Button";
+import { FieldHint } from "@/components/ui/FieldHint";
 import { Input } from "@/components/ui/Input";
 import { ApiError } from "@/lib/api";
+import { TOOLTIPS } from "@/lib/tooltips";
 
 export default function PatientRegisterPage() {
   const { registerPatient } = useAuth();
@@ -46,8 +48,36 @@ export default function PatientRegisterPage() {
           <Input label="Apellido" value={form.familyName} onChange={(e) => setForm({ ...form, familyName: e.target.value })} required />
           <Input label="Email" type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} required />
           <Input label="Contraseña" type="password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} required />
-          <Input label="Teléfono (opcional)" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} />
-          <Input label="RUT (opcional)" value={form.identifier} onChange={(e) => setForm({ ...form, identifier: e.target.value })} />
+          <div className="flex flex-col gap-1">
+            <div className="flex items-center gap-1.5">
+              <label htmlFor="phone" className="text-sm font-medium text-text">
+                Teléfono (opcional)
+              </label>
+              <FieldHint content={TOOLTIPS.patient.phoneOptional} />
+            </div>
+            <Input
+              id="phone"
+              label="Teléfono (opcional)"
+              value={form.phone}
+              onChange={(e) => setForm({ ...form, phone: e.target.value })}
+              className="[&_label]:sr-only"
+            />
+          </div>
+          <div className="flex flex-col gap-1">
+            <div className="flex items-center gap-1.5">
+              <label htmlFor="identifier" className="text-sm font-medium text-text">
+                RUT (opcional)
+              </label>
+              <FieldHint content={TOOLTIPS.patient.rutOptional} />
+            </div>
+            <Input
+              id="identifier"
+              label="RUT (opcional)"
+              value={form.identifier}
+              onChange={(e) => setForm({ ...form, identifier: e.target.value })}
+              className="[&_label]:sr-only"
+            />
+          </div>
           {error && <p className="text-sm text-red-600" role="alert">{error}</p>}
           <Button type="submit" className="w-full" loading={loading}>
             Registrarse

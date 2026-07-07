@@ -1,5 +1,7 @@
 import type { SlotStatus } from "@smoothflow/shared";
 import { SLOT_STATUS_LABELS } from "@smoothflow/shared";
+import { AppTooltip } from "@/components/ui/Tooltip";
+import { TOOLTIPS } from "@/lib/tooltips";
 
 const styles: Record<SlotStatus, string> = {
   disponible: "bg-slot-available border-slot-available-border text-green-900",
@@ -17,7 +19,9 @@ interface AppointmentSlotProps {
 
 export function AppointmentSlot({ status, label, time, onClick, selected }: AppointmentSlotProps) {
   const statusLabel = SLOT_STATUS_LABELS[status];
-  return (
+  const tooltip = status === "disponible" ? TOOLTIPS.calendar.availableSlot : undefined;
+
+  const button = (
     <button
       type="button"
       onClick={onClick}
@@ -30,4 +34,8 @@ export function AppointmentSlot({ status, label, time, onClick, selected }: Appo
       <span className="block text-[10px] opacity-80">{statusLabel}</span>
     </button>
   );
+
+  if (!tooltip) return button;
+
+  return <AppTooltip content={tooltip}>{button}</AppTooltip>;
 }

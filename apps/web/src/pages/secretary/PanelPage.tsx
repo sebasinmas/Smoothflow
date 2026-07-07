@@ -7,9 +7,11 @@ import { SecretaryShell } from "@/components/layout/SecretaryShell";
 import { AppointmentActionsDialog } from "@/components/secretary/AppointmentActionsDialog";
 import type { CalendarEventItem } from "@/components/calendar/calendar-utils";
 import { EmptyState } from "@/components/ui/EmptyState";
+import { AppTooltip } from "@/components/ui/Tooltip";
 import { LoadingState } from "@/components/ui/LoadingState";
 import { api } from "@/lib/api";
 import { formatDateTime } from "@/lib/utils";
+import { TOOLTIPS } from "@/lib/tooltips";
 import { useRealtime } from "@/contexts/RealtimeContext";
 
 function appointmentToEvent(appt: AppointmentDto): CalendarEventItem {
@@ -71,32 +73,41 @@ export default function SecretaryPanelPage() {
   return (
     <SecretaryShell title="Panel de control">
       <div className="grid gap-6 md:grid-cols-3">
-        <div className="rounded-xl border border-border bg-white p-6 shadow-card">
-          <p className="text-sm text-text-muted">Citas hoy</p>
-          <p className="text-3xl font-bold text-brand">{data?.items.length ?? 0}</p>
-        </div>
-        <div className="rounded-xl border border-border bg-white p-6 shadow-card">
-          <p className="text-sm text-text-muted">Confirmadas</p>
-          <p className="text-3xl font-bold text-success">{confirmed}</p>
-        </div>
-        <div className="rounded-xl border border-border bg-white p-6 shadow-card">
-          <p className="text-sm text-text-muted">Bloqueos</p>
-          <p className="text-3xl font-bold text-red-600">{blocked}</p>
-        </div>
+        <AppTooltip content={TOOLTIPS.secretary.kpiToday}>
+          <div className="cursor-help rounded-xl border border-border bg-white p-6 shadow-card">
+            <p className="text-sm text-text-muted">Citas hoy</p>
+            <p className="text-3xl font-bold text-brand">{data?.items.length ?? 0}</p>
+          </div>
+        </AppTooltip>
+        <AppTooltip content={TOOLTIPS.secretary.kpiConfirmed}>
+          <div className="cursor-help rounded-xl border border-border bg-white p-6 shadow-card">
+            <p className="text-sm text-text-muted">Confirmadas</p>
+            <p className="text-3xl font-bold text-success">{confirmed}</p>
+          </div>
+        </AppTooltip>
+        <AppTooltip content={TOOLTIPS.secretary.kpiBlocked}>
+          <div className="cursor-help rounded-xl border border-border bg-white p-6 shadow-card">
+            <p className="text-sm text-text-muted">Bloqueos</p>
+            <p className="text-3xl font-bold text-red-600">{blocked}</p>
+          </div>
+        </AppTooltip>
       </div>
 
       {pendingRequests.length > 0 && (
         <section className="mt-8" aria-labelledby="requests-heading">
           <h2 id="requests-heading" className="mb-4 text-lg font-semibold">
             Solicitudes de cancelación pendientes
-            <span className="ml-2 rounded-full bg-orange-100 px-2 py-0.5 text-sm font-semibold text-orange-800">
-              {pendingRequests.length}
-            </span>
+            <AppTooltip content={TOOLTIPS.secretary.pendingRequests(pendingRequests.length)}>
+              <span className="ml-2 cursor-help rounded-full bg-orange-100 px-2 py-0.5 text-sm font-semibold text-orange-800">
+                {pendingRequests.length}
+              </span>
+            </AppTooltip>
           </h2>
           <ul className="space-y-2">
             {pendingRequests.map((a) => (
               <li key={a.id}>
-                <button
+                <AppTooltip content={TOOLTIPS.secretary.pendingRequestRow}>
+                  <button
                   type="button"
                   onClick={() => {
                     setSelectedEvent(appointmentToEvent(a));
@@ -114,6 +125,7 @@ export default function SecretaryPanelPage() {
                     </span>
                   )}
                 </button>
+                </AppTooltip>
               </li>
             ))}
           </ul>

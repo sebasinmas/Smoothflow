@@ -1,12 +1,13 @@
 import { useRealtime } from "@/contexts/RealtimeContext";
 import { AppTooltip } from "@/components/ui/Tooltip";
+import { TOOLTIPS } from "@/lib/tooltips";
 
 const statusConfig = {
   connected: {
     label: "En vivo",
     dotClass: "bg-success",
     textClass: "text-success",
-    tooltip: "Sincronización en tiempo real activa",
+    tooltip: TOOLTIPS.layout.realtimeConnected,
     showLabel: false,
     pulse: false,
   },
@@ -14,7 +15,7 @@ const statusConfig = {
     label: "Reconectando…",
     dotClass: "bg-amber-500",
     textClass: "text-amber-700",
-    tooltip: "Reconectando sincronización en tiempo real",
+    tooltip: TOOLTIPS.layout.realtimeReconnecting,
     showLabel: true,
     pulse: true,
   },
@@ -22,7 +23,7 @@ const statusConfig = {
     label: "Sin conexión",
     dotClass: "bg-red-500",
     textClass: "text-red-700",
-    tooltip: "Sin conexión en tiempo real",
+    tooltip: TOOLTIPS.layout.realtimeOffline,
     showLabel: true,
     pulse: false,
   },

@@ -3,10 +3,12 @@ import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { AuthErrorBanner } from "@/components/auth/AuthErrorBanner";
 import { Button } from "@/components/ui/Button";
+import { AppTooltip } from "@/components/ui/Tooltip";
 import { Input } from "@/components/ui/Input";
 import { useLoginErrorFeedback } from "@/hooks/useLoginErrorFeedback";
 import { ApiError } from "@/lib/api";
 import { ROLE_HOME } from "@/lib/utils";
+import { TOOLTIPS } from "@/lib/tooltips";
 
 export default function LoginPage() {
   const { login } = useAuth();
@@ -79,9 +81,11 @@ export default function LoginPage() {
           Entorno seguro para clínicas · © 2026 Smooth Flow
         </p>
         <p className="mt-2 text-center text-sm">
-          <a href="/paciente/login" className="cursor-pointer text-brand underline">
-            Portal de pacientes
-          </a>
+          <AppTooltip content={TOOLTIPS.layout.patientPortalLink}>
+            <a href="/paciente/login" className="cursor-pointer text-brand underline">
+              Portal de pacientes
+            </a>
+          </AppTooltip>
         </p>
       </div>
     </div>
