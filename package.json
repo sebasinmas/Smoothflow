@@ -2,7 +2,7 @@
   "name": "smoothflow",
   "private": true,
   "scripts": {
-    "dev": "pnpm --parallel -r run dev",
+    "dev": "pnpm --filter @smoothflow/shared build && pnpm --parallel -r run dev",
     "build": "pnpm -r run build",
     "docker:up": "docker compose up --build -d",
     "docker:down": "docker compose down",

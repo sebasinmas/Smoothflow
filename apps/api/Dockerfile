@@ -11,13 +11,13 @@ RUN echo "node-linker=hoisted" >> .npmrc && \
 COPY apps/api apps/api
 COPY packages/shared packages/shared
 COPY tsconfig.base.json .
-RUN cd apps/api && ../../node_modules/.bin/tsc --project tsconfig.build.json
+RUN pnpm --filter @smoothflow/shared build
+RUN pnpm --filter @smoothflow/api build
+RUN pnpm --filter @smoothflow/api deploy --prod --legacy /deploy
 
 FROM node:22-alpine AS runner
 WORKDIR /app
 ENV NODE_ENV=production
-COPY --from=build /app/apps/api/dist ./dist
-COPY --from=build /app/apps/api/package.json .
-COPY --from=build /app/node_modules ./node_modules
+COPY --from=build /deploy .
 EXPOSE 3000
 CMD ["node", "dist/index.js"]
