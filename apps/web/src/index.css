@@ -4,6 +4,8 @@
 @theme {
   --color-brand: #003d9b;
   --color-brand-hover: #002d74;
+  --color-brand-mark: #185dc6;
+  --color-brand-mark-hover: #134da8;
   --color-surface: #f8f9fb;
   --color-surface-muted: #f3f4f6;
   --color-border: #c3c6d6;
@@ -89,6 +91,109 @@
 
   .shadow-card {
     box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.06), 0 1px 2px -1px rgb(0 0 0 / 0.06);
+  }
+
+  .focus-ring {
+    @apply outline-2 outline-offset-2 outline-brand;
+  }
+
+  .interactive {
+    @apply transition-all duration-200 hover:shadow-sm active:scale-[0.98];
+  }
+
+  .card {
+    @apply rounded-lg border border-border bg-white;
+    box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.06), 0 1px 2px -1px rgb(0 0 0 / 0.06);
+  }
+
+  .card-hover {
+    @apply transition-shadow duration-200 hover:border-brand/20 hover:shadow-md;
+  }
+
+  .auth-bg {
+    background-color: var(--color-surface);
+    background-image:
+      radial-gradient(ellipse 80% 50% at 50% -20%, rgb(24 93 198 / 0.08), transparent),
+      radial-gradient(circle at 100% 0%, rgb(24 93 198 / 0.04), transparent 40%);
+  }
+
+  .auth-bg::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background-image: radial-gradient(rgb(0 61 155 / 0.04) 1px, transparent 1px);
+    background-size: 24px 24px;
+    opacity: 0.5;
+    pointer-events: none;
+  }
+
+  .app-bg {
+    background-image: linear-gradient(to bottom, rgb(255 255 255 / 0.6), var(--color-surface));
+  }
+
+  .stagger-children > * {
+    animation: fade-in 0.4s ease-out both;
+  }
+
+  .stagger-children > *:nth-child(1) {
+    animation-delay: 0ms;
+  }
+
+  .stagger-children > *:nth-child(2) {
+    animation-delay: 75ms;
+  }
+
+  .stagger-children > *:nth-child(3) {
+    animation-delay: 150ms;
+  }
+
+  .stagger-children > *:nth-child(4) {
+    animation-delay: 225ms;
+  }
+
+  .stagger-children > *:nth-child(5) {
+    animation-delay: 300ms;
+  }
+
+  .stagger-children > *:nth-child(6) {
+    animation-delay: 375ms;
+  }
+
+  .stagger-children > *:nth-child(7) {
+    animation-delay: 450ms;
+  }
+
+  .stagger-children > *:nth-child(8) {
+    animation-delay: 525ms;
+  }
+
+  @keyframes spinner {
+    to {
+      transform: rotate(360deg);
+    }
+  }
+
+  .btn-spinner {
+    width: 1rem;
+    height: 1rem;
+    border: 2px solid currentColor;
+    border-right-color: transparent;
+    border-radius: 50%;
+    animation: spinner 0.6s linear infinite;
+  }
+
+  @keyframes unread-pulse {
+    0%,
+    100% {
+      transform: scale(1);
+    }
+    50% {
+      transform: scale(1.08);
+    }
+  }
+
+  .unread-pulse {
+    animation: unread-pulse 2s ease-in-out infinite;
   }
 
   @keyframes fade-in {

@@ -77,7 +77,7 @@ export function Input({
           type={isPassword && visible ? "text" : type}
           aria-invalid={!!error}
           aria-describedby={error ? `${inputId}-error` : undefined}
-          className={`h-12 w-full rounded border border-border bg-white text-sm text-text transition-colors duration-200 placeholder:text-text-muted hover:border-brand/40 focus-visible:border-brand ${
+          className={`h-12 w-full rounded border border-border bg-white text-sm text-text transition-colors duration-200 placeholder:text-text-muted hover:border-brand/30 focus-visible:border-brand focus-visible:ring-2 focus-visible:ring-brand/20 ${
             errorPulse ? "login-input-error" : ""
           } ${hasStartIcon ? "pl-10" : "px-3"} ${hasToggle ? "pr-10" : hasStartIcon ? "pr-3" : ""} ${className}`}
           {...props}

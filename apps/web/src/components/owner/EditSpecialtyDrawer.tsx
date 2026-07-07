@@ -99,7 +99,7 @@ export function EditSpecialtyDrawer({
               placeholder="Breve descripción de la especialidad"
               maxLength={300}
               rows={3}
-              className="w-full resize-none rounded-lg border border-border bg-white px-3 py-2 text-sm text-text placeholder:text-text-muted focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand"
+              className="w-full resize-none rounded-lg border border-border bg-white px-3 py-2 text-sm text-text placeholder:text-text-muted transition-colors duration-200 hover:border-brand/30 focus-visible:border-brand focus-visible:ring-2 focus-visible:ring-brand/20"
             />
           </div>
           {formError && (

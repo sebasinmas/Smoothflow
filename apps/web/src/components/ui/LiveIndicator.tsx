@@ -9,7 +9,7 @@ const statusConfig = {
     textClass: "text-success",
     tooltip: TOOLTIPS.layout.realtimeConnected,
     showLabel: false,
-    pulse: false,
+    pulse: true,
   },
   reconnecting: {
     label: "Reconectando…",

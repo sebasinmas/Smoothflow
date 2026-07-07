@@ -1,10 +1,11 @@
-import { NavLink, useNavigate } from "react-router-dom";
+import { NavLink, useMatch, useNavigate } from "react-router-dom";
 import { LogOut, Plus } from "lucide-react";
 import type { Role } from "@smoothflow/shared";
 import { ROLE_LABELS } from "@smoothflow/shared";
 import { useAuth } from "@/contexts/AuthContext";
 import { useSidebar } from "@/contexts/SidebarContext";
 import { Button } from "@/components/ui/Button";
+import { Logo } from "@/components/ui/Logo";
 import { AppTooltip } from "@/components/ui/Tooltip";
 import { getNavIcon } from "@/lib/navigation";
 import { TOOLTIPS } from "@/lib/tooltips";
@@ -31,6 +32,7 @@ function NavLinkItem({
   onNavigate: () => void;
 }) {
   const Icon = getNavIcon(item.to);
+  const isActive = !!useMatch({ path: item.to, end: true });
   return (
     <li>
       <AppTooltip content={item.label} isDisabled={isExpanded}>
@@ -38,13 +40,12 @@ function NavLinkItem({
           to={item.to}
           onClick={onNavigate}
           aria-label={item.label}
-          className={({ isActive }) =>
-            `group flex cursor-pointer items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition-all duration-200 ${
-              isActive
-                ? "bg-brand/10 font-medium text-brand shadow-sm"
-                : "text-text hover:bg-surface-muted hover:translate-x-0.5"
-            } ${isExpanded ? "" : "justify-center px-2"}`
-          }
+          aria-current={isActive ? "page" : undefined}
+          className={`group flex cursor-pointer items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition-all duration-200 ${
+            isActive
+              ? "bg-brand/10 font-medium text-brand shadow-sm"
+              : "text-text hover:bg-surface-muted hover:translate-x-0.5"
+          } ${isExpanded ? "" : "justify-center px-2"}`}
         >
           <Icon
             className="size-[18px] shrink-0 transition-transform duration-200 group-hover:scale-110"
@@ -98,12 +99,7 @@ export function SideNav({ userRole, items, bottomNavItems, primaryAction }: Side
           }`}
         >
           <AppTooltip content={TOOLTIPS.layout.logo(ROLE_LABELS[userRole])} isDisabled={isExpanded}>
-            <div
-              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-brand text-sm font-bold text-white shadow-sm"
-              aria-hidden="true"
-            >
-              SF
-            </div>
+            <Logo size="sm" className="shrink-0" />
           </AppTooltip>
           <div
             className={`min-w-0 overflow-hidden transition-all duration-300 ${

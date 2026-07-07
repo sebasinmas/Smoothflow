@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { AuthErrorBanner } from "@/components/auth/AuthErrorBanner";
+import { AuthLayout } from "@/components/layout/AuthLayout";
 import { Button } from "@/components/ui/Button";
 import { AppTooltip } from "@/components/ui/Tooltip";
 import { Input } from "@/components/ui/Input";
@@ -43,51 +44,43 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-surface px-4">
-      <div className="w-full max-w-md">
-        <div className="rounded-lg border border-border bg-white p-10 shadow-sm">
-          <div className="mb-8 text-center">
-            <h1 className="text-2xl font-bold text-brand">Smooth Flow</h1>
-            <p className="mt-2 text-text-muted">Inicia sesión para comenzar</p>
-          </div>
-          <form onSubmit={handleSubmit} className="space-y-4" noValidate>
-            <Input
-              label="Email"
-              type="email"
-              autoComplete="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="Ingrese su email"
-              errorPulse={inputPulse}
-              required
-            />
-            <Input
-              label="Contraseña"
-              type="password"
-              autoComplete="current-password"
-              placeholder="Ingrese su contraseña"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              errorPulse={inputPulse}
-              required
-            />
-            <AuthErrorBanner message={message} visible={showMessage} />
-            <Button type="submit" className="w-full" loading={loading}>
-              Acceder al portal
-            </Button>
-          </form>
-        </div>
-        <p className="mt-4 text-center text-xs text-text-muted">
-          Entorno seguro para clínicas · © 2026 Smooth Flow
-        </p>
-        <p className="mt-2 text-center text-sm">
-          <AppTooltip content={TOOLTIPS.layout.patientPortalLink}>
-            <a href="/paciente/login" className="cursor-pointer text-brand underline">
-              Portal de pacientes
-            </a>
-          </AppTooltip>
-        </p>
-      </div>
-    </div>
+    <AuthLayout subtitle="Inicia sesión para comenzar">
+      <form onSubmit={handleSubmit} className="stagger-children space-y-4" noValidate>
+        <Input
+          label="Email"
+          type="email"
+          autoComplete="email"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          placeholder="Ingrese su email"
+          errorPulse={inputPulse}
+          required
+        />
+        <Input
+          label="Contraseña"
+          type="password"
+          autoComplete="current-password"
+          placeholder="Ingrese su contraseña"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          errorPulse={inputPulse}
+          required
+        />
+        <AuthErrorBanner message={message} visible={showMessage} />
+        <Button type="submit" className="w-full" loading={loading}>
+          Acceder al portal
+        </Button>
+      </form>
+      <p className="mt-4 text-center text-sm">
+        <AppTooltip content={TOOLTIPS.layout.patientPortalLink}>
+          <a
+            href="/paciente/login"
+            className="cursor-pointer text-brand underline decoration-brand/30 underline-offset-2 transition-colors hover:decoration-brand focus-visible:underline"
+          >
+            Portal de pacientes
+          </a>
+        </AppTooltip>
+      </p>
+    </AuthLayout>
   );
 }
