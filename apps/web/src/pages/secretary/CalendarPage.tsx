@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
-import { ChevronLeft, ChevronRight, RefreshCw, CalendarOff } from "lucide-react";
+import { ChevronLeft, ChevronRight, RefreshCw, CalendarOff, SlidersHorizontal, X } from "lucide-react";
 import { toast } from "sonner";
 import type { AppointmentDto, AvailabilitySlotDto } from "@smoothflow/shared";
 import { SecretaryShell } from "@/components/layout/SecretaryShell";
@@ -32,7 +32,12 @@ function startOfToday(): Date {
 
 export default function SecretaryCalendarPage() {
   const { lastEvent } = useRealtime();
-  const [view, setView] = useState<"week" | "day">("week");
+  const [view, setView] = useState<"week" | "day">(() =>
+    typeof window !== "undefined" && window.matchMedia("(max-width: 767px)").matches
+      ? "day"
+      : "week",
+  );
+  const [filtersOpen, setFiltersOpen] = useState(false);
   const [anchorDate, setAnchorDate] = useState(() => startOfToday());
   const [selectedPractitioner, setSelectedPractitioner] = useState("");
   const [createOpen, setCreateOpen] = useState(false);
@@ -196,7 +201,7 @@ export default function SecretaryCalendarPage() {
     >
       <div className="flex min-h-0 flex-1 flex-col">
         <CalendarToolbar>
-          <div className="flex w-full flex-wrap items-center gap-x-4 gap-y-2">
+          <div className="flex w-full flex-wrap items-center gap-x-3 gap-y-2">
             <div className="flex items-center gap-2">
               <AppTooltip content={view === "week" ? TOOLTIPS.calendar.navPrevWeek : TOOLTIPS.calendar.navPrevDay}>
                 <Button
@@ -227,12 +232,49 @@ export default function SecretaryCalendarPage() {
               </AppTooltip>
             </div>
 
-            <p className="min-w-40 text-sm font-semibold capitalize text-text">{rangeLabel}</p>
+            <p className="min-w-32 flex-1 text-sm font-semibold capitalize text-text">{rangeLabel}</p>
+
+            {/* Vista día/semana: siempre visible junto a la navegación en móvil */}
+            <div className="md:hidden">
+              <AppTooltip content={view === "week" ? TOOLTIPS.calendar.viewWeek : TOOLTIPS.calendar.viewDay}>
+                <div>
+                  <SegmentedControl
+                    value={view}
+                    options={[
+                      { value: "week", label: "Semana" },
+                      { value: "day", label: "Día" },
+                    ]}
+                    onChange={(v) => handleViewChange(v as "week" | "day")}
+                  />
+                </div>
+              </AppTooltip>
+            </div>
+
+            {/* Botón para expandir/contraer los filtros en móvil */}
+            <AppTooltip content={filtersOpen ? "Ocultar filtros" : "Mostrar filtros"}>
+              <Button
+                variant="secondary"
+                className="size-9 px-0 md:hidden"
+                onClick={() => setFiltersOpen((v) => !v)}
+                aria-label={filtersOpen ? "Ocultar filtros" : "Mostrar filtros"}
+                aria-expanded={filtersOpen}
+              >
+                {filtersOpen ? (
+                  <X className="size-[18px] shrink-0" aria-hidden="true" />
+                ) : (
+                  <SlidersHorizontal className="size-[18px] shrink-0" aria-hidden="true" />
+                )}
+              </Button>
+            </AppTooltip>
           </div>
 
-          <div className="flex w-full flex-wrap items-center gap-3">
+          <div
+            className={`w-full flex-wrap items-center gap-3 ${
+              filtersOpen ? "flex" : "hidden"
+            } md:flex`}
+          >
             <AppTooltip content={TOOLTIPS.calendar.filterPractitioner}>
-              <div>
+              <div className="w-full sm:w-auto">
                 <Select
                   label="Filtrar por médico"
                   hideLabel
@@ -249,12 +291,13 @@ export default function SecretaryCalendarPage() {
                 </span>
               </AppTooltip>
             )}
-            <div className="ml-auto flex flex-wrap items-center gap-3">
+            <div className="ml-auto flex w-full flex-wrap items-center gap-3 sm:w-auto">
               <AppTooltip content={TOOLTIPS.calendar.createReservation}>
-                <Button onClick={() => openCreateDialog()}>Crear reservación</Button>
+                <Button className="flex-1 sm:flex-none" onClick={() => openCreateDialog()}>Crear reservación</Button>
               </AppTooltip>
+              {/* Vista día/semana en desktop (en móvil ya se muestra arriba) */}
               <AppTooltip content={view === "week" ? TOOLTIPS.calendar.viewWeek : TOOLTIPS.calendar.viewDay}>
-                <div>
+                <div className="hidden md:block">
                   <SegmentedControl
                     value={view}
                     options={[
@@ -266,7 +309,7 @@ export default function SecretaryCalendarPage() {
                 </div>
               </AppTooltip>
               <AppTooltip content={TOOLTIPS.calendar.blockAgenda}>
-                <Button variant="secondary" onClick={() => setBlockOpen(true)}>
+                <Button variant="secondary" className="flex-1 sm:flex-none" onClick={() => setBlockOpen(true)}>
                   Bloquear agenda
                 </Button>
               </AppTooltip>

@@ -84,6 +84,7 @@ export const {
   reviewCancellationRequest,
   createBlock,
   getAvailability,
+  getAvailabilityForUser,
 } = appointmentUseCases;
 export const {
   listStaff,

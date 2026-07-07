@@ -22,6 +22,7 @@ const NAV_ICONS: Record<string, LucideIcon> = {
   "/secretary/calendar": Calendar,
   "/secretary/patients": Users,
   "/secretary/requests": ClipboardList,
+  "/doctor/dashboard": LayoutDashboard,
   "/doctor/calendar": Calendar,
   "/doctor/history": History,
   "/owner/staff": UserCog,
@@ -44,6 +45,7 @@ export const SECRETARIA_NAV: NavItem[] = [
 ];
 
 export const DOCTOR_NAV: NavItem[] = [
+  { to: "/doctor/dashboard", label: "Panel" },
   { to: "/doctor/calendar", label: "Agenda del día" },
   { to: "/doctor/history", label: "Historial" },
 ];

@@ -1,15 +1,9 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { Bell } from "lucide-react";
+import { Bell, CheckCheck } from "lucide-react";
 import { AppTooltip } from "@/components/ui/Tooltip";
 import { useRealtime } from "@/contexts/RealtimeContext";
 import { TOOLTIPS } from "@/lib/tooltips";
-
-const statusColors = {
-  connected: "bg-success",
-  reconnecting: "bg-yellow-500",
-  offline: "bg-gray-400",
-};
 
 const statusTooltips = {
   connected: TOOLTIPS.layout.realtimeConnected,
@@ -73,7 +67,6 @@ export function NotificationBell() {
   }, [open]);
 
   const handleToggle = () => {
-    if (!open && unreadCount > 0) markAllRead();
     setOpen((v) => !v);
   };
 
@@ -97,10 +90,6 @@ export function NotificationBell() {
           aria-haspopup="true"
         >
           <Bell className="size-[18px]" aria-hidden="true" />
-          <span
-            className={`absolute bottom-1.5 right-1.5 size-2 rounded-full border border-white ${statusColors[status]}`}
-            aria-hidden="true"
-          />
           {unreadCount > 0 && (
             <span className="unread-pulse absolute -right-1 -top-1 flex size-4 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white">
               {unreadCount > 9 ? "9+" : unreadCount}
@@ -119,13 +108,26 @@ export function NotificationBell() {
           >
             <div className="flex items-center justify-between border-b border-border px-4 py-3">
               <h2 className="text-sm font-semibold text-text">Notificaciones</h2>
-              <span className="text-xs text-text-muted">
-                {status === "connected"
-                  ? "Conectado"
-                  : status === "reconnecting"
-                    ? "Reconectando…"
-                    : "Sin conexión"}
-              </span>
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-text-muted">
+                  {status === "connected"
+                    ? "Conectado"
+                    : status === "reconnecting"
+                      ? "Reconectando…"
+                      : "Sin conexión"}
+                </span>
+                <AppTooltip content="Marcar todas como leídas">
+                  <button
+                    type="button"
+                    onClick={markAllRead}
+                    disabled={unreadCount === 0}
+                    aria-label="Marcar todas las notificaciones como leídas"
+                    className="inline-flex size-7 shrink-0 items-center justify-center rounded-full border border-border text-text-muted transition-colors hover:border-brand/30 hover:bg-surface-muted hover:text-brand disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:border-border disabled:hover:bg-transparent disabled:hover:text-text-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
+                  >
+                    <CheckCheck className="size-4" aria-hidden="true" />
+                  </button>
+                </AppTooltip>
+              </div>
             </div>
             <ul className="max-h-72 overflow-y-auto">
               {notifications.length === 0 ? (
