@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { ZoomIn, ZoomOut } from "lucide-react";
 import type { AppointmentStatus, SlotStatus } from "@smoothflow/shared";
 import { SLOT_STATUS_LABELS } from "@smoothflow/shared";
 import { CurrentTimeIndicator } from "@/components/calendar/CurrentTimeLine";
@@ -26,6 +27,10 @@ import { TOOLTIPS } from "@/lib/tooltips";
 
 const TIME_COL_WIDTH = "4.5rem";
 const EVENT_GAP_PX = 2;
+const HEADER_HEIGHT = 72;
+const MIN_ROW_HEIGHT = 22;
+const MAX_FIT_ROW_HEIGHT = 64;
+const ZOOM_LEVELS = [1, 1.25, 1.5, 2, 2.5, 3];
 
 const eventStyles: Record<SlotStatus, string> = {
   disponible: "bg-slot-available border-l-slot-available-border text-green-900",
@@ -75,6 +80,7 @@ interface ScheduleCalendarProps {
 function CalendarEventBlock({
   event,
   dayStartMinutes,
+  rowHeight,
   layout,
   onClick,
   compact,
@@ -82,13 +88,14 @@ function CalendarEventBlock({
 }: {
   event: CalendarEventItem;
   dayStartMinutes: number;
+  rowHeight: number;
   layout?: EventLayout;
   onClick?: () => void;
   compact?: boolean;
   showPractitionerBadge?: boolean;
 }) {
-  const top = eventTop(event.startAt, dayStartMinutes);
-  const height = eventHeight(event.startAt, event.endAt);
+  const top = eventTop(event.startAt, dayStartMinutes, rowHeight);
+  const height = eventHeight(event.startAt, event.endAt, rowHeight);
   const statusLabel = SLOT_STATUS_LABELS[event.status];
   const subStatusStyle =
     (event.appointmentStatus && appointmentStatusStyles[event.appointmentStatus]) ?? "";
@@ -107,9 +114,9 @@ function CalendarEventBlock({
       type="button"
       onClick={onClick}
       disabled={!interactive}
-      className={`group absolute z-1 flex flex-col overflow-hidden rounded-lg border-l-[3px] px-2 py-1 text-left shadow-sm transition-all duration-150 ${compact ? "text-[9px]" : ""} ${eventStyles[event.status]} ${subStatusStyle} ${
+      className={`group absolute z-1 flex flex-col overflow-hidden rounded-lg border-l-4 px-2 py-1 text-left shadow-sm transition-all duration-150 ${compact ? "text-[9px]" : ""} ${eventStyles[event.status]} ${subStatusStyle} ${
         interactive
-          ? "cursor-pointer hover:-translate-y-px hover:shadow-md focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-brand"
+          ? "cursor-pointer hover:z-2 hover:-translate-y-px hover:shadow-md hover:ring-2 hover:ring-brand/20 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-brand"
           : "cursor-default"
       }`}
       style={{
@@ -168,12 +175,33 @@ export function ScheduleCalendar({
 }: ScheduleCalendarProps) {
   const { dayStartMinutes, dayEndMinutes } = computeTimeRange(events);
   const totalRows = (dayEndMinutes - dayStartMinutes) / MINUTES_PER_ROW;
-  const gridHeight = totalRows * ROW_HEIGHT;
   const today = new Date();
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const didAutoScrollRef = useRef(false);
   const [userHasScrolled, setUserHasScrolled] = useState(false);
+  const [availableHeight, setAvailableHeight] = useState(0);
+  const [zoomIndex, setZoomIndex] = useState(0);
   const compact = days.length > 3;
+
+  useLayoutEffect(() => {
+    const container = scrollRef.current;
+    if (!container) return;
+    const measure = () => setAvailableHeight(container.clientHeight);
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(container);
+    return () => observer.disconnect();
+  }, []);
+
+  const zoom = ZOOM_LEVELS[zoomIndex];
+  const fitRowHeight = availableHeight
+    ? Math.min(
+        Math.max((availableHeight - HEADER_HEIGHT) / totalRows, MIN_ROW_HEIGHT),
+        MAX_FIT_ROW_HEIGHT,
+      )
+    : ROW_HEIGHT;
+  const rowHeight = fitRowHeight * zoom;
+  const gridHeight = totalRows * rowHeight;
 
   const hourLabels: number[] = [];
   for (let m = dayStartMinutes; m < dayEndMinutes; m += MINUTES_PER_ROW) {
@@ -198,13 +226,53 @@ export function ScheduleCalendar({
     if (didAutoScrollRef.current || userHasScrolled || !showTimeInGutter) return;
     const container = scrollRef.current;
     if (!container) return;
-    const target = minutesToTop(minutesSinceMidnight(new Date()), dayStartMinutes);
+    const target = minutesToTop(
+      minutesSinceMidnight(new Date()),
+      dayStartMinutes,
+      rowHeight,
+    );
     container.scrollTop = Math.max(0, target - container.clientHeight / 3);
     didAutoScrollRef.current = true;
-  }, [showTimeInGutter, dayStartMinutes, userHasScrolled]);
+  }, [showTimeInGutter, dayStartMinutes, userHasScrolled, rowHeight]);
 
   return (
     <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden rounded-2xl border border-border bg-white shadow-card">
+      <div className="flex shrink-0 items-center justify-end border-b border-border bg-surface-muted/20 px-3 py-1.5">
+        <div className="flex items-center gap-1 rounded-lg border border-border bg-surface p-0.5">
+          <AppTooltip content="Alejar">
+            <button
+              type="button"
+              onClick={() => setZoomIndex((i) => Math.max(0, i - 1))}
+              disabled={zoomIndex === 0}
+              aria-label="Alejar"
+              className="flex size-7 items-center justify-center rounded-md text-text-muted transition-colors hover:bg-surface-muted hover:text-text disabled:cursor-not-allowed disabled:opacity-40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
+            >
+              <ZoomOut className="size-4" aria-hidden="true" />
+            </button>
+          </AppTooltip>
+          <AppTooltip content="Ajustar al viewport">
+            <button
+              type="button"
+              onClick={() => setZoomIndex(0)}
+              aria-label="Ajustar al viewport"
+              className="min-w-14 rounded-md px-1.5 py-1 text-center text-[11px] font-semibold tabular-nums text-text transition-colors hover:bg-surface-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
+            >
+              {zoomIndex === 0 ? "Ajustar" : `${Math.round(zoom * 100)}%`}
+            </button>
+          </AppTooltip>
+          <AppTooltip content="Acercar">
+            <button
+              type="button"
+              onClick={() => setZoomIndex((i) => Math.min(ZOOM_LEVELS.length - 1, i + 1))}
+              disabled={zoomIndex === ZOOM_LEVELS.length - 1}
+              aria-label="Acercar"
+              className="flex size-7 items-center justify-center rounded-md text-text-muted transition-colors hover:bg-surface-muted hover:text-text disabled:cursor-not-allowed disabled:opacity-40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
+            >
+              <ZoomIn className="size-4" aria-hidden="true" />
+            </button>
+          </AppTooltip>
+        </div>
+      </div>
       <div
         ref={scrollRef}
         className={`min-h-0 flex-1 overflow-auto transition-opacity duration-200 ${isRefreshing ? "opacity-60" : ""}`}
@@ -283,7 +351,7 @@ export function ScheduleCalendar({
                 <span
                   key={minutes}
                   className="absolute right-2 -translate-y-1/2 text-[11px] font-medium tabular-nums text-text-muted"
-                  style={{ top: i * ROW_HEIGHT }}
+                  style={{ top: i * rowHeight }}
                 >
                   {formatHourLabel(minutes)}
                 </span>
@@ -311,7 +379,7 @@ export function ScheduleCalendar({
                     className={`absolute inset-x-0 ${
                       minutes % 60 === 0 ? "border-t border-border/50" : "border-t border-border/25"
                     }`}
-                    style={{ top: i * ROW_HEIGHT, height: ROW_HEIGHT }}
+                    style={{ top: i * rowHeight, height: rowHeight }}
                   />
                 ))}
 
@@ -326,6 +394,7 @@ export function ScheduleCalendar({
                     key={event.id}
                     event={event}
                     dayStartMinutes={dayStartMinutes}
+                    rowHeight={rowHeight}
                     layout={dayLayouts.get(event.id)}
                     onClick={onEventClick ? () => onEventClick(event) : undefined}
                     compact={compact}
@@ -341,6 +410,7 @@ export function ScheduleCalendar({
               dayStartMinutes={dayStartMinutes}
               dayEndMinutes={dayEndMinutes}
               gutterWidth={TIME_COL_WIDTH}
+              rowHeight={rowHeight}
             />
           )}
         </div>

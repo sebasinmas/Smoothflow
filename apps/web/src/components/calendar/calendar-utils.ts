@@ -116,19 +116,31 @@ export function practitionerInitials(name: string): string {
   return `${parts[0][0]}${parts[parts.length - 1][0]}`.toUpperCase();
 }
 
-export function minutesToTop(minutes: number, dayStartMinutes: number): number {
-  return ((minutes - dayStartMinutes) / MINUTES_PER_ROW) * ROW_HEIGHT;
+export function minutesToTop(
+  minutes: number,
+  dayStartMinutes: number,
+  rowHeight: number = ROW_HEIGHT,
+): number {
+  return ((minutes - dayStartMinutes) / MINUTES_PER_ROW) * rowHeight;
 }
 
-export function eventTop(startAt: string, dayStartMinutes: number): number {
-  return minutesToTop(parseIsoMinutes(startAt), dayStartMinutes);
+export function eventTop(
+  startAt: string,
+  dayStartMinutes: number,
+  rowHeight: number = ROW_HEIGHT,
+): number {
+  return minutesToTop(parseIsoMinutes(startAt), dayStartMinutes, rowHeight);
 }
 
-export function eventHeight(startAt: string, endAt: string): number {
+export function eventHeight(
+  startAt: string,
+  endAt: string,
+  rowHeight: number = ROW_HEIGHT,
+): number {
   const start = parseIsoMinutes(startAt);
   const end = parseIsoMinutes(endAt);
   const duration = Math.max(end - start, MINUTES_PER_ROW);
-  return (duration / MINUTES_PER_ROW) * ROW_HEIGHT;
+  return (duration / MINUTES_PER_ROW) * rowHeight;
 }
 
 function formatDoctorSublabel(practitionerName: string, specialtyName?: string): string {
