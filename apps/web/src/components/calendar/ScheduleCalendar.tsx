@@ -23,12 +23,14 @@ import {
   minutesToTop,
   practitionerInitials,
 } from "@/components/calendar/calendar-utils";
+import { useIsMobile } from "@/hooks/useMediaQuery";
 import { TOOLTIPS } from "@/lib/tooltips";
 
 const TIME_COL_WIDTH = "4.5rem";
 const EVENT_GAP_PX = 2;
 const HEADER_HEIGHT = 72;
 const MIN_ROW_HEIGHT = 22;
+const MIN_ROW_HEIGHT_MOBILE = 36;
 const MAX_FIT_ROW_HEIGHT = 64;
 const ZOOM_LEVELS = [1, 1.25, 1.5, 2, 2.5, 3];
 
@@ -173,6 +175,7 @@ export function ScheduleCalendar({
   showPractitionerBadge = false,
   isRefreshing = false,
 }: ScheduleCalendarProps) {
+  const isMobile = useIsMobile();
   const { dayStartMinutes, dayEndMinutes } = computeTimeRange(events);
   const totalRows = (dayEndMinutes - dayStartMinutes) / MINUTES_PER_ROW;
   const today = new Date();
@@ -194,9 +197,10 @@ export function ScheduleCalendar({
   }, []);
 
   const zoom = ZOOM_LEVELS[zoomIndex];
+  const minRowHeight = isMobile ? MIN_ROW_HEIGHT_MOBILE : MIN_ROW_HEIGHT;
   const fitRowHeight = availableHeight
     ? Math.min(
-        Math.max((availableHeight - HEADER_HEIGHT) / totalRows, MIN_ROW_HEIGHT),
+        Math.max((availableHeight - HEADER_HEIGHT) / totalRows, minRowHeight),
         MAX_FIT_ROW_HEIGHT,
       )
     : ROW_HEIGHT;
@@ -215,7 +219,7 @@ export function ScheduleCalendar({
 
   const layoutsByDay = eventsByDay.map((dayEvents) => computeDayEventLayouts(dayEvents));
 
-  const dayColMin = days.length > 1 ? "8rem" : "0";
+  const dayColMin = days.length > 1 ? (isMobile ? "6.5rem" : "8rem") : "0";
   const gridTemplateColumns = `${TIME_COL_WIDTH} repeat(${days.length}, minmax(${dayColMin}, 1fr))`;
   const todayVisible = days.some((day) => isSameDay(day, today));
   const nowMinutes = minutesSinceMidnight(today);

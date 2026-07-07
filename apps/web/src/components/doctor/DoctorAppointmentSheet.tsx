@@ -61,6 +61,9 @@ export function DoctorAppointmentSheet({
   // Marcar asistencia solo tiene sentido cerca o después del inicio de la cita.
   const attendanceEnabled =
     isActionable && Date.now() >= new Date(event.startAt).getTime() - ATTENDANCE_WINDOW_MS;
+  // No se puede cancelar una cita una vez iniciada la sesión.
+  const sessionStarted = Date.now() >= new Date(event.startAt).getTime();
+  const canRequestCancellation = isActionable && !sessionStarted;
   const cancellationReasonValid = reason.trim().length >= 10;
 
   const handleClose = (open: boolean) => {
@@ -125,16 +128,18 @@ export function DoctorAppointmentSheet({
                   </Button>
                 </span>
               </AppTooltip>
-              <AppTooltip content={TOOLTIPS.doctor.requestCancel}>
-                <Button
-                  variant="danger"
-                  size="lg"
-                  className="flex-1 sm:flex-none"
-                  onClick={() => setPendingAction("solicitar_cancelacion")}
-                >
-                  Cancelar hora
-                </Button>
-              </AppTooltip>
+              {canRequestCancellation && (
+                <AppTooltip content={TOOLTIPS.doctor.requestCancel}>
+                  <Button
+                    variant="danger"
+                    size="lg"
+                    className="flex-1 sm:flex-none"
+                    onClick={() => setPendingAction("solicitar_cancelacion")}
+                  >
+                    Cancelar hora
+                  </Button>
+                </AppTooltip>
+              )}
             </>
           )}
           {pendingAction === "solicitar_cancelacion" && (
@@ -196,8 +201,16 @@ export function DoctorAppointmentSheet({
 
       {isActionable && !attendanceEnabled && pendingAction === null && (
         <p className="mt-3 text-xs text-text-muted">
-          Las acciones de asistencia se habilitan 15 minutos antes del inicio de la cita. Para
-          cancelar antes, use "Cancelar hora".
+          Las acciones de asistencia se habilitan 15 minutos antes del inicio de la cita.
+          {canRequestCancellation
+            ? ' Para cancelar antes, use "Cancelar hora".'
+            : ""}
+        </p>
+      )}
+
+      {isActionable && sessionStarted && pendingAction === null && (
+        <p className="mt-3 text-xs text-text-muted">
+          La cita ya inició; no es posible cancelarla. Registre la asistencia del paciente.
         </p>
       )}
 

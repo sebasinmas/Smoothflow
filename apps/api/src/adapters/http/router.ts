@@ -7,7 +7,7 @@ import auditRoutes from "./routes/audit.js";
 import fhirRoutes from "./routes/fhir.js";
 import { requireAuth, loadSessionUser } from "./middleware/auth.js";
 import { availabilityQuerySchema } from "@smoothflow/shared";
-import { getAvailability, listSpecialties } from "../../composition/container.js";
+import { getAvailability, getAvailabilityForUser, listSpecialties } from "../../composition/container.js";
 import { ValidationError } from "../../domain/errors.js";
 import type { AuthenticatedRequest } from "./middleware/auth.js";
 
@@ -22,11 +22,13 @@ apiRouter.use("/auth", authRoutes);
 apiRouter.get("/availability", async (req, res, next) => {
   try {
     const query = availabilityQuerySchema.parse(req.query);
-    let clinicId = req.query.clinicId as string | undefined;
-    if (!clinicId && req.session.userId) {
-      const user = await loadSessionUser(req);
-      clinicId = user?.clinicId ?? undefined;
+    const user = req.session.userId ? await loadSessionUser(req) : null;
+    if (user && user.clinicId) {
+      const slots = await getAvailabilityForUser(user, query);
+      res.json({ slots });
+      return;
     }
+    let clinicId = req.query.clinicId as string | undefined;
     clinicId = clinicId || process.env.DEFAULT_CLINIC_ID;
     if (!clinicId) throw new ValidationError("clinicId requerido");
     const slots = await getAvailability(clinicId, query);

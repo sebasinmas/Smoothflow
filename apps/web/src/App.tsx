@@ -9,6 +9,7 @@ import SecretaryPanelPage from "@/pages/secretary/PanelPage";
 import SecretaryCalendarPage from "@/pages/secretary/CalendarPage";
 import SecretaryPatientsPage from "@/pages/secretary/PatientsPage";
 import SecretaryRequestsPage from "@/pages/secretary/RequestsPage";
+import DoctorDashboardPage from "@/pages/doctor/DashboardPage";
 import DoctorCalendarPage from "@/pages/doctor/CalendarPage";
 import DoctorHistoryPage from "@/pages/doctor/HistoryPage";
 import OwnerStaffPage from "@/pages/owner/StaffPage";
@@ -72,7 +73,15 @@ export default function App() {
                 path="/doctor"
                 element={
                   <RealtimeProvider>
-                    <Navigate to="/doctor/calendar" replace />
+                    <Navigate to="/doctor/dashboard" replace />
+                  </RealtimeProvider>
+                }
+              />
+              <Route
+                path="/doctor/dashboard"
+                element={
+                  <RealtimeProvider>
+                    <DoctorDashboardPage />
                   </RealtimeProvider>
                 }
               />

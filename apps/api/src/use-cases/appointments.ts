@@ -439,9 +439,27 @@ export function createAppointmentUseCases(deps: AppointmentUseCasesDeps) {
     }
 
     const now = Date.now();
-    const validSlots = allSlots.filter((s) => new Date(s.startAt).getTime() > now);
+    // Los slots libres pasados se ocultan (no se puede reservar en el pasado),
+    // pero las citas reservadas/bloqueadas en curso o pasadas siguen visibles
+    // para que puedan gestionarse (marcar asistencia, etc.).
+    const validSlots = allSlots.filter(
+      (s) => s.status !== "disponible" || new Date(s.startAt).getTime() > now,
+    );
 
     return validSlots.sort((a, b) => a.startAt.localeCompare(b.startAt));
+  }
+
+  async function getAvailabilityForUser(
+    user: SessionUser,
+    query: AvailabilityQuery,
+  ): Promise<AvailabilitySlotDto[]> {
+    const clinicId = requireClinic(user);
+    if (user.role === "medico") {
+      const practitioner = await practitioners.findByUserId(user.id);
+      if (!practitioner) return [];
+      return getAvailability(clinicId, { ...query, practitionerId: practitioner.id });
+    }
+    return getAvailability(clinicId, query);
   }
 
   return {
@@ -452,6 +470,7 @@ export function createAppointmentUseCases(deps: AppointmentUseCasesDeps) {
     reviewCancellationRequest,
     createBlock,
     getAvailability,
+    getAvailabilityForUser,
   };
 }
 
