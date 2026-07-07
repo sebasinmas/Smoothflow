@@ -16,6 +16,8 @@ interface CurrentTimeIndicatorProps {
 
   gutterWidth: string;
 
+  rowHeight?: number;
+
 }
 
 
@@ -44,6 +46,8 @@ export function CurrentTimeIndicator({
 
   gutterWidth,
 
+  rowHeight,
+
 }: CurrentTimeIndicatorProps) {
 
   const [now, setNow] = useState(() => new Date());
@@ -66,7 +70,7 @@ export function CurrentTimeIndicator({
 
 
 
-  const top = minutesToTop(nowMinutes, dayStartMinutes);
+  const top = minutesToTop(nowMinutes, dayStartMinutes, rowHeight);
 
   const timeLabel = formatCurrentTime(now);
 
