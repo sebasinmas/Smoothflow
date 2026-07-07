@@ -1,0 +1,49 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    networks:
+      - internal
+
+  api:
+    image: ghcr.io/${GHCR_OWNER}/smoothflow-api:${IMAGE_TAG:-latest}
+    restart: unless-stopped
+    env_file: .env
+    depends_on:
+      - postgres
+    networks:
+      - internal
+
+  web:
+    image: ghcr.io/${GHCR_OWNER}/smoothflow-web:${IMAGE_TAG:-latest}
+    restart: unless-stopped
+    depends_on:
+      - api
+    networks:
+      - traefik-public
+      - internal
+    labels:
+      - traefik.enable=true
+      - traefik.docker.network=traefik-public
+      - traefik.http.routers.smoothflow.rule=Host(`smoothflow.sebasinmas.site`)
+      - traefik.http.routers.smoothflow.entrypoints=websecure
+      - traefik.http.routers.smoothflow.tls=true
+      - traefik.http.routers.smoothflow.tls.certresolver=letsencrypt
+      - traefik.http.routers.smoothflow.service=smoothflow
+      - traefik.http.services.smoothflow.loadbalancer.server.port=80
+
+networks:
+  traefik-public:
+    external: true
+  internal:
+    driver: bridge
+
+volumes:
+  pgdata:
