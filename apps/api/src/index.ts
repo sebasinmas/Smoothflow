@@ -7,6 +7,7 @@ import apiRouter from "./adapters/http/router.js";
 import { createSessionMiddleware } from "./infrastructure/session/session.js";
 import { errorHandler } from "./adapters/http/middleware/error-handler.js";
 import { setupWebSocketServer } from "./adapters/ws/ws-server.js";
+import { runMigrations } from "./infrastructure/db/migrate.js";
 import { seedDatabase } from "./seed.js";
 import { pool } from "./infrastructure/db/client.js";
 
@@ -37,7 +38,12 @@ setupWebSocketServer(server);
 async function start() {
   try {
     await pool.query("SELECT 1");
-    await seedDatabase();
+    await runMigrations();
+
+    if (process.env.NODE_ENV !== "production") {
+      await seedDatabase();
+    }
+
     server.listen(port, () => {
       console.log(`[api] listening on http://localhost:${port}`);
     });
