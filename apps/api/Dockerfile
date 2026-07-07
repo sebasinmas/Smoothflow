@@ -13,6 +13,7 @@ COPY packages/shared packages/shared
 COPY tsconfig.base.json .
 RUN pnpm --filter @smoothflow/shared build
 RUN pnpm --filter @smoothflow/api build
+RUN cp -r apps/api/src/infrastructure/db/migrations apps/api/dist/infrastructure/db/migrations
 RUN pnpm --filter @smoothflow/api deploy --prod --legacy /deploy
 
 FROM node:22-alpine AS runner
